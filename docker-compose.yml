@@ -1,0 +1,41 @@
+version: "3"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: testserver.Dockerfile
+    restart: on-failure
+    container_name: muistot-compose-server
+    volumes:
+      - ./src/app:/code/app
+    ports:
+      - "127.0.0.1:5600:80"
+    networks:
+      - muistot-compose-net
+  db:
+    image: mariadb:latest
+    restart: on-failure
+    container_name: muistot-compose-testdb
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: test
+    ports:
+      - "127.0.0.1:5601:3306"
+    networks:
+      - muistot-compose-net
+  db-access:
+    image: adminer
+    restart: on-failure
+    container_name: muistot-compose-dbview
+    ports:
+      - "127.0.0.1:5602:8080"
+    networks:
+      - muistot-compose-net
+
+networks:
+  muistot-compose-net:
+
+volumes:
+  muistot-testdb:
+    external: true

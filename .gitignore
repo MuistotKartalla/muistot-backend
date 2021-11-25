@@ -1,0 +1,14 @@
+# Some mac file that some people sometimes commit
+.DS_Store
+# IntelliJ
+.idea
+*.iml
+# Python
+venv
+# Possible build output
+out
+target
+
+*.egg-info/
+.pytest_cache
+__pycache__

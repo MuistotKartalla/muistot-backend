@@ -1,0 +1,16 @@
+# Server
+FastAPI
+uvicorn
+pydantic
+
+# Crypto
+python-jose[cryptography]
+passlib[bcrypt]
+
+# DB
+databases[mysql]
+aiomysql
+
+# Other
+aiohttp
+cryptography
