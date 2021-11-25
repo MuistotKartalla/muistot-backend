@@ -12,3 +12,4 @@ target
 *.egg-info/
 .pytest_cache
 __pycache__
+.coverage
