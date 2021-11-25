@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Response
+from pydantic import BaseModel
 import aiohttp
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/login")
 CLIENT_ID = 123
 CLIENT_SECRET = ""
 STATE_COOKIE = "muistot-login-state-param"
 REDIRECT_PATH = ""
+
+
+class FacebookConfig(BaseModel):
+    client_secret: str
+    client_id: str
 
 
 class Error:
@@ -59,7 +65,7 @@ def fb_delete_self():
 
 
 @router.post("/facebook/login")
-def fb_me_delete(resp: Response):
+def fb_login(resp: Response):
     state = generate_state()
     resp.headers["Location"] = (
         "https://www.facebook.com/v12.0/dialog/oauth?"
@@ -67,5 +73,4 @@ def fb_me_delete(resp: Response):
         f"&redirect_uri={router.url_path_for(REDIRECT_PATH)}"
         f"&state={state}"
     )
-    resp.set_cookie(STATE_COOKIE, state)
     return resp

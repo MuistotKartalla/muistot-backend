@@ -1,7 +1,8 @@
 import os
 from os.path import expanduser
+from typing import Dict
 
-from pydantic import parse_file_as, BaseModel, HttpUrl, AnyUrl
+from pydantic import parse_file_as, BaseModel, HttpUrl
 
 
 class HttpsUrl(HttpUrl):
@@ -34,6 +35,7 @@ class BaseConfig(BaseModel):
     db: Database
     mailer: Mailer
     security: Security
+    oauth: Dict[str, Dict] = {}
 
 
 CONFIG_FILE = os.getenv('muistot-config') or expanduser("~/muistot-config.json")

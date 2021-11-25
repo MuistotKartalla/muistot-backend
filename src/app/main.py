@@ -1,3 +1,5 @@
+from importlib import import_module
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -20,6 +22,15 @@ app = FastAPI(
 )
 app.include_router(default_paths)
 app.include_router(old_router, deprecated=True)
+
+for oauth_provider in Config.oauth:
+    try:
+        oauth_module = import_module(f".logins.{oauth_provider}")
+        app.include_router(oauth_module.router)
+    except Exception as e:
+        import logging
+
+        logging.getLogger("uvicorn.error").warning(f"Failed to load OAuth provider: {oauth_provider}", exc_info=e)
 
 if not Config.testing:
     app.add_middleware(HTTPSRedirectMiddleware)
@@ -46,3 +57,8 @@ async def stop_database():
     """
     from . import database
     await database.close()
+
+
+@app.get("/login")
+async def get_providers():
+    return {"oauth-providers": [k for k in Config.oauth]}

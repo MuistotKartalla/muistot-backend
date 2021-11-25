@@ -3,15 +3,14 @@ from typing import NoReturn, Optional, List
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from .hashes import validate, generate
+from .hashes import verify, generate
 from ..config import Config
 
 ALLOWED_METHODS = {"GET", "POST", "PUT", "PATCH"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 
 HEADER = "X-Muistot-State"
-CHECK = "X-Muistot-State-Check"
-EXPIRY = Config.security.csrf_lifetime
+LIFETIME = Config.security.csrf_lifetime
 
 
 def respond(code: int, message: str, details: List[str] = None) -> JSONResponse:
@@ -26,16 +25,31 @@ def respond(code: int, message: str, details: List[str] = None) -> JSONResponse:
 
 
 RESPONSES = {
+    'bad-method': respond(405, "method not allowed on this domain"),
     'bad-value': respond(
         400,
         "request validation failed",
         details=["bad value"]
     ),
-    'bad-method': respond(405, "method not allowed on this domain"),
-    'missing-values': respond(
+    'bad-token': respond(
         400,
         "request validation failed",
-        details=["missing values"]
+        details=["bad token"]
+    ),
+    'bad-length': respond(
+        400,
+        "request validation failed",
+        details=["bad token"]
+    ),
+    'bad-encoding': respond(
+        400,
+        "request validation failed",
+        details=["bad token"]
+    ),
+    'missing-value': respond(
+        400,
+        "request validation failed",
+        details=["missing value"]
     ),
     'unexpected': respond(
         400,
@@ -56,9 +70,8 @@ RESPONSES = {
 
 
 def set_csrf(response: Response) -> NoReturn:
-    plain, h = generate()
-    response.headers[CHECK] = h
-    response.headers[HEADER] = plain
+    token = generate(LIFETIME)
+    response.headers[HEADER] = token
 
 
 def check_request(request: Request) -> Optional[JSONResponse]:
@@ -73,23 +86,12 @@ def check_request(request: Request) -> Optional[JSONResponse]:
     if request.method in ALLOWED_METHODS:
         if request.method not in SAFE_METHODS:
             try:
-                checksum = request.headers[CHECK]
-                plain_header = request.headers[HEADER]
-                if plain_header.count(':') == 1:
-                    from time import time as current_time
-                    plaintext, time_part = plain_header.split(':')
-                    time_part = int(time_part)
-                    if current_time() < time_part + EXPIRY:
-                        if not validate(plaintext, checksum):
-                            out = RESPONSES['mismatch']
-                    else:
-                        out = RESPONSES['expired']
-                else:
-                    out = RESPONSES['bad-value']
-            except (KeyError, IndexError):
-                out = RESPONSES['missing-values']
-            except ValueError:
-                out = RESPONSES['bad-value']
+                token = request.headers[HEADER]
+                verify(token)
+            except KeyError:
+                out = RESPONSES['missing-value']
+            except ValueError as e:
+                out = RESPONSES[e.args[0]]
             except Exception as e:  # pragma: no cover
                 import logging
                 logging.getLogger("uvicorn.error").warning("Exception", exc_info=e)

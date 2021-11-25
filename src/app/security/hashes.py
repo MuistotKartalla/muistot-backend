@@ -1,6 +1,6 @@
 import binascii
-from base64 import standard_b64encode as to_base64, standard_b64decode as from_base64
-from typing import Tuple
+from base64 import b64decode, b64encode
+from time import time as current_time
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.hashes import SHA256
@@ -10,15 +10,16 @@ from ..config import Config
 
 SECRET_KEY = Config.security.csrf.encode('ascii')
 HASHER = HMAC(SECRET_KEY, SHA256())
+START = 1635717600  # 2021-11-01 00:00:00 seconds
 
 
-def validate(plaintext: str, checksum: str) -> bool:
+def validate(plaintext: bytes, checksum: bytes) -> bool:
     try:
         h = HASHER.copy()
-        h.update(from_base64(plaintext))
-        h.verify(from_base64(checksum))
+        h.update(plaintext)
+        h.verify(checksum)
         return True
-    except (InvalidSignature, binascii.Error, UnicodeEncodeError):
+    except InvalidSignature:
         pass
     except Exception as e:  # pragma: no cover
         import logging
@@ -26,22 +27,44 @@ def validate(plaintext: str, checksum: str) -> bool:
     return False
 
 
-def get_timestamp() -> str:
-    import time
-    return f":{int(time.time())}"
-
-
-def generate() -> Tuple[str, str]:
-    """
-    :return: Base64(PLAIN):TIME, Base64(HASH)
-    """
+def generate(lifetime: int) -> str:
     from os import urandom
-    word: bytes = urandom(10)
-    time: str = get_timestamp()
+    hashpart = (int(current_time()) + lifetime).to_bytes(
+        length=32,
+        byteorder='big',
+        signed=False
+    ).lstrip(b'\x00') + urandom(14)
     h = HASHER.copy()
-    h.update(word)
-    h.update(time.encode('ascii'))
-    return to_base64(word + time.encode('ascii')).decode('ascii') + time, to_base64(h.finalize()).decode('ascii')
+    h.update(hashpart)
+    return b64encode(hashpart + h.finalize()).decode('ascii')
 
 
-__all__ = ['generate', 'validate']
+def verify(token: str):
+    if not (105 > len(token) > 63 and len(token) % 4 == 0):
+        raise ValueError("bad-length")
+
+    try:
+        token = b64decode(token, validate=True)
+    except (binascii.Error, UnicodeEncodeError, ValueError):
+        raise ValueError("bad-encoding")
+
+    if len(token) < 47:
+        raise ValueError("bad-token")
+
+    time = token[:-46]
+    expires_at = int.from_bytes(
+        time,
+        byteorder='big',
+        signed=False
+    )
+    plain = token[-46:-32]
+    check = token[-32:]
+
+    if current_time() > expires_at:
+        raise ValueError("expired")
+
+    if not validate(time + plain, check):
+        raise ValueError("mismatch")
+
+
+__all__ = ['generate', 'verify']
