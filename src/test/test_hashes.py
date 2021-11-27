@@ -28,7 +28,7 @@ def verify(match: str, token: Union[str, bytes], no_encode=False):
 
 
 def test_bad_encoding():
-    verify('bad-encoding', ":" * 64, no_encode=True)
+    verify('bad-encoding', ":" * (hashes.MAX_BASE64_LENGTH - 9), no_encode=True)
 
 
 def test_bad_checksum():
@@ -38,23 +38,28 @@ def test_bad_checksum():
 
 def test_bad_plain():
     token = decode(hashes.generate(10))
-    verify('mismatch', token[:token[0] + 1][:-1] + b':' + token[token[0] + 1:])
+    verify('mismatch', token[:hashes.CONTENT_LENGTH - 1] + b':' + token[hashes.CONTENT_LENGTH:])
 
 
 def test_bad_length_long():
-    verify('bad-length', b'\x00' * 105, no_encode=True)
+    verify('bad-length', b'\x00' * (hashes.MAX_BASE64_LENGTH + 3), no_encode=True)
 
 
 def test_bad_length_short():
-    verify('bad-length', b'\x00' * 62, no_encode=True)
+    verify('bad-length', b'\x00' * (hashes.MIN_BASE64_LENGTH - 3), no_encode=True)
 
 
 def test_bad_length_modulo():
-    verify('bad-length', b'\x00' * 101, no_encode=True)
+    m = int((hashes.MAX_BASE64_LENGTH + hashes.MIN_BASE64_LENGTH) / 2)
+    verify(
+        'bad-modulo',
+        b'\x00' * (m - 1 if m % 4 == 0 else m),
+        no_encode=True
+    )
 
 
 def test_bad_length_decoded():
-    verify('bad-token', 'A' * 46)
+    verify('bad-token', 'A' * hashes.CONTENT_LENGTH)
 
 
 def test_bad_time_expired():
@@ -62,3 +67,28 @@ def test_bad_time_expired():
     token = hashes.generate(1)
     time.sleep(2)
     verify('expired', token, no_encode=True)
+
+
+def test_payload():
+    import base64
+    token = hashes.generate(10, hashes.int_to_payload(1234))
+    decoded = base64.b64decode(token)
+    assert int.from_bytes(
+        decoded[-hashes.CONTENT_LENGTH:-hashes.HASH_LENGTH],
+        byteorder='big',
+        signed=False
+    ) == 1234
+    assert hashes.to_int(hashes.verify(token)) == 1234
+
+
+def test_payload_2():
+    import base64
+    token = hashes.generate(10, b'hello world')
+    decoded = base64.b64decode(token)
+    assert decoded[-hashes.CONTENT_LENGTH:-hashes.HASH_LENGTH].rstrip(b'\x00') == b'hello world'
+    assert hashes.verify(token) == b'hello world'
+
+
+def test_too_long_payload():
+    with raises(OverflowError):
+        hashes.int_to_payload(int(2e128))

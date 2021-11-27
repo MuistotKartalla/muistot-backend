@@ -13,7 +13,7 @@ HEADER = "X-Muistot-State"
 LIFETIME = Config.security.csrf_lifetime
 
 
-def respond(code: int, message: str, details: List[str] = None) -> JSONResponse:
+def respond(code: int = 400, message: str = "request validation failed", details: List[str] = None) -> JSONResponse:
     response = JSONResponse(content={
         "error": {
             "message": message,
@@ -22,51 +22,6 @@ def respond(code: int, message: str, details: List[str] = None) -> JSONResponse:
     })
     response.status_code = code
     return response
-
-
-RESPONSES = {
-    'bad-method': respond(405, "method not allowed on this domain"),
-    'bad-value': respond(
-        400,
-        "request validation failed",
-        details=["bad value"]
-    ),
-    'bad-token': respond(
-        400,
-        "request validation failed",
-        details=["bad token"]
-    ),
-    'bad-length': respond(
-        400,
-        "request validation failed",
-        details=["bad token"]
-    ),
-    'bad-encoding': respond(
-        400,
-        "request validation failed",
-        details=["bad token"]
-    ),
-    'missing-value': respond(
-        400,
-        "request validation failed",
-        details=["missing value"]
-    ),
-    'unexpected': respond(
-        400,
-        "request validation failed",
-        details=["unexpected result"]
-    ),
-    'expired': respond(
-        400,
-        "request validation failed",
-        details=["expired"]
-    ),
-    'mismatch': respond(
-        400,
-        "request validation failed",
-        details=["mismatch"]
-    )
-}
 
 
 def set_csrf(response: Response) -> NoReturn:
@@ -89,15 +44,15 @@ def check_request(request: Request) -> Optional[JSONResponse]:
                 token = request.headers[HEADER]
                 verify(token)
             except KeyError:
-                out = RESPONSES['missing-value']
+                out = respond(details=['missing-value'])
             except ValueError as e:
-                out = RESPONSES[e.args[0]]
+                out = respond(details=e.args[0])
             except Exception as e:  # pragma: no cover
                 import logging
                 logging.getLogger("uvicorn.error").warning("Exception", exc_info=e)
-                out = RESPONSES['unexpected']
+                out = respond(details=['unexpected'])
     else:
-        out = RESPONSES['bad-method']
+        out = respond(405, "method not allowed on this domain", ['bad-method'])
     return out
 
 

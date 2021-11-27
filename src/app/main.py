@@ -3,7 +3,7 @@ from importlib import import_module
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .config import Config
 from .old import *
@@ -62,3 +62,11 @@ async def stop_database():
 @app.get("/login")
 async def get_providers():
     return {"oauth-providers": [k for k in Config.oauth]}
+
+
+EMPTY = Response(status_code=204)
+
+
+@app.get("/refresh", status_code=204)
+async def refresh():
+    return EMPTY

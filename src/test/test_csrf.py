@@ -3,6 +3,7 @@ import json
 from fastapi.responses import JSONResponse
 
 from app.security import csrf
+from app.security import hashes
 
 
 class MockRequest:
@@ -11,6 +12,20 @@ class MockRequest:
         self.check_headers = {}
         self.headers = {}
         self.method = "POST"
+
+
+def check(token, *checks):
+    r = MockRequest()
+    r.headers[csrf.HEADER] = token
+    response = json.loads(csrf.check_request(r).body)
+    for c in checks:
+        assert c in response["error"]["details"]
+
+
+def check2(r, *checks):
+    response = json.loads(csrf.check_request(r).body)
+    for c in checks:
+        assert c in response["error"]["details"]
 
 
 def test_response():
@@ -35,54 +50,40 @@ def test_bad_request():
 
 
 def test_bad_request_missing_value():
-    r = MockRequest()
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['missing-value'], json.dumps(json.loads(response.body))
+    check2(MockRequest(), 'missing-value')
 
 
 def test_bad_request_mismatch():
     from test_hashes import decode, encode
     token = decode(csrf.generate(10))
-    r = MockRequest()
-    r.headers[csrf.HEADER] = encode(token[:-1] + b':')
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['mismatch'], json.dumps(json.loads(response.body))
+    check(encode(token[:-1] + b':'), 'mismatch')
 
 
 def test_bad_request_method():
     r = MockRequest()
     r.method = "OPTIONS"
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['bad-method'], json.dumps(json.loads(response.body))
+    check2(r, 'bad-method')
 
 
 def test_bad_request_expired():
     import time
     token = csrf.generate(1)
     time.sleep(2)
-    r = MockRequest()
-    r.headers[csrf.HEADER] = token
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['expired'], json.dumps(json.loads(response.body))
+    check(token, 'expired')
 
 
 def test_bad_request_token_length():
-    r = MockRequest()
-    r.headers[csrf.HEADER] = 'a'
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['bad-length'], json.dumps(json.loads(response.body))
+    check('aaaa', 'bad-length')
+
+
+def test_bad_request_token_modulo():
+    check('a' * (hashes.MIN_TOKEN_LENGTH + 8), 'bad-modulo')
 
 
 def test_bad_request_token_length_decoded():
     import base64
-    r = MockRequest()
-    r.headers[csrf.HEADER] = base64.b64encode(b'a' * 46)
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['bad-token'], json.dumps(json.loads(response.body))
+    check(base64.b64encode(b'a' * hashes.CONTENT_LENGTH), 'bad-token')
 
 
 def test_bad_request_token_encoding():
-    r = MockRequest()
-    r.headers[csrf.HEADER] = ':' * 64
-    response = csrf.check_request(r)
-    assert response is csrf.RESPONSES['bad-encoding'], json.dumps(json.loads(response.body))
+    check(':' * (hashes.MIN_BASE64_LENGTH + 9), 'bad-encoding')
