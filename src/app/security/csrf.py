@@ -14,14 +14,12 @@ LIFETIME = Config.security.csrf_lifetime
 
 
 def respond(code: int = 400, message: str = "request validation failed", details: List[str] = None) -> JSONResponse:
-    response = JSONResponse(content={
+    return JSONResponse(content={
         "error": {
             "message": message,
             **({"details": details} if details is not None else {})
         }
-    })
-    response.status_code = code
-    return response
+    }, status_code=code)
 
 
 def set_csrf(response: Response) -> NoReturn:
@@ -46,7 +44,10 @@ def check_request(request: Request) -> Optional[JSONResponse]:
             except KeyError:
                 out = respond(details=['missing-value'])
             except ValueError as e:
-                out = respond(details=e.args[0])
+                try:
+                    out = respond(details=[e.args[0]])
+                except IndexError:  # pragma: no cover
+                    out = respond(details=["unexpected state"])
             except Exception as e:  # pragma: no cover
                 import logging
                 logging.getLogger("uvicorn.error").warning("Exception", exc_info=e)
@@ -62,6 +63,7 @@ def register_csrf_middleware(app: FastAPI) -> NoReturn:  # pragma: no cover
         error = check_request(request)
         if error is None:
             resp = await call_next(request)
+            # TODO: Actually make this useful
             if request.method == 'GET':
                 set_csrf(resp)
             return resp

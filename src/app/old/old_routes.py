@@ -1,10 +1,9 @@
 from fastapi import APIRouter
+
 from .old_interface import *
-from . import old_login as login
 from ..database import dbb, Depends
 
 router = APIRouter()
-router.include_router(login.router)
 
 
 @router.get("/version")

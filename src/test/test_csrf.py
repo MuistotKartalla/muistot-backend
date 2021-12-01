@@ -56,7 +56,20 @@ def test_bad_request_missing_value():
 def test_bad_request_mismatch():
     from test_hashes import decode, encode
     token = decode(csrf.generate(10))
-    check(encode(token[:-1] + b':'), 'mismatch')
+    check(encode(token + b':'), 'mismatch')
+
+
+def test_bad_request_mismatch_short():
+    from test_hashes import decode, encode
+    token = decode(csrf.generate(10))
+    # This makes the token too short and expire
+    check(encode(token[:-1]), 'expired')
+
+
+def test_dupe():
+    for i in range(0, 100_000):
+        token = csrf.generate(10)
+        assert csrf.generate(10) != token
 
 
 def test_bad_request_method():

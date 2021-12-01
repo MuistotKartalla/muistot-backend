@@ -4,5 +4,5 @@ router = APIRouter()
 
 
 @router.get("/")
-def entry():
-    return {"hello": "world"}
+def entry(a: int):
+    return {"hello": "world", "a": a}
