@@ -126,7 +126,7 @@ async def start() -> NoReturn:
     Starts the database
     """
     from ..config import Config
-    db = Config.db
+    db = Config.db["default"]
     url = f'mysql://{db.user}:{db.password}@{db.host}:{db.port}/{db.database}'
     test: str = Config.testing
     await init_database(url, persist=not test, ssl=True, min_size=1, max_size=10, charset='utf8mb4')

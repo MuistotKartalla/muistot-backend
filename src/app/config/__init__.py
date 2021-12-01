@@ -1,6 +1,6 @@
 import os
 from os.path import expanduser
-from typing import Dict
+from typing import Dict, Optional
 
 from pydantic import parse_file_as, BaseModel, HttpUrl
 
@@ -10,11 +10,11 @@ class HttpsUrl(HttpUrl):
 
 
 class Database(BaseModel):
-    host: str
-    port: int
-    database: str
-    user: str
-    password: str
+    host: str = "localhost"
+    port: int = "3306"
+    database: str = "muistot"
+    user: str = "root"
+    password: str = "test"
 
 
 class Mailer(BaseModel):
@@ -26,14 +26,15 @@ class Mailer(BaseModel):
 class Security(BaseModel):
     jwt: str
     csrf: str
-    csrf_lifetime: int
+    csrf_lifetime: int = 60
+    bcrypt_cost: int = 12
 
 
 class BaseConfig(BaseModel):
     testing: bool = True
-    domain: str
-    db: Database
-    mailer: Mailer
+    domain: Optional[str] = None
+    db: Dict[str, Database] = {}
+    mailer: Optional[Mailer] = None
     security: Security
     oauth: Dict[str, Dict] = {}
 
@@ -43,23 +44,10 @@ try:
     Config = parse_file_as(BaseConfig, CONFIG_FILE)
 except FileNotFoundError:
     Config = BaseConfig(
-        domain="localhost",
-        db=Database(
-            host="localhost",
-            port=3306,
-            database="muistojakartalla",
-            user="root",
-            password="test"
-        ),
-        mailer=Mailer(
-            key="test123",
-            url="https://example.com",
-            port=8080
-        ),
+        db=dict(default=Database()),
         security=Security(
             jwt="test123",
             csrf="test123",
-            csrf_lifetime=60
         )
     )
 
