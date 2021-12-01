@@ -1,8 +1,7 @@
 # [Framework]
 #
-# Whenever FastAPI is used witha higher version the
-# errors.__init__.py needs to be checked so it doesn't break
-FastAPI == 0.70.0
+# This should be quite stable
+FastAPI >= 0.70.0, < 1.0.0
 
 # [Important]
 #
