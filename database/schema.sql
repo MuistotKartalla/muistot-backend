@@ -1,11 +1,11 @@
-CREATE DATABASE memories_on_a_map CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS memories_on_a_map CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE memories_on_a_map;
 
 /*
     Language preferences
 */
 
-CREATE TABLE languages
+CREATE TABLE IF NOT EXISTS languages
 (
     id   INTEGER    NOT NULL AUTO_INCREMENT,
     lang VARCHAR(5) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE languages
     UNIQUE INDEX idx_lang (lang)
 ) COMMENT 'Stores localization languages';
 
-CREATE TABLE oauth_provides
+CREATE TABLE IF NOT EXISTS oauth_provides
 (
     id   INTEGER     NOT NULL AUTO_INCREMENT,
     name VARCHAR(15) NOT NULL,
@@ -23,11 +23,11 @@ CREATE TABLE oauth_provides
     UNIQUE INDEX idx_oap_name (name)
 ) COMMENT 'Stores OAuth providers';
 
-INSERT INTO languages (lang)
+INSERT IGNORE INTO languages (lang)
 VALUES ('fi'),
        ('en');
 
-INSERT INTO oauth_provides (name)
+INSERT IGNORE INTO oauth_provides (name)
 VALUES ('google'),
        ('facebook'),
        ('twitter');
@@ -36,14 +36,18 @@ VALUES ('google'),
     Create Data Tables
 */
 
-CREATE TABLE users
+CREATE TABLE IF NOT EXISTS users
 (
     id            INTEGER      NOT NULL AUTO_INCREMENT,
     email         VARCHAR(255) NULL DEFAULT NULL,
     username      VARCHAR(255) NOT NULL,
     password_hash BINARY(60) COMMENT 'BCrypt',
 
-    # Some data
+    # important
+    verified      BOOLEAN           DEFAULT FALSE,
+    created_at    DATETIME          DEFAULT CURRENT_TIMESTAMP,
+
+    # basic data
     image_id      INTEGER      NULL COMMENT 'fk',
     lang_id       INTEGER      NULL COMMENT 'fk',
 
@@ -54,7 +58,7 @@ CREATE TABLE users
     CONSTRAINT FOREIGN KEY fk_users_language (lang_id) REFERENCES languages (id)
 ) COMMENT 'Stores user data';
 
-CREATE TABLE oauth_users
+CREATE TABLE IF NOT EXISTS oauth_users
 (
     user_id    INTEGER NOT NULL COMMENT 'fk',
     service_id INTEGER NOT NULL COMMENT 'fk',
@@ -69,7 +73,7 @@ CREATE TABLE oauth_users
         ON DELETE CASCADE
 ) COMMENT 'Links users to OAuth providers';
 
-CREATE TABLE images
+CREATE TABLE IF NOT EXISTS images
 (
     id          INTEGER     NOT NULL AUTO_INCREMENT,
     created_at  DATETIME    NOT NULL                                                     DEFAULT CURRENT_TIMESTAMP,
@@ -82,7 +86,7 @@ CREATE TABLE images
 ) COMMENT 'Unified storage for image files';
 
 ALTER TABLE users
-    ADD CONSTRAINT FOREIGN KEY fk_users_image (image_id) REFERENCES images (id)
+    ADD CONSTRAINT FOREIGN KEY IF NOT EXISTS fk_users_image (image_id) REFERENCES images (id)
         ON UPDATE RESTRICT
         ON DELETE SET NULL;
 
@@ -90,7 +94,7 @@ ALTER TABLE users
     Create Project Data Tables
 */
 
-CREATE TABLE projects
+CREATE TABLE IF NOT EXISTS projects
 (
     id                INTEGER      NOT NULL AUTO_INCREMENT,
     name              VARCHAR(255) NOT NULL,
@@ -115,7 +119,7 @@ CREATE TABLE projects
         ON DELETE SET NULL
 ) COMMENT 'Project base information';
 
-CREATE TABLE project_information
+CREATE TABLE IF NOT EXISTS project_information
 (
     project_id  INTEGER      NOT NULL COMMENT 'fk',
     lang_id     INTEGER      NOT NULL COMMENT 'fk',
@@ -139,7 +143,7 @@ CREATE TABLE project_information
         ON DELETE SET NULL
 ) COMMENT 'Stores localized project information';
 
-CREATE TABLE project_legals
+CREATE TABLE IF NOT EXISTS project_legals
 (
     project_id          INTEGER      NOT NULL COMMENT 'fk',
     can_contact         BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -159,7 +163,7 @@ CREATE TABLE project_legals
         ON DELETE SET NULL
 ) COMMENT 'Stores any additional project information';
 
-CREATE TABLE project_admins
+CREATE TABLE IF NOT EXISTS project_admins
 (
     project_id INTEGER NOT NULL COMMENT 'fk',
     user_id    INTEGER NOT NULL COMMENT 'fk',
@@ -174,7 +178,7 @@ CREATE TABLE project_admins
         ON DELETE CASCADE
 ) COMMENT 'Admins for projects';
 
-CREATE TABLE sites
+CREATE TABLE IF NOT EXISTS sites
 (
     id          INTEGER      NOT NULL AUTO_INCREMENT,
     project_id  INTEGER      NOT NULL COMMENT 'fk',
@@ -204,7 +208,7 @@ CREATE TABLE sites
         ON DELETE SET NULL
 ) COMMENT 'Stores project site locations';
 
-CREATE TABLE site_information
+CREATE TABLE IF NOT EXISTS site_information
 (
     site_id     INTEGER      NOT NULL COMMENT 'fk',
     lang_id     INTEGER      NOT NULL COMMENT 'fk',
@@ -228,7 +232,7 @@ CREATE TABLE site_information
         ON DELETE SET NULL
 ) COMMENT 'Stores localized project information';
 
-CREATE TABLE comments
+CREATE TABLE IF NOT EXISTS comments
 (
     id          INTEGER  NOT NULL AUTO_INCREMENT,
     site_id     INTEGER  NOT NULL COMMENT 'fk',
@@ -254,3 +258,78 @@ CREATE TABLE comments
         ON UPDATE RESTRICT
         ON DELETE SET NULL
 ) COMMENT 'Comments on sites. Only modify own comments.';
+
+/**
+More
+*/
+
+CREATE TABLE IF NOT EXISTS user_email_verifiers
+(
+    user_id    INTEGER      NOT NULL,
+    verifier   VARCHAR(255) NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY pk_uev (user_id),
+    INDEX idx_uev_date (created_at),
+
+    CONSTRAINT FOREIGN KEY fk_uc_user_id (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+) COMMENT 'Stores user confirm data';
+
+CREATE TABLE IF NOT EXISTS user_personal_data
+(
+    user_id     INTEGER      NOT NULL,
+    first_name  VARCHAR(255) NULL,
+    last_name   VARCHAR(255) NULL,
+    birth_date  DATETIME     NULL DEFAULT NULL,
+    country     VARCHAR(5)   NULL,
+    city        VARCHAR(255) NULL,
+
+    modified_at DATETIME          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY pk_upd (user_id),
+    INDEX idx_upd_name (last_name, first_name),
+    INDEX idx_upd_location (country, city),
+    INDEX idx_upd_birthdate (birth_date),
+
+    CONSTRAINT FOREIGN KEY fk_upd_user_id (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+) COMMENT 'User personal data';
+
+SET GLOBAL event_scheduler = TRUE;
+
+DELIMITER $$
+DROP PROCEDURE IF EXISTS clean_verifiers $$
+CREATE PROCEDURE clean_verifiers()
+BEGIN
+    DELETE u
+    FROM users u
+             JOIN user_email_verifiers uev on u.id = uev.user_id
+    WHERE uev.created_at < ADDDATE(CURRENT_TIMESTAMP, INTERVAL -24 HOUR)
+      AND u.verified = 0;
+    DELETE uev
+    FROM users u
+             JOIN user_email_verifiers uev ON u.id = uev.user_id
+    WHERE u.verified;
+END $$
+
+DROP EVENT IF EXISTS delete_verifiers;
+CREATE EVENT delete_verifiers
+    ON SCHEDULE EVERY 24 HOUR
+        STARTS '2021-01-01 05:00:00'
+    DO CALL clean_verifiers() $$
+
+DROP TRIGGER IF EXISTS trg_verifier_update $$
+CREATE TRIGGER trg_verifier_update
+    AFTER UPDATE
+    ON users
+    FOR EACH ROW
+BEGIN
+    IF NEW.verified THEN
+        DELETE FROM user_email_verifiers WHERE user_id = OLD.id;
+    END IF;
+END $$
+DELIMITER ;
