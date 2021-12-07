@@ -228,7 +228,7 @@ CREATE TABLE site_information
         ON DELETE SET NULL
 ) COMMENT 'Stores localized project information';
 
-CREATE TABLE comment
+CREATE TABLE comments
 (
     id          INTEGER  NOT NULL AUTO_INCREMENT,
     site_id     INTEGER  NOT NULL COMMENT 'fk',
