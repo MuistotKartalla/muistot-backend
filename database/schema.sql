@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS projects
     id                INTEGER      NOT NULL AUTO_INCREMENT,
     name              VARCHAR(255) NOT NULL,
     image_id          INTEGER      NULL     DEFAULT NULL COMMENT 'fk',
-    starts            DATE         NOT NULL DEFAULT CURRENT_DATE,
-    ends              DATE         NOT NULL DEFAULT DATE('9999-12-31'),
+    starts            DATETIME     NULL     DEFAULT NULL,
+    ends              DATETIME     NULL     DEFAULT NULL,
     anonymous_posting BOOLEAN      NOT NULL DEFAULT FALSE,
 
     published         BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS site_information
         ON DELETE SET NULL
 ) COMMENT 'Stores localized project information';
 
-CREATE TABLE IF NOT EXISTS comments
+CREATE TABLE IF NOT EXISTS memories
 (
     id          INTEGER  NOT NULL AUTO_INCREMENT,
     site_id     INTEGER  NOT NULL COMMENT 'fk',
@@ -248,16 +248,38 @@ CREATE TABLE IF NOT EXISTS comments
     INDEX idx_comments_per_user (published, user_id),
     INDEX idx_comments_published (published, site_id) COMMENT 'Hopefully shares first part with the other index',
 
+    CONSTRAINT FOREIGN KEY fk_memories_user (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY fk_memories_site (site_id) REFERENCES sites (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY fk_memories_image (image_id) REFERENCES images (id)
+        ON UPDATE RESTRICT
+        ON DELETE SET NULL
+) COMMENT 'Only modify own memories.';
+
+CREATE TABLE IF NOT EXISTS comments
+(
+    id          INTEGER  NOT NULL AUTO_INCREMENT,
+    memory_id   INTEGER  NOT NULL COMMENT 'fk',
+    user_id     INTEGER  NOT NULL COMMENT 'fk',
+    comment     TEXT,
+
+    published   BOOLEAN  NOT NULL DEFAULT FALSE,
+    modified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY pk_comments (id),
+    INDEX idx_comments_per_user (published, user_id),
+    INDEX idx_comments_published (published, memory_id) COMMENT 'Hopefully shares first part with the other index',
+
     CONSTRAINT FOREIGN KEY fk_comments_user (user_id) REFERENCES users (id)
         ON UPDATE RESTRICT
         ON DELETE CASCADE,
-    CONSTRAINT FOREIGN KEY fk_comments_site (site_id) REFERENCES sites (id)
+    CONSTRAINT FOREIGN KEY fk_comments_memory (memory_id) REFERENCES memories (id)
         ON UPDATE RESTRICT
-        ON DELETE CASCADE,
-    CONSTRAINT FOREIGN KEY fk_comments_image (image_id) REFERENCES images (id)
-        ON UPDATE RESTRICT
-        ON DELETE SET NULL
-) COMMENT 'Comments on sites. Only modify own comments.';
+        ON DELETE CASCADE
+) COMMENT 'Comments on memories. Only modify own comments.';
 
 /**
 More
@@ -302,6 +324,7 @@ CREATE TABLE IF NOT EXISTS user_personal_data
 SET GLOBAL event_scheduler = TRUE;
 
 DELIMITER $$
+
 DROP PROCEDURE IF EXISTS clean_verifiers $$
 CREATE PROCEDURE clean_verifiers()
 BEGIN
@@ -319,7 +342,7 @@ END $$
 DROP EVENT IF EXISTS delete_verifiers;
 CREATE EVENT delete_verifiers
     ON SCHEDULE EVERY 24 HOUR
-        STARTS '2021-01-01 05:00:00'
+        STARTS '2021-01-01 02:00:00'
     DO CALL clean_verifiers() $$
 
 DROP TRIGGER IF EXISTS trg_verifier_update $$
@@ -332,4 +355,78 @@ BEGIN
         DELETE FROM user_email_verifiers WHERE user_id = OLD.id;
     END IF;
 END $$
+
+DROP PROCEDURE IF EXISTS analyze_all_tables $$
+CREATE PROCEDURE analyze_all_tables()
+BEGIN
+    SET @table_list = NULL;
+    SHOW TABLES WHERE (@table_list := concat_ws(',', @table_list, `Tables_in_memories_on_a_map`));
+    SET @table_list := concat('ANALYZE TABLE ', @table_list);
+    PREPARE tasks FROM @table_list;
+    EXECUTE tasks;
+    DEALLOCATE PREPARE tasks;
+    SET @table_list = NULL;
+END $$
+
+DROP EVENT IF EXISTS check_tables;
+CREATE EVENT check_tables
+    ON SCHEDULE EVERY 1 WEEK
+        STARTS '2021-01-01 02:10:00'
+    DO CALL analyze_all_tables() $$
+
 DELIMITER ;
+
+CREATE TABLE IF NOT EXISTS audit_comments
+(
+    comment_id INTEGER NOT NULL,
+    user_id    INTEGER NOT NULL,
+
+    PRIMARY KEY pk_ac (comment_id, user_id),
+
+    CONSTRAINT FOREIGN KEY fg_ac_comment (comment_id) REFERENCES comments (id),
+    CONSTRAINT FOREIGN KEY fg_ac_user (user_id) REFERENCES users (id)
+);
+
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS comments_audit_log;
+CREATE PROCEDURE comments_audit_log()
+BEGIN
+    SELECT COUNT(*)                    AS report_count,
+           c.id                        AS comment_id,
+           c.title                     AS comment_title,
+           c.comment                   AS comment_story,
+           i.file_name                 AS comment_file,
+           cu.username                 AS comment_user,
+           CONCAT_WS(',', ru.username) AS reporting_users
+    FROM audit_comments ac
+             JOIN comments c ON ac.comment_id = c.id
+             JOIN images i on c.image_id = i.id
+             JOIN users cu ON c.user_id = cu.id
+             JOIN users ru ON ac.user_id = ru.id
+    GROUP BY ac.comment_id
+    ORDER BY report_count DESC;
+END $$
+
+DROP PROCEDURE IF EXISTS hide_reported_things;
+CREATE PROCEDURE hide_reported_things()
+BEGIN
+    UPDATE comments c
+        JOIN (
+            SELECT ac.comment_id,
+                   COUNT(*) AS report_count
+            FROM audit_comments ac
+            GROUP BY ac.comment_id
+        ) ac ON ac.comment_id = c.id
+    SET c.published = 0
+    WHERE ac.report_count > 10;
+END $$
+
+CREATE EVENT report_watchdog
+    ON SCHEDULE EVERY 12 HOUR
+        STARTS '2021-01-01 00:00:00'
+    DO CALL hide_reported_things() $$
+
+DELIMITER ;
+
+CALL analyze_all_tables();

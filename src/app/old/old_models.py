@@ -3,6 +3,10 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class Project(BaseModel):
+    pass
+
+
 class Site(BaseModel):
     id: int
     title: str
