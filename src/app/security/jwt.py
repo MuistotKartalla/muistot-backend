@@ -16,7 +16,10 @@ def generate_jwt(claims: Dict) -> str:
     :param claims:  Claims to sign
     :return:        JWT
     """
-    claims.update({'exp': datetime.utcnow() + timedelta(seconds=Config.security.jwt.lifetime)})
+    claims.update({
+        'exp': datetime.utcnow() + timedelta(seconds=Config.security.jwt.lifetime),
+        'iat': datetime.utcnow()
+    })
     return jose_jwt.encode(claims=claims, key=Config.security.jwt.secret, algorithm=Config.security.jwt.algorithm)
 
 
