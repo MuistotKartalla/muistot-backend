@@ -9,7 +9,7 @@ class Mailer(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def send_verify_email(self, username: str, email: str) -> bool:
+    async def send_verify_email(self, username: str, email: str) -> bool:
         """
         Sends a verification email to a specified user
         The email should be verified first
@@ -21,7 +21,7 @@ class Mailer(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def verify_email(self, email: str) -> bool:
+    async def verify_email(self, email: str) -> bool:
         """
         Verifies an email address
 

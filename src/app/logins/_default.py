@@ -67,8 +67,29 @@ async def login_email(login: LoginQuery, db: Database) -> JSONResponse:
 
 
 async def register_user(user: RegisterQuery, db: Database) -> JSONResponse:
-    # TODO
-    pass
+    from ..mailer import get_mailer
+    mailer = get_mailer()
+    if not await mailer.verify_email(user.email):
+        return JSONResponse(status_code=400, content={"error": {"message": "bad email"}})
+    m = await db.fetch_one(
+        "SELECT"
+        "   EXISTS(SELECT 1 FROM users WHERE username=:uname), "
+        "   EXISTS(SELECT 1 FROM users WHERE email=:email)",
+        values=dict(uname=user.username, email=user.email)
+    )
+    username_taken = m[0] == 1
+    email_taken = m[1] == 1
+    if username_taken:
+        return JSONResponse(status_code=400, content={"error": {"message": "username taken"}})
+    elif email_taken:
+        return JSONResponse(status_code=400, content={"error": {"message": "email already in use"}})
+    else:
+        await db.execute(
+            "INSERT INTO users (email, username, password_hash) VALUE (:email, :user, :password)",
+            values=dict(email=user.email, user=user.username, password=hash_password(user.password))
+        )
+        await mailer.send_verify_email(user.username, user.email)
+        return JSONResponse(status_code=201)
 
 
 @router.post("/login")

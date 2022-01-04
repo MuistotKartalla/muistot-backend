@@ -35,3 +35,4 @@ aiohttp >= 3.8.1, < 4.0.0
 # [TEST]
 pytest
 requests
+anyio[trio]
