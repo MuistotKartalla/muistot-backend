@@ -1,10 +1,10 @@
 from typing import NoReturn, Optional, List
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
 from .hashes import verify, generate
-from ..config import Config
+from ...config import Config
 
 ALLOWED_METHODS = {"GET", "POST", "PUT", "PATCH"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -29,7 +29,7 @@ def set_csrf(response: Response, payload: Optional[str] = None) -> NoReturn:
 
 def check_request(request: Request) -> Optional[JSONResponse]:
     """
-    Validates CSRF prevention cookie.
+    Validates CSRF prevention.
     Additionally checks request for method and rejects unused ones.
 
     :param request: Incoming request from FastAPI
@@ -40,7 +40,10 @@ def check_request(request: Request) -> Optional[JSONResponse]:
         if request.method not in SAFE_METHODS:
             try:
                 token = request.headers[HEADER]
-                verify(token)
+                data = verify(token)
+                if request.user.is_authenticated:
+                    if data != request.user.display_name.encode('utf-8'):
+                        out = respond(details=['bad-payload'])
             except KeyError:
                 out = respond(details=['missing-value'])
             except ValueError as e:
@@ -55,19 +58,3 @@ def check_request(request: Request) -> Optional[JSONResponse]:
     else:
         out = respond(405, "method not allowed on this domain", ['bad-method'])
     return out
-
-
-def register_csrf_middleware(app: FastAPI) -> NoReturn:  # pragma: no cover
-    @app.middleware("http")
-    async def csrf_middleware(request: Request, call_next):
-        error = check_request(request)
-        if error is None:
-            resp = await call_next(request)
-            if request.method == 'GET':
-                if request.user.is_authenticated:
-                    set_csrf(resp, request.user.display_name)
-                else:
-                    set_csrf(resp)
-            return resp
-        else:
-            return error

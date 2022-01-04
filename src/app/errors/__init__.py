@@ -99,5 +99,6 @@ __all__ = [
     'ApiError',
     'ErrorResponse',
     'register_error_handlers',
-    'modify_openapi'
+    'modify_openapi',
+    'Error'
 ]

@@ -3,7 +3,7 @@ from typing import Union
 
 from pytest import raises
 
-from app.security import hashes
+from app.security.csrf import hashes
 
 
 def encode(s: Union[str, bytes]) -> str:

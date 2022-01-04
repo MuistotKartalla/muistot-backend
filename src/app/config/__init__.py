@@ -13,10 +13,12 @@ class HttpsUrl(HttpUrl):
 
 class Database(BaseModel):
     host: str = "localhost"
-    port: int = "3306"
+    port: int = "5601"
     database: str = "muistot"
     user: str = "root"
     password: str = "test"
+    use_ssl: bool = False
+    rollback: bool = False
 
 
 class Mailer(BaseModel):
@@ -35,11 +37,12 @@ class JWT(BaseModel):
 class CSRF(BaseModel):
     secret: str
     lifetime: str = 60
+    enabled: bool = False
 
 
 class Security(BaseModel):
     jwt: JWT
-    csrf: CSRF
+    csrf: CSRF = CSRF(secret="not in use")
     bcrypt_cost: int = 12
 
 
@@ -60,8 +63,7 @@ except FileNotFoundError:
     Config = BaseConfig(
         db=dict(default=Database()),
         security=Security(
-            jwt=JWT(secret="test123"),
-            csrf=CSRF(secret="test123"),
+            jwt=JWT(secret="test123")
         ),
         languages=["fi", "en"]
     )

@@ -4,7 +4,18 @@ from pydantic import BaseModel, Field
 
 
 class Project(BaseModel):
-    pass
+    title: Optional[str]
+    description: Optional[str]
+    contentDescription: Optional[str]
+    visitorPosting: bool
+    image: Optional[str]
+
+    id: int
+    alkaa: Optional[str]
+    loppuu: Optional[str]
+    poistuu: Optional[str]
+
+    moderators: Optional[List[int]]
 
 
 class Site(BaseModel):

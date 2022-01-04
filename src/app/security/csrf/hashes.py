@@ -8,7 +8,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.hmac import HMAC
 
-from ..config import Config
+from ...config import Config
 
 SECRET_KEY = Config.security.csrf.secret.encode('ascii')
 HASHER = HMAC(SECRET_KEY, SHA256())
