@@ -33,22 +33,41 @@ def hash_password(password: str) -> bytes:
     return bcrypt.using(rounds=Config.security.bcrypt_cost).hash(password)
 
 
+def handle_hash(stored_hash: str, incoming_hash: str, username: str):
+    from ..security.hashes import generate
+    from ..config import Config
+    if check_password(stored_hash, incoming_hash):
+        # TODO: Not like this, actually use JWT
+        return JSONResponse(status_code=200, headers={AUTHORIZATION: generate(
+            Config.security.jwt_lifetime,
+            username.encode('utf-8')
+        )})
+    else:
+        return JSONResponse(status_code=401)
+
+
 async def login_username(login: LoginQuery, db: Database) -> JSONResponse:
-    stored_hash: str = await db.fetch_val(
-        "SELECT EXISTS(SELECT password FROM users WHERE username=:uname)",
+    m = await db.fetch_one(
+        "SELECT username, password_hash FROM users WHERE username=:uname AND verified",
         values=dict(uname=login.username)
     )
-    if check_password(stored_hash, login.password):
-        pass
-    else:
-        pass
+    stored_hash: str = m[1]
+    username: str = m[0]
+    return handle_hash(stored_hash, login.password, username)
 
 
 async def login_email(login: LoginQuery, db: Database) -> JSONResponse:
-    pass
+    m = await db.fetch_one(
+        "SELECT username, password_hash FROM users WHERE email=:email AND verified",
+        values=dict(email=login.email)
+    )
+    stored_hash: str = m[1]
+    username: str = m[0]
+    return handle_hash(stored_hash, login.password, username)
 
 
 async def register_user(user: RegisterQuery, db: Database) -> JSONResponse:
+    # TODO
     pass
 
 

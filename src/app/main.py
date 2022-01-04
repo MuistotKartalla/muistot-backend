@@ -21,6 +21,9 @@ app = FastAPI(
     redoc_url=None,
     default_response_class=JSONResponse
 )
+
+# START ROUTERS
+
 app.include_router(default_paths)
 app.include_router(old_router, deprecated=True)
 
@@ -37,13 +40,29 @@ for oauth_provider in Config.oauth:
 
 app.include_router(default_login)
 
+# END ROUTERS
+
+
+# START MIDDLEWARE
+#
+# THE ORDER IS VERY IMPORTANT
+#
+# Currently it works like adding layers to an onion.
+# The latest gets executed first.
+
+
+register_csrf_middleware(app)
+register_auth_middleware(app)
+
 if not Config.testing:
-    app.add_middleware(HTTPSRedirectMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_methods=set()
     )
-register_csrf_middleware(app)
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+
+# END MIDDLEWARE
 
 
 @app.on_event("startup")
@@ -70,4 +89,5 @@ async def get_providers():
 
 
 # This goes last
+# Modifies openapi definitions
 modify_openapi(app)

@@ -34,6 +34,7 @@ MAX_BASE64_LENGTH += (4 - MAX_BASE64_LENGTH % 4) + 1
 
 
 def validate(plaintext: bytes, checksum: bytes) -> bool:
+    """Validates two hashes"""
     try:
         h = HASHER.copy()
         h.update(plaintext)
@@ -48,6 +49,16 @@ def validate(plaintext: bytes, checksum: bytes) -> bool:
 
 
 def generate(lifetime: int, payload: bytes = None) -> str:
+    """
+    Generate a Token (HMAC, SHA256).
+
+    Token contains the given payload and a verifier for it.
+    The lifetime is checked on verification.
+
+    :param lifetime: Seconds
+    :param payload:  Bytes
+    :return:         Token
+    """
     from os import urandom
     hashpart = (HAS_PAYLOAD if payload is not None else DUMMY_PAYLOAD) + (int(current_time()) + lifetime).to_bytes(
         length=MAX_TIME_LENGTH,
@@ -64,9 +75,9 @@ def verify(token: str) -> Optional[bytes]:
     Verifies a token and returns the enclosed payload if this token contains one.
     The padding zero bytes are stripped
 
-    :param token: Token to be verified
-    :return: Optional payload
-    :raises: ValueError on invalid token
+    :param token:   Token to be verified
+    :return:        Optional payload
+    :raises:        ValueError on invalid token with short and descriptive message
     """
     if len(token) % 4 != 0:
         raise ValueError("bad-modulo")
@@ -105,6 +116,7 @@ def verify(token: str) -> Optional[bytes]:
 
 
 def int_to_payload(i: int) -> bytes:
+    """Int to Bytes"""
     return i.to_bytes(
         length=PAYLOAD_LENGTH,
         byteorder='big',
@@ -113,6 +125,7 @@ def int_to_payload(i: int) -> bytes:
 
 
 def to_int(b: bytes) -> int:
+    """Bytes to Int"""
     return int.from_bytes(
         b,
         byteorder='big',

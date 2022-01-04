@@ -22,8 +22,8 @@ def respond(code: int = 400, message: str = "request validation failed", details
     }, status_code=code)
 
 
-def set_csrf(response: Response) -> NoReturn:
-    token = generate(LIFETIME)
+def set_csrf(response: Response, payload: Optional[str] = None) -> NoReturn:
+    token = generate(LIFETIME, None if payload is None else payload.encode('utf-8'))
     response.headers[HEADER] = token
 
 
@@ -63,9 +63,11 @@ def register_csrf_middleware(app: FastAPI) -> NoReturn:  # pragma: no cover
         error = check_request(request)
         if error is None:
             resp = await call_next(request)
-            # TODO: Actually make this useful
             if request.method == 'GET':
-                set_csrf(resp)
+                if request.user.is_authenticated:
+                    set_csrf(resp, request.user.display_name)
+                else:
+                    set_csrf(resp)
             return resp
         else:
             return error

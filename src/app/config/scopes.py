@@ -1,0 +1,2 @@
+AUTHENTICATED = 'authenticated'
+ADMIN = 'admin'

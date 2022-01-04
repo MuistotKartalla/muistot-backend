@@ -1,8 +1,10 @@
 import os
 from os.path import expanduser
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from pydantic import parse_file_as, BaseModel, HttpUrl
+
+from . import scopes
 
 
 class HttpsUrl(HttpUrl):
@@ -27,6 +29,7 @@ class Security(BaseModel):
     jwt: str
     csrf: str
     csrf_lifetime: int = 60
+    jwt_lifetime: int = 24 * 60 * 60 * 14
     bcrypt_cost: int = 12
 
 
@@ -37,6 +40,7 @@ class BaseConfig(BaseModel):
     mailer: Optional[Mailer] = None
     security: Security
     oauth: Dict[str, Dict] = {}
+    languages: List[str]
 
 
 CONFIG_FILE = os.getenv('muistot-config') or expanduser("~/muistot-config.json")
@@ -48,7 +52,8 @@ except FileNotFoundError:
         security=Security(
             jwt="test123",
             csrf="test123",
-        )
+        ),
+        languages=["fi", "en"]
     )
 
-__all__ = ['Config']
+__all__ = ['Config', 'scopes']
