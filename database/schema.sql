@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS project_information
         ON DELETE SET NULL
 ) COMMENT 'Stores localized project information';
 
-CREATE TABLE IF NOT EXISTS project_legals
+CREATE TABLE IF NOT EXISTS project_contact
 (
     project_id          INTEGER      NOT NULL COMMENT 'fk',
     can_contact         BOOLEAN      NOT NULL DEFAULT FALSE,
