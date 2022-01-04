@@ -31,3 +31,7 @@ aiomysql == 0.0.21
 #
 # These aren't vry critical
 aiohttp >= 3.8.1, < 4.0.0
+
+# [TEST]
+pytest
+requests
