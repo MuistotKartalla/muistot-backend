@@ -394,14 +394,11 @@ CREATE PROCEDURE comments_audit_log()
 BEGIN
     SELECT COUNT(*)                    AS report_count,
            c.id                        AS comment_id,
-           c.title                     AS comment_title,
            c.comment                   AS comment_story,
-           i.file_name                 AS comment_file,
            cu.username                 AS comment_user,
            CONCAT_WS(',', ru.username) AS reporting_users
     FROM audit_comments ac
              JOIN comments c ON ac.comment_id = c.id
-             JOIN images i on c.image_id = i.id
              JOIN users cu ON c.user_id = cu.id
              JOIN users ru ON ac.user_id = ru.id
     GROUP BY ac.comment_id
