@@ -1,4 +1,3 @@
-import base64
 import binascii
 
 from fastapi import FastAPI
@@ -11,7 +10,7 @@ from starlette.authentication import (
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.requests import Request
 
-from .hashes import verify
+from .jwt import read_jwt
 from ..config import scopes
 from ..headers import AUTHORIZATION
 
@@ -25,12 +24,10 @@ class BasicAuth(AuthenticationBackend):
         if AUTHORIZATION in request.headers:
             auth = request.headers[AUTHORIZATION]
             try:
-                scheme, credentials = auth.split()
+                scheme, jwt = auth.split()
                 if scheme.lower() == 'JWT':
-                    token = base64.b64decode(credentials).decode("ascii")
-                    username = verify(token).decode('utf-8')
-                    if username is not None:
-                        return AuthCredentials([scopes.AUTHENTICATED]), SimpleUser(username)
+                    claims = read_jwt(jwt)
+                    return AuthCredentials([scopes.AUTHENTICATED]), SimpleUser(claims['sub'])
             except (ValueError, UnicodeDecodeError, binascii.Error):
                 raise AuthenticationError('Invalid auth credentials')
 

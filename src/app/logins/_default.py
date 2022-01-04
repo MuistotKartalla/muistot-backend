@@ -2,10 +2,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from passlib.hash import bcrypt
 from pydantic import BaseModel
 
+from ..config import Config
 from ..database import dba, Depends, Database
 from ..headers import *
+from ..security import generate_jwt
 
 router = APIRouter()
 
@@ -23,25 +26,18 @@ class RegisterQuery(BaseModel):
 
 
 def check_password(password_hash: str, password: str) -> bool:
-    from passlib.hash import bcrypt
     return bcrypt.verify(password, password_hash)
 
 
 def hash_password(password: str) -> bytes:
-    from passlib.hash import bcrypt
-    from ..config import Config
     return bcrypt.using(rounds=Config.security.bcrypt_cost).hash(password)
 
 
 def handle_hash(stored_hash: str, incoming_hash: str, username: str):
-    from ..security.hashes import generate
-    from ..config import Config
     if check_password(stored_hash, incoming_hash):
-        # TODO: Not like this, actually use JWT
-        return JSONResponse(status_code=200, headers={AUTHORIZATION: generate(
-            Config.security.jwt_lifetime,
-            username.encode('utf-8')
-        )})
+        return JSONResponse(status_code=200, headers={AUTHORIZATION: generate_jwt({
+            'sub': username
+        })})
     else:
         return JSONResponse(status_code=401)
 

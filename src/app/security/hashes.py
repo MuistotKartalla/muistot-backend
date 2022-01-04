@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.hmac import HMAC
 
 from ..config import Config
 
-SECRET_KEY = Config.security.csrf.encode('ascii')
+SECRET_KEY = Config.security.csrf.secret.encode('ascii')
 HASHER = HMAC(SECRET_KEY, SHA256())
 START = 1635717600  # 2021-11-01 00:00:00 seconds
 

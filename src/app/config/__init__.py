@@ -25,11 +25,21 @@ class Mailer(BaseModel):
     port: int
 
 
+class JWT(BaseModel):
+    secret: str
+    lifetime: int = 24 * 60 * 60 * 14
+    algorithm: str = 'HS256'
+    reissue_threshold: int = 24 * 60 * 60
+
+
+class CSRF(BaseModel):
+    secret: str
+    lifetime: str = 60
+
+
 class Security(BaseModel):
-    jwt: str
-    csrf: str
-    csrf_lifetime: int = 60
-    jwt_lifetime: int = 24 * 60 * 60 * 14
+    jwt: JWT
+    csrf: CSRF
     bcrypt_cost: int = 12
 
 
@@ -50,8 +60,8 @@ except FileNotFoundError:
     Config = BaseConfig(
         db=dict(default=Database()),
         security=Security(
-            jwt="test123",
-            csrf="test123",
+            jwt=JWT(secret="test123"),
+            csrf=CSRF(secret="test123"),
         ),
         languages=["fi", "en"]
     )

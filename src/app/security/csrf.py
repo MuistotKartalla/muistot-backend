@@ -10,7 +10,7 @@ ALLOWED_METHODS = {"GET", "POST", "PUT", "PATCH"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 
 HEADER = "X-Muistot-State"
-LIFETIME = Config.security.csrf_lifetime
+LIFETIME = Config.security.csrf.lifetime
 
 
 def respond(code: int = 400, message: str = "request validation failed", details: List[str] = None) -> JSONResponse:
