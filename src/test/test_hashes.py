@@ -37,8 +37,8 @@ def test_bad_checksum():
 
 
 def test_bad_plain():
-    token = decode(hashes.generate(10))
-    verify('mismatch', token[:hashes.CONTENT_LENGTH - 1] + b':' + token[hashes.CONTENT_LENGTH:])
+    token = decode(hashes.generate(10, payload=b'a'))
+    verify('mismatch', token[:-hashes.CONTENT_LENGTH] + b':' + token[-hashes.CONTENT_LENGTH + 1:])
 
 
 def test_bad_length_long():
