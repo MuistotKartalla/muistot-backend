@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS memories_on_a_map CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE memories_on_a_map;
+CREATE DATABASE IF NOT EXISTS muistot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE muistot;
 
 /*
     Language preferences
@@ -360,7 +360,7 @@ DROP PROCEDURE IF EXISTS analyze_all_tables $$
 CREATE PROCEDURE analyze_all_tables()
 BEGIN
     SET @table_list = NULL;
-    SHOW TABLES WHERE (@table_list := concat_ws(',', @table_list, `Tables_in_memories_on_a_map`));
+    SHOW TABLES WHERE (@table_list := concat_ws(',', @table_list, `Tables_in_muistot`));
     SET @table_list := concat('ANALYZE TABLE ', @table_list);
     PREPARE tasks FROM @table_list;
     EXECUTE tasks;
