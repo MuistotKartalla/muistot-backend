@@ -13,6 +13,10 @@ The final image is around `100MB`
 
 The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [Uvicorn](https://www.uvicorn.org/)
 
+#### Notes
+
+If the database gets messed up its easier to just delete the volume and re-compose.
+
 #### Setting it all up
 
 Create a volume for the database
@@ -37,13 +41,19 @@ This will setup:
 $ docker-compose up -d
 ```
 
+But only DB is needed for tests
+
+```shell
+$ docker-compose up -d db
+```
+
 This will recreate all containers
 
 ```shell
 $ docker-compose up -d --force-recreate
 ```
 
-This will stop the containers and delete volumes
+This will stop the containers and delete volumes (not db volume)
 
 ```shell
 $ docker-compose down -v
