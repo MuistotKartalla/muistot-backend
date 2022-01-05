@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Any, Optional, NoReturn
 
-from fastapi import Request
+from fastapi import Request, HTTPException, status
 
 from .connections import Database
 from ..models import *
@@ -48,23 +48,100 @@ class BaseRepo(ABC):
 
 class ProjectRepo(BaseRepo):
 
+    async def make_project(self, m):
+        if m is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        pi = ProjectInfo.construct(ProjectInfo.__fields_set__, **m)
+        if not m[8] is None:
+            pc = ProjectContact.construct(ProjectContact.__fields_set__, **m)
+        else:
+            pc = None
+        return Project.construct(
+            Project.__fields_set__,
+            **m,
+            info=pi,
+            contact=pc,
+            admins=[admin[0] async for admin in self.db.iterate(
+                """
+                SELECT
+                    u.username
+                FROM project_admins pa
+                    JOIN users u ON pa.user_id = u.id
+                WHERE project_id = :pid
+                """,
+                values=dict(pid=m[0])
+            )]
+        )
+
     async def all(self) -> List[Project]:
-        pass
+        return [await self.make_project(m) async for m in self.db.iterate(
+            """
+            SELECT
+                p.id AS project_id,
+                p.name AS id,
+                
+                l.lang,
+                IFNULL(pi.name, p.name) AS name,
+                pi.abstract,
+                pi.description,
+                
+                p.starts,
+                p.ends,
+                
+                pc.has_research_permit,
+                IF(pc.can_contact, pc.contact_email, NULL)
+            FROM projects p
+                JOIN images i ON p.image_id = i.id
+                LEFT JOIN project_contact pc ON p.id = pc.project_id
+                LEFT JOIN project_information pi ON p.id = pi.project_id
+                JOIN languages l ON pi.lang_id = l.id
+                    AND l.lang = :lang
+            WHERE IFNULL(p.starts > CURDATE(), TRUE) AND p.published
+            """,
+            values=dict(lang=self.lang)
+        )]
 
     async def one(self, project: PID) -> Project:
-        pass
+        return await self.make_project(await self.db.fetch_one(
+            """
+            SELECT
+                p.id AS project_id,
+                p.name AS id,
+                
+                l.lang,
+                IFNULL(pi.name, p.name) AS name,
+                pi.abstract,
+                pi.description,
+                
+                p.starts,
+                p.ends,
+                
+                pc.has_research_permit,
+                IF(pc.can_contact, pc.contact_email, NULL)
+            FROM projects p
+                JOIN images i ON p.image_id = i.id
+                LEFT JOIN project_contact pc ON p.id = pc.project_id
+                LEFT JOIN project_information pi ON p.id = pi.project_id
+                JOIN languages l ON pi.lang_id = l.id
+                    AND l.lang = :lang
+            WHERE IFNULL(p.starts > CURDATE(), TRUE) AND p.published
+                AND p.name = :project
+            """,
+            values=dict(lang=self.lang, project=project)
+        ))
 
     async def create(self, model: Project) -> PID:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def modify(self, project: PID, model: ModifiedProject) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
-    async def delete(self, project: PID) -> bool:
-        pass
+    async def delete(self, project: PID):
+        # Check privilege
+        await self.db.execute("UPDATE projects SET published = 0 WHERE name = :project", values=dict(project=project))
 
     async def by_user(self, user: str) -> List:
-        raise NotImplementedError()
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 class SiteRepo(BaseRepo):
@@ -81,22 +158,22 @@ class SiteRepo(BaseRepo):
         pass
 
     async def one(self, site: SID) -> Site:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def create(self, model: NewSite) -> SID:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def modify(self, site: SID, model: ModifiedSite) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def delete(self, site: SID) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def by_user(self, user: str) -> List[Site]:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def publish(self, site: SID) -> NoReturn:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 class MemoryRepo(BaseRepo):
@@ -105,22 +182,22 @@ class MemoryRepo(BaseRepo):
         super().__init__(db, project=project, site=site)
 
     async def all(self) -> List[Memory]:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def one(self, memory: MID) -> Memory:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def create(self, model: NewMemory) -> MID:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def modify(self, memory: MID, model: ModifiedMemory) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def delete(self, memory: MID) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def by_user(self, user: str) -> List[Memory]:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 class CommentRepo(BaseRepo):
@@ -129,22 +206,22 @@ class CommentRepo(BaseRepo):
         super().__init__(db, project=project, site=site, memory=memory)
 
     async def all(self) -> List[Comment]:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def one(self, comment: CID) -> Comment:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def create(self, model: NewComment) -> CID:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def modify(self, comment: CID, model: ModifiedComment) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def delete(self, *args) -> bool:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def by_user(self, user: str) -> List[Comment]:
-        pass
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 __all__ = [
