@@ -27,3 +27,6 @@ def register_csrf_middleware(app: FastAPI) -> NoReturn:  # pragma: no cover
                 return resp
             else:
                 return error
+
+
+__all__ = ['register_csrf_middleware']

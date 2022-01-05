@@ -1,3 +1,3 @@
-from .auth import register_auth_middleware
-from .csrf import register_csrf_middleware
+from .auth import *
+from .csrf import *
 from .jwt import *

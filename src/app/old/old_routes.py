@@ -7,10 +7,12 @@ from fastapi.responses import PlainTextResponse
 
 from .old_db import old_db as dbb
 from .old_models import *
+from ..config import scopes
 from ..database import Depends
+from ..security import require_auth
 from ..utils import *
 
-router = APIRouter()
+router = APIRouter(prefix='/old')
 
 LANGUAGES: List[Union[List[str], float]] = [None, time()]
 
@@ -36,6 +38,7 @@ async def get_sites(r: Request, db: Database = Depends(dbb)):
 
 
 @router.post("/sites")
+@require_auth(scopes.AUTHENTICATED)
 async def add_sites(r: Request, db: Database = Depends(dbb)):
     pass
 
