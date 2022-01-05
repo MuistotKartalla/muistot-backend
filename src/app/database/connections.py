@@ -61,8 +61,8 @@ async def dba() -> Generator[Database, None, None]:
             async with instance.transaction(force_rollback=rollback):
                 yield instance
     except (InternalError, OperationalError) as e:
-        import logging
-        logging.getLogger("uvicorn.error").warning("Exception in Database", exc_info=e)
+        from ..logging import log
+        log.warning("Exception in Database", exc_info=e)
         # These are serious
         raise HTTPException(503, 'Database Error')
     except IELow:

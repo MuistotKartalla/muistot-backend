@@ -42,7 +42,7 @@ def check_request(request: Request) -> Optional[JSONResponse]:
                 token = request.headers[HEADER]
                 data = verify(token)
                 if request.user.is_authenticated:
-                    if data != request.user.display_name.encode('utf-8'):
+                    if data != request.user.identity.encode('utf-8'):
                         out = respond(details=['bad-payload'])
             except KeyError:
                 out = respond(details=['missing-value'])
@@ -52,8 +52,8 @@ def check_request(request: Request) -> Optional[JSONResponse]:
                 except IndexError:  # pragma: no cover
                     out = respond(details=["unexpected state"])
             except Exception as e:  # pragma: no cover
-                import logging
-                logging.getLogger("uvicorn.error").warning("Exception", exc_info=e)
+                from ...logging import log
+                log.warning("Exception", exc_info=e)
                 out = respond(details=['unexpected'])
     else:
         out = respond(405, "method not allowed on this domain", ['bad-method'])

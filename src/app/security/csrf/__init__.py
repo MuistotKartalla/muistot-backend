@@ -21,7 +21,7 @@ def register_csrf_middleware(app: FastAPI) -> NoReturn:  # pragma: no cover
                 resp = await call_next(request)
                 if request.method == 'GET':
                     if request.user.is_authenticated:
-                        set_csrf(resp, request.user.display_name)
+                        set_csrf(resp, request.user.identity)
                     else:
                         set_csrf(resp)
                 return resp

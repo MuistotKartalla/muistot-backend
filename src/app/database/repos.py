@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Any, Optional, NoReturn
+from typing import List, Any, Optional, NoReturn, Union
 
 from fastapi import Request, HTTPException, status
 
@@ -8,18 +8,65 @@ from ..models import *
 from ..utils import extract_language_or_default
 
 
+def needs_admin(f):
+    import functools
+    import inspect
+
+    param_index = None
+    for idx, name in enumerate(inspect.getfullargspec(f).args):
+        if name == 'project':
+            param_index = idx
+            break
+
+    if param_index is None:
+        @functools.wraps(f)
+        async def decorator(*args, **kwargs):
+            self: 'BaseRepo' = args[0]
+            project: PID = getattr(self, 'project')
+            await self.check_admin_privilege(project)
+            return await f(*args, **kwargs)
+    else:
+        @functools.wraps(f)
+        async def decorator(*args, **kwargs):
+            self: 'BaseRepo' = args[0]
+            project: PID = args[param_index]
+            await self.check_admin_privilege(project)
+            return await f(*args, **kwargs)
+
+    return decorator
+
+
 class BaseRepo(ABC):
 
     def __init__(self, db: Database, **kwargs):
+        from starlette.authentication import UnauthenticatedUser
+        from ..security.auth import CustomUser
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
-        self.user = None
+        self.user: Union[UnauthenticatedUser, CustomUser] = UnauthenticatedUser()
         self.lang = "fi"
 
     def configure(self, r: Request):
         self.user = r.user
         self.lang = extract_language_or_default(r)
+
+    async def check_admin_privilege(self, project: str) -> NoReturn:
+        if self.user.is_authenticated and self.user.is_admin_in(project):
+            is_admin = self.db.execute(
+                """
+                SELECT EXISTS(
+                    SELECT 1
+                    FROM users u
+                        JOIN project_admins pa ON pa.user_id = u.id
+                        JOIN projects p ON pa.project_id = p.id
+                    WHERE p.name = :project AND u.username = :user
+                )
+                """,
+                values=dict(project=project, user=self.user.identity)
+            )
+            if not is_admin:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Unauthorized')
 
     @abstractmethod
     async def all(self, *args) -> List:
@@ -130,15 +177,20 @@ class ProjectRepo(BaseRepo):
             values=dict(lang=self.lang, project=project)
         ))
 
+    @needs_admin  # This will imply SuperUser
     async def create(self, model: Project) -> PID:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+    @needs_admin
     async def modify(self, project: PID, model: ModifiedProject) -> bool:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+    @needs_admin
     async def delete(self, project: PID):
-        # Check privilege
-        await self.db.execute("UPDATE projects SET published = 0 WHERE name = :project", values=dict(project=project))
+        await self.db.execute(
+            "UPDATE projects SET published = 0 WHERE name = :project",
+            values=dict(project=project)
+        )
 
     async def by_user(self, user: str) -> List:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
@@ -163,15 +215,18 @@ class SiteRepo(BaseRepo):
     async def create(self, model: NewSite) -> SID:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+    @needs_admin
     async def modify(self, site: SID, model: ModifiedSite) -> bool:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+    @needs_admin
     async def delete(self, site: SID) -> bool:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     async def by_user(self, user: str) -> List[Site]:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+    @needs_admin
     async def publish(self, site: SID) -> NoReturn:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 

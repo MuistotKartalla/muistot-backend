@@ -1,4 +1,5 @@
 import binascii
+from typing import Dict
 
 from fastapi import FastAPI
 from starlette.authentication import (
@@ -13,10 +14,49 @@ from starlette.requests import Request
 from . import scopes
 from .jwt import read_jwt
 from ..headers import AUTHORIZATION
+from ..models import PID
 
 
-# TODO: ADD ADMIN
-# Add custom user and add scopes at login to indicate admin rights to projects
+class ContainsAll:
+
+    def __contains__(self, _):
+        return True
+
+
+class SuperUser(SimpleUser):
+
+    @property
+    def identity(self) -> str:
+        return self.username
+
+    # noinspection PyMethodMayBeStatic
+    def is_admin_in(self, _) -> bool:
+        return True
+
+
+class CustomUser(SimpleUser):
+
+    def __init__(self, data: Dict):
+        super(CustomUser, self).__init__(data[scopes.SUBJECT])
+        if scopes.ADMIN in data and data[scopes.ADMIN] == scopes.TRUE and scopes.ADMIN_IN_PROJECTS in data:
+            self._admined_projects = set(data[scopes.ADMIN_IN_PROJECTS])
+        else:
+            self._admined_projects = None
+
+    @property
+    def identity(self) -> str:
+        return self.username
+
+    def is_admin_in(self, project: PID) -> bool:
+        """
+        This should be faster than querying DB every time we need to check if someone is an Admin.
+        Only verifying from DB should be ok, but initial rejection based on JWT should save time.
+
+        :param project: PID
+        :return: Bool
+        """
+        return self._admined_projects is not None and project in self._admined_projects
+
 
 class BasicAuth(AuthenticationBackend):
 
@@ -28,10 +68,17 @@ class BasicAuth(AuthenticationBackend):
             auth = request.headers[AUTHORIZATION]
             try:
                 scheme, jwt = auth.split()
-                if scheme.lower() == 'JWT':
+                if scheme.lower() == 'jwt':
                     claims = read_jwt(jwt)
-                    return AuthCredentials([scopes.AUTHENTICATED]), SimpleUser(claims['sub'])
-            except (ValueError, UnicodeDecodeError, binascii.Error):
+                    user = CustomUser(claims)
+                    # noinspection PyProtectedMember
+                    if user._admined_projects is not None:
+                        return AuthCredentials([scopes.AUTHENTICATED, scopes.ADMIN]), user
+                    else:
+                        return AuthCredentials([scopes.AUTHENTICATED]), user
+            except (ValueError, UnicodeDecodeError, binascii.Error) as e:
+                from ..logging import log
+                log.exception("Invalid auth", exc_info=e)
                 raise AuthenticationError('Invalid auth credentials')
 
 
@@ -61,9 +108,18 @@ def require_auth(*required_scopes: str):
             from starlette.authentication import has_required_scope
             try:
                 if not has_required_scope(r, required_scopes):
-                    raise HTTPException(status_code=401, detail='Unauthorized')
-            except:
-                raise HTTPException(status_code=401, detail='Unauthorized')
+                    raise HTTPException(
+                        status_code=401,
+                        detail=f'Unauthorized\n'
+                               f'Required ({",".join(required_scopes)})\n'
+                               f'Got ({",".join(r.auth.scopes)})'
+                    )
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                from ..logging import log
+                log.exception(f"Failed auth check: {repr(r.headers)}", exc_info=e)
+                raise HTTPException(status_code=401, detail='Unauthorized\nValidation Failed')
             return await f(r, *args, **kwargs)
 
         return check_auth
@@ -73,5 +129,6 @@ def require_auth(*required_scopes: str):
 
 __all__ = [
     'register_auth_middleware',
-    'require_auth'
+    'require_auth',
+    'CustomUser'
 ]

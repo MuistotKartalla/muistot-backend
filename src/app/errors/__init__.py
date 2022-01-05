@@ -11,8 +11,13 @@ class ApiError(Exception):
 
     def __init__(self, code: int, message: str, *additional_details: str):
         self.code = code
-        self.message = message
-        self.details = list(additional_details)
+        parts = message.splitlines(keepends=False)
+        if len(parts) > 1:
+            self.message = parts[0]
+            self.details = parts[1:] + list(additional_details)
+        else:
+            self.message = message
+            self.details = list(additional_details)
 
 
 class ErrorResponse(JSONResponse):
@@ -63,8 +68,8 @@ def modify_openapi(app: FastAPI):
         )["definitions"])
         app.openapi_schema = openapi
     except Exception as e:
-        import logging
-        logging.getLogger('uvicorn.error').exception('Failed to setup OpenAPI', exc_info=e)
+        from ..logging import log
+        log.exception('Failed to setup OpenAPI', exc_info=e)
 
 
 def register_error_handlers(app: FastAPI):
@@ -81,8 +86,8 @@ def register_error_handlers(app: FastAPI):
                 errors=jsonable_encoder(exc.errors())
             )))
         except Exception as e:
-            import logging
-            logging.getLogger('uvicorn.error').exception('Failed request', exc_info=e)
+            from ..logging import log
+            log.exception('Failed request', exc_info=e)
             return ErrorResponse(ApiError(422, "request validation error"))
 
     try:

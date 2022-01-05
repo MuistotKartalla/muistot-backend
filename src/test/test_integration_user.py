@@ -36,13 +36,14 @@ async def delete_user(db: Database, credentials):
 def do_login(client: TestClient, data: Dict, username: str):
     from app.headers import AUTHORIZATION
     from app.security.jwt import read_jwt
+    from app.security.scopes import SUBJECT
     resp = client.post("/login", json=data)
 
     assert resp.status_code == 200, resp.json()
     header = resp.headers[AUTHORIZATION]
     alg, token = header.split()
     assert alg == 'JWT'
-    assert read_jwt(token)['sub'] == username
+    assert read_jwt(token)[SUBJECT] == username
 
 
 @pytest.mark.anyio
@@ -88,3 +89,66 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
     }
     resp = client.post("/login", json=data)
     assert resp.status_code == 401 and 'verified' in resp.json()["error"]["message"]
+
+
+@pytest.mark.anyio
+async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient, login, db):
+    from app.headers import AUTHORIZATION
+    from app.security.jwt import read_jwt
+    from app.security.auth import CustomUser
+    from fastapi import status
+
+    username, email, password = login
+    try:
+        # LOGIN
+        data = {'username': username, 'password': password}
+        resp = client.post("/login", json=data)
+
+        # TRY UN-PUBLISH
+        resp = client.delete(f'/api/projects/{username}', headers={AUTHORIZATION: resp.headers[AUTHORIZATION]})
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.json()
+
+        # PREP
+        await db.execute(
+            "INSERT INTO projects (name, published) VALUE (:pname, 1)",
+            values=dict(pname=username)
+        )
+        await db.execute(
+            """
+            INSERT INTO project_admins (project_id, user_id) 
+            SELECT 
+                (SELECT p.id FROM projects p WHERE p.name = :pname), 
+                (SELECT u.id FROM users u WHERE u.username = :uname)
+            """,
+            values=dict(pname=username, uname=username)
+        )
+
+        # LOGIN
+        resp = client.post("/login", json=data)
+
+        # UN-PUBLISH
+        resp = client.delete(
+            f'/api/projects/{username}',
+            headers={AUTHORIZATION: resp.headers[AUTHORIZATION]}
+        )
+        assert resp.status_code == status.HTTP_204_NO_CONTENT, resp.json()
+        assert await db.fetch_val(
+            "SELECT published FROM projects WHERE name = :pname",
+            values=dict(pname=username)
+        ) == 0
+
+        # DELETE FULLY FROM DB
+        await db.execute(
+            "DELETE FROM projects WHERE name = :pname",
+            values=dict(pname=username)
+        )
+
+        # RE-LOGIN
+        resp = client.post("/login", json=data)
+        user = CustomUser(read_jwt(resp.headers[AUTHORIZATION].split()[1]))
+
+        # ASSERT LOST ADMIN
+        assert user.is_authenticated
+        assert not user.is_admin_in(username)
+    finally:
+        await db.execute("DELETE FROM projects WHERE name = :pname", values=dict(pname=username))

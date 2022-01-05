@@ -3,6 +3,7 @@ from ._default import router as default_login
 
 def register_oauth_providers(app):
     from ..config import Config
+    from ..logging import log
     from importlib import import_module
     from pydantic import BaseModel
     from typing import List
@@ -13,10 +14,6 @@ def register_oauth_providers(app):
     @app.get("/login")
     async def get_providers() -> OAuthProviders:
         return OAuthProviders(oauth_providers=[k for k in Config.oauth])
-
-    import logging
-
-    log = logging.getLogger("uvicorn.error")
 
     for oauth_provider in Config.oauth:
         try:

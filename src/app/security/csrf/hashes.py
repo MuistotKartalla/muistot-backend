@@ -43,8 +43,8 @@ def validate(plaintext: bytes, checksum: bytes) -> bool:
     except InvalidSignature:
         pass
     except Exception as e:  # pragma: no cover
-        import logging
-        logging.getLogger("uvicorn.error").warning("Exception", exc_info=e)
+        from ...logging import log
+        log.warning("Exception", exc_info=e)
     return False
 
 

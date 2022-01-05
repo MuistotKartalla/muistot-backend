@@ -34,22 +34,30 @@ def hash_password(password: str) -> bytes:
     return bcrypt.using(rounds=Config.security.bcrypt_cost).hash(password)
 
 
-def handle_hash(stored_hash: str, incoming_hash: str, username: str):
-    if check_password(stored_hash, incoming_hash):
-        return JSONResponse(status_code=200, headers={AUTHORIZATION: 'JWT ' + generate_jwt({
-            'sub': username
-        })})
-    else:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-def handle_login(m, login: LoginQuery) -> JSONResponse:
+async def handle_login(db: Database, m, login: LoginQuery) -> JSONResponse:
     if m is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
     username: str = m[0]
     stored_hash: str = m[1]
     verified = m[2] == 1
-    res = handle_hash(stored_hash, login.password, username)
+    if check_password(stored_hash, login.password):
+        from ..security import scopes
+        admin_list = [m[0] async for m in db.iterate(
+            """
+            SELECT p.name
+            FROM  users u
+                JOIN project_admins pa ON pa.user_id = u.id
+                JOIN projects p ON pa.project_id = p.id
+            WHERE u.username = :username
+            """,
+            values=dict(username=username)
+        )]
+        res = JSONResponse(status_code=200, headers={AUTHORIZATION: 'JWT ' + generate_jwt({
+            scopes.SUBJECT: username,
+            **({scopes.ADMIN: scopes.TRUE, scopes.ADMIN_IN_PROJECTS: admin_list} if len(admin_list) > 0 else {})
+        })})
+    else:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     if not verified:
         raise HTTPException(status_code=401, detail="Not verified")
     else:
@@ -57,7 +65,8 @@ def handle_login(m, login: LoginQuery) -> JSONResponse:
 
 
 async def login_username(login: LoginQuery, db: Database) -> JSONResponse:
-    return handle_login(
+    return await handle_login(
+        db,
         await db.fetch_one(
             "SELECT username, password_hash, verified FROM users WHERE username=:uname",
             values=dict(uname=login.username)
@@ -67,7 +76,8 @@ async def login_username(login: LoginQuery, db: Database) -> JSONResponse:
 
 
 async def login_email(login: LoginQuery, db: Database) -> JSONResponse:
-    return handle_login(
+    return await handle_login(
+        db,
         await db.fetch_one(
             "SELECT username, password_hash, verified FROM users WHERE email=:email",
             values=dict(email=login.email)
