@@ -6,14 +6,14 @@ router = APIRouter()
 @router.get('/projects/{project}/sites/{site}/memories')
 async def get_memories(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> List[Memory]:
     repo = MemoryRepo(db, project, site)
-    repo.set_user(r.user)
+    repo.configure(r)
     return await repo.all()
 
 
 @router.get('/projects/{project}/sites/{site}/memories/{memory}')
 async def get_memory(r: Request, project: PID, site: SID, memory: MID, db: Database = Depends(dba)) -> Memory:
     repo = MemoryRepo(db, project, site)
-    repo.set_user(r.user)
+    repo.configure(r)
     return await repo.one(memory)
 
 
@@ -26,7 +26,7 @@ async def new_memory(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = MemoryRepo(db, project, site)
-    repo.set_user(r.user)
+    repo.configure(r)
     new_id = await repo.create(model)
     return created(router.url_path_for('get_memory', project=project, site=site, memory=str(new_id)))
 
@@ -42,7 +42,7 @@ async def modify_memory(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = MemoryRepo(db, project, site)
-    repo.set_user(r.user)
+    repo.configure(r)
     changed = await repo.modify(memory, model)
     return modified(lambda: router.url_path_for('get_memory', project=project, site=site, memory=str(memory)), changed)
 
@@ -57,6 +57,6 @@ async def delete_memory(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = MemoryRepo(db, project, site)
-    repo.set_user(r.user)
+    repo.configure(r)
     await repo.delete(memory)
     return deleted(router.url_path_for('get_memories', project=project, site=site))

@@ -14,15 +14,16 @@ def get_languages() -> List[str]:
 
 
 def extract_language_or_default(r: Request) -> str:
+    from ..config import Config
     try:
         available = get_languages()
         lang = r.headers[ACCEPT_LANGUAGE]
         if lang in available:
             return lang
         else:
-            return "fi"
+            return Config.default_language
     except KeyError:
-        return "fi"
+        return Config.default_language
 
 
 def url_safe(name: str) -> bool:

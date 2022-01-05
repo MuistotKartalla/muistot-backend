@@ -51,6 +51,7 @@ class BaseConfig(BaseModel):
     security: Security
     oauth: Dict[str, Dict] = {}
     languages: List[str]
+    default_language = "fi"
 
 
 CONFIG_FILE = expanduser('~/config.json')

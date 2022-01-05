@@ -5,6 +5,7 @@ router = APIRouter()
 
 @router.get('/projects/{project}/sites')
 async def get_sites(
+        r: Request,
         project: PID,
         n: Optional[int],
         lat: Optional[float],
@@ -12,19 +13,21 @@ async def get_sites(
         db: Database = Depends(dba)
 ) -> List[Site]:
     repo = SiteRepo(db, project)
+    repo.configure(r)
     return await repo.all(n, lat, lon)
 
 
 @router.get('/projects/{project}/sites/{site}')
-async def get_site(project: PID, site: SID, db: Database = Depends(dba)) -> Site:
+async def get_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> Site:
     repo = SiteRepo(db, project)
+    repo.configure(r)
     return await repo.one(site)
 
 
 @router.post('/projects/{project}/sites')
 async def new_site(r: Request, project: PID, model: NewSite, db: Database = Depends(dba)) -> JSONResponse:
     repo = SiteRepo(db, project)
-    repo.set_user(r.user)
+    repo.configure(r)
     new_id = await repo.create(model)
     return created(router.url_path_for('get_site', project=project, site=new_id))
 
@@ -39,7 +42,7 @@ async def modify_site(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = SiteRepo(db, project)
-    repo.set_user(r.user)
+    repo.configure(r)
     changed = await repo.modify(site, model)
     return modified(lambda: router.url_path_for('get_site', project=project, site=site), changed)
 
@@ -48,7 +51,7 @@ async def modify_site(
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
     repo = SiteRepo(db, project)
-    repo.set_user(r.user)
+    repo.configure(r)
     await repo.delete(site)
     return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -57,6 +60,6 @@ async def delete_site(r: Request, project: PID, site: SID, db: Database = Depend
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
     repo = SiteRepo(db, project)
-    repo.set_user(r.user)
+    repo.configure(r)
     await repo.publish(site)
     return JSONResponse(status_code=status.HTTP_200_OK)

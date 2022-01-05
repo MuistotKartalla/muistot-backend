@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Any, Optional, NoReturn
 
+from fastapi import Request
+
 from .connections import Database
 from ..models import *
+from ..utils import extract_language_or_default
 
 
 class BaseRepo(ABC):
@@ -12,9 +15,11 @@ class BaseRepo(ABC):
         for k, v in kwargs.items():
             setattr(self, k, v)
         self.user = None
+        self.lang = "fi"
 
-    def set_user(self, u: Any):
-        self.user = u
+    def configure(self, r: Request):
+        self.user = r.user
+        self.lang = extract_language_or_default(r)
 
     @abstractmethod
     async def all(self, *args) -> List:

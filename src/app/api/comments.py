@@ -4,14 +4,29 @@ router = APIRouter()
 
 
 @router.get('/projects/{project}/sites/{site}/comments')
-async def get_comments(project: PID, site: SID, memory: MID, db: Database = Depends(dba)) -> List[Comment]:
+async def get_comments(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        db: Database = Depends(dba)
+) -> List[Comment]:
     repo = CommentRepo(db, project, site, memory)
+    repo.configure(r)
     return await repo.all()
 
 
 @router.get('/projects/{project}/sites/{site}/comments/{comment}')
-async def get_comment(project: PID, site: SID, memory: MID, comment: CID, db: Database = Depends(dba)) -> Comment:
+async def get_comment(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        comment: CID,
+        db: Database = Depends(dba)
+) -> Comment:
     repo = CommentRepo(db, project, site, memory)
+    repo.configure(r)
     return await repo.one(comment)
 
 
@@ -26,7 +41,7 @@ async def new_comment(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = CommentRepo(db, project, site, memory)
-    repo.set_user(r.user)
+    repo.configure(r)
     new_id = repo.create(model)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
@@ -53,7 +68,7 @@ async def modify_comment(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = CommentRepo(db, project, site, memory)
-    repo.set_user(r.user)
+    repo.configure(r)
     changed = await repo.modify(comment, model)
     return modified(lambda: router.url_path_for(
         'get_comment',
@@ -75,7 +90,7 @@ async def delete_comment(
         db: Database = Depends(dba)
 ) -> JSONResponse:
     repo = CommentRepo(db, project, site, memory)
-    repo.set_user(r.user)
+    repo.configure(r)
     await repo.delete(comment)
     return deleted(router.url_path_for(
         'get_comments',
