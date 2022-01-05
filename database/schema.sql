@@ -330,7 +330,7 @@ CREATE PROCEDURE clean_verifiers()
 BEGIN
     DELETE u
     FROM users u
-             JOIN user_email_verifiers uev on u.id = uev.user_id
+             JOIN user_email_verifiers uev ON u.id = uev.user_id
     WHERE uev.created_at < ADDDATE(CURRENT_TIMESTAMP, INTERVAL -24 HOUR)
       AND u.verified = 0;
     DELETE uev
@@ -360,8 +360,8 @@ DROP PROCEDURE IF EXISTS analyze_all_tables $$
 CREATE PROCEDURE analyze_all_tables()
 BEGIN
     SET @table_list = NULL;
-    SHOW TABLES WHERE (@table_list := concat_ws(',', @table_list, `Tables_in_muistot`));
-    SET @table_list := concat('ANALYZE TABLE ', @table_list);
+    SHOW TABLES WHERE (@table_list := CONCAT_WS(',', @table_list, `Tables_in_muistot`));
+    SET @table_list := CONCAT('ANALYZE TABLE ', @table_list);
     PREPARE tasks FROM @table_list;
     EXECUTE tasks;
     DEALLOCATE PREPARE tasks;
