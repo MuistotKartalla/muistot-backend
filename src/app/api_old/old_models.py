@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from pydantic import BaseModel, Field
 
@@ -30,3 +30,21 @@ class Site(BaseModel):
     image: str = Field(default="/static/placeholder.jpg")
 
 
+class Location(BaseModel):
+    lat: str
+    lng: str
+
+
+class SiteQuery(BaseModel):
+    """
+    detailLevel:
+        0 - coordinates, id
+        1 - 0 + title, author
+        2 - 1 + date, previewImage
+    """
+    projectId: int
+    location: Location
+    detailLevel: Literal[0, 1, 2]
+    howMany: int
+    alreadyLoadedIds: Optional[List[int]]
+    onlyByUsers: Optional[List[int]]

@@ -1,10 +1,7 @@
-import os
 from os.path import expanduser
 from typing import Dict, Optional, List
 
 from pydantic import parse_file_as, BaseModel, HttpUrl
-
-from . import scopes
 
 
 class HttpsUrl(HttpUrl):
@@ -36,7 +33,7 @@ class JWT(BaseModel):
 
 class CSRF(BaseModel):
     secret: str
-    lifetime: str = 60
+    lifetime: int = 60
     enabled: bool = False
 
 
@@ -56,16 +53,14 @@ class BaseConfig(BaseModel):
     languages: List[str]
 
 
-CONFIG_FILE = os.getenv('muistot-config') or expanduser("~/muistot-config.json")
+CONFIG_FILE = expanduser('~/config.json')
 try:
     Config = parse_file_as(BaseConfig, CONFIG_FILE)
 except FileNotFoundError:
-    Config = BaseConfig(
-        db=dict(default=Database()),
-        security=Security(
-            jwt=JWT(secret="test123")
-        ),
-        languages=["fi", "en"]
-    )
+    try:
+        CONFIG_FILE = './test_config.json'
+        Config = parse_file_as(BaseConfig, CONFIG_FILE)
+    except FileNotFoundError:
+        raise RuntimeError(f"Failed to find config in {expanduser('~')} and .")
 
-__all__ = ['Config', 'scopes']
+__all__ = ['Config']

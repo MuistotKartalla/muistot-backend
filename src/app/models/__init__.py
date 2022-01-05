@@ -1,1 +1,1 @@
-from .memories import *
+from .models_memories import *

@@ -9,6 +9,7 @@ services:
     container_name: muistot-compose-server
     volumes:
       - ./src/app:/code/app
+      - ./test_docker_config.json:/root/config.json
     ports:
       - "127.0.0.1:5600:80"
     networks:

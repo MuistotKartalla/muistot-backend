@@ -22,8 +22,5 @@ async def db():
 
 @pytest.fixture
 def client(db):
-    old = main.Config.security.csrf.enabled
-    main.Config.security.csrf.enabled = False
     with TestClient(main.app) as instance:
         yield instance
-    main.Config.security.csrf.enabled = old

@@ -1,0 +1,35 @@
+{
+  "testing": true,
+  "domain": null,
+  "db": {
+    "default": {
+      "host": "db",
+      "port": "3306",
+      "database": "muistot",
+      "user": "root",
+      "password": "test",
+      "use_ssl": false,
+      "rollback": false
+    }
+  },
+  "mailer": null,
+  "security": {
+    "jwt": {
+      "secret": "test123",
+      "lifetime": 1209600,
+      "algorithm": "HS256",
+      "reissue_threshold": 86400
+    },
+    "csrf": {
+      "secret": "not in use",
+      "lifetime": 60,
+      "enabled": false
+    },
+    "bcrypt_cost": 12
+  },
+  "oauth": {},
+  "languages": [
+    "fi",
+    "en"
+  ]
+}

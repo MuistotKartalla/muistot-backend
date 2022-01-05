@@ -1,8 +1,11 @@
+import re
 from typing import List
 
 from fastapi import Request
 
 from ..headers import ACCEPT_LANGUAGE
+
+ALLOWED_CHARS = re.compile(r'^[a-zA-Z0-9_:-]+$')
 
 
 def get_languages() -> List[str]:
@@ -22,7 +25,12 @@ def extract_language_or_default(r: Request) -> str:
         return "fi"
 
 
+def url_safe(name: str) -> bool:
+    return name is not None and ALLOWED_CHARS.fullmatch(name) is not None
+
+
 __all__ = [
     'get_languages',
-    'extract_language_or_default'
+    'extract_language_or_default',
+    'url_safe'
 ]

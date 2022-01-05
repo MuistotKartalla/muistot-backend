@@ -65,9 +65,14 @@ Or just stop them
 $ docker-compose down
 ```
 
-Or just running the server on `5603`:
+Or just running the server:
+
+```shell
+$ sh script/testserver.sh
+```
+
+You can build the image too:
 
 ```shell
 $ sh script/build_testserver.sh
-$ sh script/testserver.sh
 ```
