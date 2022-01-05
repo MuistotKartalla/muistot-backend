@@ -1,5 +1,6 @@
 {
   "testing": true,
+  "auto_publish" : true,
   "domain": null,
   "db": {
     "default": {

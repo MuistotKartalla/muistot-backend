@@ -54,12 +54,3 @@ async def delete_site(r: Request, project: PID, site: SID, db: Database = Depend
     repo.configure(r)
     await repo.delete(site)
     return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post("/projects/{project}/sites/{site}/publish")
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def publish_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
-    repo = SiteRepo(db, project)
-    repo.configure(r)
-    await repo.publish(site)
-    return JSONResponse(status_code=status.HTTP_200_OK)

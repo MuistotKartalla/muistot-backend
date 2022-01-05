@@ -52,6 +52,7 @@ class BaseConfig(BaseModel):
     oauth: Dict[str, Dict] = {}
     languages: List[str]
     default_language = "fi"
+    auto_publish: bool = False
 
 
 CONFIG_FILE = expanduser('~/config.json')

@@ -41,11 +41,13 @@ class BaseRepo(ABC):
     def __init__(self, db: Database, **kwargs):
         from starlette.authentication import UnauthenticatedUser
         from ..security.auth import CustomUser
+        from ..config import Config
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
         self.user: Union[UnauthenticatedUser, CustomUser] = UnauthenticatedUser()
         self.lang = "fi"
+        self.publish = Config.auto_publish
 
     def configure(self, r: Request):
         self.user = r.user
@@ -193,7 +195,16 @@ class ProjectRepo(BaseRepo):
         )
 
     async def by_user(self, user: str) -> List:
+        """Not used"""
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
+
+    @needs_admin
+    async def publish(self, project: PID) -> PID:
+        await self.db.execute(
+            "UPDATE projects SET published = 1 WHERE name = :project",
+            values=dict(project=project)
+        )
+        return project
 
 
 class SiteRepo(BaseRepo):
@@ -227,7 +238,7 @@ class SiteRepo(BaseRepo):
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
     @needs_admin
-    async def publish(self, site: SID) -> NoReturn:
+    async def publish(self, site: SID) -> SID:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
