@@ -53,13 +53,12 @@ async def dba() -> Generator[Database, None, None]:
     :raises IntegrityError:  on integrity violations
     :return: Generator for database transactions
     """
-    global instance
+    with instance_lock:
+        if not instance.is_connected:
+            await instance.connect()
     try:
-        with instance_lock:
-            if not instance.is_connected:
-                await instance.connect()
-            async with instance.transaction(force_rollback=rollback):
-                yield instance
+        async with instance.transaction(force_rollback=rollback):
+            yield instance
     except (InternalError, OperationalError) as e:
         from ..logging import log
         log.warning("Exception in Database", exc_info=e)
