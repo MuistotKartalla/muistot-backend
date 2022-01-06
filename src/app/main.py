@@ -4,7 +4,6 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import *
-from .api_old import *
 from .config import Config
 from .errors import register_error_handlers, modify_openapi
 from .logins import *
@@ -28,7 +27,6 @@ register_error_handlers(app)
 
 app.include_router(common_paths)
 app.include_router(api_paths)
-app.include_router(old_router, deprecated=True)
 
 app.include_router(default_login)
 
