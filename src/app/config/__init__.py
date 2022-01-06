@@ -46,6 +46,7 @@ class Security(BaseModel):
 class FileStore(BaseModel):
     allowed_filetypes: Set[str] = {'jpeg', 'png'}  # https://docs.python.org/3/library/imghdr.html
     location: str = Field(regex='^.*/$', default='/opt/files/')
+    allow_anonymous: bool = False
 
 
 class BaseConfig(BaseModel):

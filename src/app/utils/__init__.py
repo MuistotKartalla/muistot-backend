@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Set
+from typing import Optional, Set, Tuple
 
 from fastapi import Request
 
@@ -30,7 +30,7 @@ def url_safe(name: str) -> bool:
     return name is not None and ALLOWED_CHARS.fullmatch(name) is not None
 
 
-def check_file(compressed_data: str) -> Optional[bytes]:
+def check_file(compressed_data: str) -> Optional[Tuple[bytes, str]]:
     try:
         import base64
         import imghdr
@@ -38,7 +38,7 @@ def check_file(compressed_data: str) -> Optional[bytes]:
         raw_data = base64.b64decode(compressed_data, validate=True)
         file_type = imghdr.what(None, h=raw_data)
         if file_type in Config.files.allowed_filetypes:
-            return raw_data
+            return raw_data, file_type
     except Exception as e:
         from ..logging import log
         log.exception('Failed file validation', exc_info=e)

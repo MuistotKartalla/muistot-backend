@@ -204,7 +204,7 @@ class SiteRepo(BaseRepo):
     async def create(self, model: NewSite) -> SID:
         check_id(model.id)
         check_language(model.info.lang)
-        image_id = await Files(self.db).handle(model.image)
+        image_id = await Files(self.db, self.user).handle(model.image)
         ret = await self.db.fetch_one(
             """
             INSERT INTO sites (project_id, name, image_id, published, location) 

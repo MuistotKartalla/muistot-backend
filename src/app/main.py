@@ -11,8 +11,8 @@ from .logins import *
 from .security import *
 
 app = FastAPI(
-    title="Muitoja Kartalla",
-    description="Backend for the https://www.muitojakartalla.fi service.",
+    title="Muistoja Kartalla",
+    description="Backend for the https://www.muistojakartalla.fi service.",
     version="1.0.1",
     docs_url="/docs",
     # root_path="/api", # Doesn't work without proxy

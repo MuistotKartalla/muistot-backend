@@ -1,6 +1,6 @@
 {
   "testing": true,
-  "auto_publish" : true,
+  "auto_publish": true,
   "domain": null,
   "db": {
     "default": {
@@ -32,5 +32,8 @@
   "languages": [
     "fi",
     "en"
-  ]
+  ],
+  "files": {
+    "allow_anonymous": "true"
+  }
 }

@@ -316,8 +316,9 @@ class Files:
     Interfacing with files in base64 strings
     """
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, user: Any):
         self.db = db
+        self.user = user
 
     async def handle(self, file_data: str) -> int:
         """
@@ -329,13 +330,27 @@ class Files:
         :param file_data:   data in base64
         :return:            image_id if one was generated
         """
-        if file_data is not None:
+        from ..config import Config
+        if file_data is not None and (Config.files.allow_anonymous or self.user.is_authenticated):
             from ..utils import check_file
             from ..config import Config
-            data = check_file(file_data)
+            data, file_type = check_file(file_data)
             if data is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad image')
-            m = await self.db.fetch_one("INSERT INTO images VALUE () RETURNING id, file_name")
+            if self.user.is_authenticated:
+                m = await self.db.fetch_one(
+                    """
+                    INSERT INTO images (uploader_id) 
+                    SELECT
+                        u.id 
+                    FROM users u
+                        WHERE u.username = :user
+                    RETURNING id, file_name
+                    """,
+                    values=dict(ft=file_type, user=self.user.identity)
+                )
+            else:
+                m = await self.db.fetch_one("INSERT INTO images VALUE () RETURNING id, file_name")
             image_id = m[0]
             file_name = m[1]
             with open(f'{Config.files.location}{file_name}', 'wb') as f:
