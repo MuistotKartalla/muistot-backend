@@ -113,6 +113,22 @@ class NewComment(BaseModel):
     comment: str
 
 
+class Sites(BaseModel):
+    items: List[Site]
+
+
+class Projects(BaseModel):
+    items: List[Project]
+
+
+class Memories(BaseModel):
+    items: List[Memory]
+
+
+class Comments(BaseModel):
+    items: List[Comment]
+
+
 __all__ = [
     'Project',
     'ProjectInfo',
@@ -133,5 +149,10 @@ __all__ = [
     'ModifiedProject',
     'ModifiedComment',
 
-    'PID', 'SID', 'MID', 'CID'
+    'PID', 'SID', 'MID', 'CID',
+
+    'Sites',
+    'Projects',
+    'Memories',
+    'Comments'
 ]

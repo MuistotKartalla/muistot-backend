@@ -3,7 +3,11 @@ from .common_imports import *
 router = APIRouter()
 
 
-@router.get('/projects/{project}/sites')
+@router.get(
+    '/projects/{project}/sites',
+    response_model=Sites,
+    response_model_exclude_none=True
+)
 async def get_sites(
         r: Request,
         project: PID,
@@ -11,10 +15,10 @@ async def get_sites(
         lat: Optional[float] = None,
         lon: Optional[float] = None,
         db: Database = Depends(dba)
-) -> List[Site]:
+) -> Sites:
     repo = SiteRepo(db, project)
     repo.configure(r)
-    return await repo.all(n, lat, lon)
+    return Sites(items=await repo.all(n, lat, lon))
 
 
 @router.get('/projects/{project}/sites/{site}')

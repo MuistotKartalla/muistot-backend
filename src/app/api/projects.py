@@ -3,11 +3,15 @@ from .common_imports import *
 router = APIRouter()
 
 
-@router.get('/projects')
-async def get_projects(r: Request, db: Database = Depends(dba)) -> List[Project]:
+@router.get(
+    '/projects',
+    response_model=Projects,
+    response_model_exclude_none=True
+)
+async def get_projects(r: Request, db: Database = Depends(dba)) -> Projects:
     repo = ProjectRepo(db)
     repo.configure(r)
-    return await repo.all()
+    return Projects(items=await repo.all())
 
 
 @router.get('/projects/{project}')

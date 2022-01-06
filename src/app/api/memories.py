@@ -3,11 +3,15 @@ from .common_imports import *
 router = APIRouter()
 
 
-@router.get('/projects/{project}/sites/{site}/memories')
-async def get_memories(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> List[Memory]:
+@router.get(
+    '/projects/{project}/sites/{site}/memories',
+    response_model=Memories,
+    response_model_exclude_none=True
+)
+async def get_memories(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> Memories:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    return await repo.all()
+    return Memories(items=await repo.all())
 
 
 @router.get('/projects/{project}/sites/{site}/memories/{memory}')

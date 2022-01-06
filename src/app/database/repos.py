@@ -39,7 +39,7 @@ class ProjectRepo(BaseRepo):
     )
 
     async def get_admins(self, project_id: int):
-        return [admin[0] for admin in await self.db.fetch_all(
+        out = [admin[0] for admin in await self.db.fetch_all(
             """
             SELECT
                 u.username
@@ -49,6 +49,7 @@ class ProjectRepo(BaseRepo):
             """,
             values=dict(pid=project_id)
         )]
+        return out if len(out) > 0 else None
 
     async def _exists(self, project: PID) -> bool:
         return await self.db.fetch_val(
@@ -135,7 +136,7 @@ class SiteRepo(BaseRepo):
                 AND l.lang = :lang
             LEFT JOIN memories m ON s.id = m.site_id
             LEFT JOIN images i ON i.id = s.image_id
-        WHERE s.published
+        WHERE s.published {}
         GROUP BY s.id
         """
     )
@@ -160,7 +161,7 @@ class SiteRepo(BaseRepo):
         )
         if m is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
-        return m[0] == 1
+        return m[0] == 0
 
     def __init__(self, db: Database, project: PID):
         super().__init__(db, project=project)
@@ -182,21 +183,21 @@ class SiteRepo(BaseRepo):
             return [await self.construct_site(m) for m in await self.db.fetch_all(
                 self._fields
                 + ",\nST_DISTANCE_SPHERE(s.location, POINT(:lon, :lat)) AS distance"
-                + self._end
+                + self._end.format('')
                 + " ORDER BY distance LIMIT {:d}".format(n),
                 values=dict(lang=self.lang, lon=lon, lat=lat, project=self.project)
             )]
         else:
             return [await self.construct_site(m) for m in await self.db.fetch_all(
-                self._select,
+                self._select.format(''),
                 values=dict(lang=self.lang, project=self.project)
             )]
 
     @check_exists
     async def one(self, site: SID, include_memories: bool = False) -> Site:
         return await self.construct_site(await self.db.fetch_one(
-            self._select,
-            values=dict(lang=self.lang, project=self.project)
+            self._select.format(" AND s.name = :site"),
+            values=dict(lang=self.lang, project=self.project, site=site)
         ))
 
     @check_not_exists
@@ -226,12 +227,12 @@ class SiteRepo(BaseRepo):
                 project=self.project
             )
         )
-        if ret is None:  # pragma: no cover
+        if ret[1] is None:  # pragma: no cover
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail='Failed to save site'
             )
-        success = await self.db.fetch_val(
+        await self.db.fetch_val(
             """
             INSERT INTO site_information (site_id, lang_id, name, abstract, description) 
             SELECT
@@ -242,20 +243,13 @@ class SiteRepo(BaseRepo):
                 :description
             FROM languages l
                 WHERE l.lang = :lang
-            RETURNING SELECT ROW_COUNT()
             """,
             values=dict(
                 site=ret[0],
                 **model.info.dict()
             )
         )
-        if success != 1:  # pragma: no cover
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail='Failed to save localization'
-            )
-        else:
-            return ret[1]
+        return ret[1]
 
     @not_implemented
     @check_exists
@@ -304,7 +298,7 @@ class MemoryRepo(BaseRepo):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
         elif m[0] == 1 and m[2] == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
-        return m[1] == 1
+        return m[1] == 0
 
     def __init__(self, db: Database, project: PID, site: SID):
         super().__init__(db, project=project, site=site)
@@ -397,7 +391,7 @@ class CommentRepo(BaseRepo):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
         elif m[1] == 1 and m[4] == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Memory not found')
-        return m[2] == 1
+        return m[2] == 0
 
     @staticmethod
     async def construct_comment(m) -> Comment:

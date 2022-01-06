@@ -3,17 +3,21 @@ from .common_imports import *
 router = APIRouter()
 
 
-@router.get('/projects/{project}/sites/{site}/comments')
+@router.get(
+    '/projects/{project}/sites/{site}/comments',
+    response_model=Comments,
+    response_model_exclude_none=True
+)
 async def get_comments(
         r: Request,
         project: PID,
         site: SID,
         memory: MID,
         db: Database = Depends(dba)
-) -> List[Comment]:
+) -> Comments:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
-    return await repo.all()
+    return Comments(items=await repo.all())
 
 
 @router.get('/projects/{project}/sites/{site}/comments/{comment}')

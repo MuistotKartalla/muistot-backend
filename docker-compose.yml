@@ -8,6 +8,7 @@ services:
     restart: on-failure
     container_name: muistot-compose-server
     volumes:
+      - muistot-files:/opt/files/
       - ./src/app:/code/app
       - ./test_docker_config.json:/root/config.json
     ports:
@@ -42,3 +43,4 @@ networks:
 volumes:
   muistot-testdb:
     external: true
+  muistot-files:
