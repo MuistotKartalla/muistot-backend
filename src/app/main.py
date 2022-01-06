@@ -52,6 +52,16 @@ if not Config.testing:
         allow_methods=set()
     )
     app.add_middleware(HTTPSRedirectMiddleware)
+else:
+    @app.middleware('http')
+    async def timed(r, cn):
+        from .logging import log
+        from time import time_ns
+        start = time_ns()
+        try:
+            return await cn(r)
+        finally:
+            log.info(f'{r.method} request to {r.url} took {(time_ns() - start) / 1E6:.3f} millis')
 
 
 # END MIDDLEWARE
