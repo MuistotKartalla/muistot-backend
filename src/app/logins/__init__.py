@@ -1,7 +1,7 @@
 from ._default import router as default_login
 
 
-def register_oauth_providers(app):
+def register_oauth_providers(app, **kwargs):
     from ..config import Config
     from ..logging import log
     from importlib import import_module
@@ -11,14 +11,14 @@ def register_oauth_providers(app):
     class OAuthProviders(BaseModel):
         oauth_providers: List[str]
 
-    @app.get("/login")
+    @app.get("/oauth", tags=["Auth"])
     async def get_providers() -> OAuthProviders:
         return OAuthProviders(oauth_providers=[k for k in Config.oauth])
 
     for oauth_provider in Config.oauth:
         try:
             oauth_module = import_module(f".{oauth_provider}")
-            app.include_router(getattr(oauth_module, 'router'))
+            app.include_router(getattr(oauth_module, 'router'), **kwargs)
             log.info(f'Loaded: {oauth_provider}')
         except Exception as e:
             log.warning(f"Failed to load OAuth provider: {oauth_provider}", exc_info=e)

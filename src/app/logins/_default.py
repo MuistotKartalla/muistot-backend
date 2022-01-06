@@ -112,7 +112,7 @@ async def register_user(user: RegisterQuery, db: Database) -> JSONResponse:
         return JSONResponse(status_code=201)
 
 
-@router.post("/login")
+@router.post("/login", tags=["Auth"])
 async def default_login(login: LoginQuery, db: Database = Depends(dba)) -> JSONResponse:
     if login.username is not None:
         return await login_username(login, db)
@@ -129,7 +129,8 @@ async def default_login(login: LoginQuery, db: Database = Depends(dba)) -> JSONR
             'model': Error,
             "description": "User already exists or email/username is in use"
         }
-    }
+    },
+    tags=["Auth"]
 )
 async def default_register(request: Request, query: RegisterQuery, db: Database = Depends(dba)) -> JSONResponse:
     if AUTHORIZATION in request:

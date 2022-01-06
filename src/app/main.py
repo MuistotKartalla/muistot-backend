@@ -13,7 +13,7 @@ app = FastAPI(
     title="Muistoja Kartalla",
     description="Backend for the https://www.muistojakartalla.fi service.",
     version="1.0.1",
-    docs_url="/docs",
+    docs_url="/api/docs",
     # root_path="/api", # Doesn't work without proxy
     redoc_url=None,
     default_response_class=JSONResponse
@@ -25,13 +25,12 @@ register_error_handlers(app)
 
 # START ROUTERS
 
-app.include_router(common_paths)
-app.include_router(api_paths)
-
-app.include_router(default_login)
+app.include_router(common_paths, prefix='/api')
+app.include_router(api_paths, prefix='/api')
+app.include_router(default_login, prefix='/api')
 
 # Add OAUTH
-register_oauth_providers(app)
+register_oauth_providers(app, prefix='/api')
 
 # END ROUTERS
 

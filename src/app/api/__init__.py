@@ -7,7 +7,7 @@ from .projects import router as project_router
 from .sites import router as site_router
 from .files import router as file_router
 
-router = APIRouter(prefix='/api')
+router = APIRouter()
 router.include_router(project_router)
 router.include_router(site_router)
 router.include_router(memory_router)

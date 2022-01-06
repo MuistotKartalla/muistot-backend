@@ -1,6 +1,6 @@
 from .common_imports import *
 
-router = make_router()
+router = make_router(tags=["Sites"])
 
 
 @router.get(

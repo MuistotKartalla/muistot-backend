@@ -1,9 +1,9 @@
 from .common_imports import *
 
-router = APIRouter()
+router = make_router(tags=["Admin"])
 
 
-@router.post('/projects/publish')
+@router.put('/projects/publish')
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish_project(r: Request, project: PID, db: Database = Depends(dba)):
     repo = ProjectRepo(db)
@@ -12,7 +12,7 @@ async def publish_project(r: Request, project: PID, db: Database = Depends(dba))
     return created(router.url_path_for('get_project', project=new_id))
 
 
-@router.post("/projects/{project}/sites/publish")
+@router.put("/projects/{project}/sites/publish")
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
     repo = SiteRepo(db, project)

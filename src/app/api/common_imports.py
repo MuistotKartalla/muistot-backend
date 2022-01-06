@@ -40,30 +40,27 @@ def deleted(url: str) -> JSONResponse:
     )
 
 
-def make_router() -> APIRouter:
+def make_router(**kwargs) -> APIRouter:
     from functools import partial
-    from ..errors import Error
 
-    router = APIRouter()
+    router = APIRouter(**kwargs)
+
+    not_found = {
+        '404': {},
+    }
+    conflict = {
+        '404': {},
+        '409': {},
+        '406': {}
+    }
 
     router.get = partial(router.get, response_model_exclude_none=True, responses={
-        '404': {"model": Error},
-        '406': {"model": Error}
+        '404': {},
+        '406': {}
     })
-    router.post = partial(router.post, response_model_exclude_none=True, responses={
-        '404': {"model": Error},
-        '409': {"model": Error},
-        '406': {"model": Error}
-    })
-    router.put = partial(router.put, response_model_exclude_none=True, responses={
-        '404': {"model": Error},
-        '409': {"model": Error},
-        '406': {"model": Error}
-    })
-    router.patch = partial(router.patch, response_model_exclude_none=True, responses={
-        '404': {"model": Error},
-        '409': {"model": Error},
-        '406': {"model": Error}
-    })
+    router.post = partial(router.post, response_model_exclude_none=True, responses=conflict)
+    router.put = partial(router.put, response_model_exclude_none=True, responses=not_found)
+    router.patch = partial(router.patch, response_model_exclude_none=True, responses=conflict)
+    router.delete = partial(router.delete, response_model_exclude_none=True, responses=not_found)
 
     return router

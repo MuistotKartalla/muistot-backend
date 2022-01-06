@@ -2,7 +2,7 @@ from fastapi.responses import FileResponse
 
 from .common_imports import *
 
-router = APIRouter()
+router = make_router(tags=["Files"])
 
 
 @router.get("/images/{image}")

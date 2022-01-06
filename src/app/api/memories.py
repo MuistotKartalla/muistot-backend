@@ -1,6 +1,6 @@
 from .common_imports import *
 
-router = make_router()
+router = make_router(tags=["Memories"])
 
 
 @router.get(
@@ -53,7 +53,7 @@ async def modify_memory(
     return modified(lambda: router.url_path_for('get_memory', project=project, site=site, memory=str(memory)), changed)
 
 
-@router.post('/projects/{project}/sites/{site}/memories/{memory}')
+@router.delete('/projects/{project}/sites/{site}/memories/{memory}')
 @require_auth(scopes.AUTHENTICATED)
 async def delete_memory(
         r: Request,
