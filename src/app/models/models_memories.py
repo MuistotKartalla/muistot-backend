@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 PID = str
 SID = str
@@ -22,7 +22,7 @@ class ProjectContact(BaseModel):
 
 
 class Project(BaseModel):
-    id: PID
+    id: PID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
     info: ProjectInfo
     image: Optional[str]
 
@@ -61,22 +61,22 @@ class SiteInfo(BaseModel):
 
 
 class Site(BaseModel):
-    id: SID
+    id: SID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
     info: SiteInfo
     location: Point
     image: Optional[str]
+    memories_count: int
     memories: Optional[List[Memory]]
 
 
 class NewSite(BaseModel):
-    id: SID
+    id: SID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
     info: SiteInfo
     location: Point
     image: Optional[str]
 
 
 class NewMemory(BaseModel):
-    user: str
     title: str
     story: Optional[str]
     image: Optional[str]
@@ -110,7 +110,6 @@ class ModifiedComment(BaseModel):
 
 
 class NewComment(BaseModel):
-    user: str
     comment: str
 
 

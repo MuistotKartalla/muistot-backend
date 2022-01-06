@@ -7,9 +7,9 @@ router = APIRouter()
 async def get_sites(
         r: Request,
         project: PID,
-        n: Optional[int],
-        lat: Optional[float],
-        lon: Optional[float],
+        n: Optional[int] = None,
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
         db: Database = Depends(dba)
 ) -> List[Site]:
     repo = SiteRepo(db, project)

@@ -1,7 +1,7 @@
 from os.path import expanduser
-from typing import Dict, Optional, List
+from typing import Dict, Optional, Set
 
-from pydantic import parse_file_as, BaseModel, HttpUrl
+from pydantic import parse_file_as, BaseModel, HttpUrl, Field
 
 
 class HttpsUrl(HttpUrl):
@@ -43,16 +43,24 @@ class Security(BaseModel):
     bcrypt_cost: int = 12
 
 
+class FileStore(BaseModel):
+    allowed_filetypes: Set[str] = {'jpeg', 'png'}  # https://docs.python.org/3/library/imghdr.html
+    location: str = Field(regex='^.*/$', default='/opt/files/')
+
+
 class BaseConfig(BaseModel):
     testing: bool = True
-    domain: Optional[str] = None
-    db: Dict[str, Database] = {}
-    mailer: Optional[Mailer] = None
-    security: Security
-    oauth: Dict[str, Dict] = {}
-    languages: List[str]
-    default_language = "fi"
     auto_publish: bool = False
+
+    default_language = "fi"
+    languages: Set[str]
+
+    security: Security
+    domain: Optional[str] = None
+    mailer: Optional[Mailer] = None
+    db: Dict[str, Database] = {}
+    oauth: Dict[str, Dict] = {}
+    files: FileStore = FileStore()
 
 
 CONFIG_FILE = expanduser('~/config.json')

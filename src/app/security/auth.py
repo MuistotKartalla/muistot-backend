@@ -130,5 +130,6 @@ def require_auth(*required_scopes: str):
 __all__ = [
     'register_auth_middleware',
     'require_auth',
-    'CustomUser'
+    'CustomUser',
+    'SuperUser'
 ]

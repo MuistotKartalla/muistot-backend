@@ -84,7 +84,7 @@ def register_error_handlers(app: FastAPI):
                 code=422,
                 message="request validation error",
                 errors=jsonable_encoder(exc.errors())
-            )))
+            )).dict())
         except Exception as e:
             from ..logging import log
             log.exception('Failed request', exc_info=e)
