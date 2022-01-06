@@ -1,12 +1,11 @@
 from .common_imports import *
 
-router = APIRouter()
+router = make_router()
 
 
 @router.get(
     '/projects',
-    response_model=Projects,
-    response_model_exclude_none=True
+    response_model=Projects
 )
 async def get_projects(r: Request, db: Database = Depends(dba)) -> Projects:
     repo = ProjectRepo(db)
@@ -14,7 +13,10 @@ async def get_projects(r: Request, db: Database = Depends(dba)) -> Projects:
     return Projects(items=await repo.all())
 
 
-@router.get('/projects/{project}')
+@router.get(
+    '/projects/{project}',
+    response_model=Project
+)
 async def get_project(r: Request, project: PID, db: Database = Depends(dba)) -> Project:
     repo = ProjectRepo(db)
     repo.configure(r)

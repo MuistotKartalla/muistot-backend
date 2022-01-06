@@ -1,12 +1,11 @@
 from .common_imports import *
 
-router = APIRouter()
+router = make_router()
 
 
 @router.get(
     '/projects/{project}/sites/{site}/memories',
-    response_model=Memories,
-    response_model_exclude_none=True
+    response_model=Memories
 )
 async def get_memories(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> Memories:
     repo = MemoryRepo(db, project, site)
@@ -14,7 +13,10 @@ async def get_memories(r: Request, project: PID, site: SID, db: Database = Depen
     return Memories(items=await repo.all())
 
 
-@router.get('/projects/{project}/sites/{site}/memories/{memory}')
+@router.get(
+    '/projects/{project}/sites/{site}/memories/{memory}',
+    response_model=Memory
+)
 async def get_memory(r: Request, project: PID, site: SID, memory: MID, db: Database = Depends(dba)) -> Memory:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)

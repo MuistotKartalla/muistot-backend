@@ -110,7 +110,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
 
         # PREP
         await db.execute(
-            "INSERT INTO projects (name, published) VALUE (:pname, 1)",
+            "INSERT INTO projects (name, published, default_language_id) VALUE (:pname, 1, 1)",
             values=dict(pname=username)
         )
         await db.execute(

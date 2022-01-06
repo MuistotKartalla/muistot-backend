@@ -1,12 +1,11 @@
 from .common_imports import *
 
-router = APIRouter()
+router = make_router()
 
 
 @router.get(
     '/projects/{project}/sites',
-    response_model=Sites,
-    response_model_exclude_none=True
+    response_model=Sites
 )
 async def get_sites(
         r: Request,

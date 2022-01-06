@@ -20,21 +20,32 @@ class ProjectRepo(BaseRepo):
             p.id AS project_id,
             p.name AS id,
             i.file_name AS image,
-            l.lang,
-            IFNULL(pi.name, p.name) AS name,
-            pi.abstract,
-            pi.description,
+            IFNULL(l.lang, def_l.lang) AS lang,
+            COALESCE(pi.name, def_pi.name, p.name)AS name,
+            IFNULL(pi.abstract, def_pi.abstract) AS abstract,
+            IFNULL(pi.description, def_pi.description) AS description,
             p.starts,
             p.ends,
             pc.has_research_permit,
-            IF(pc.can_contact, pc.contact_email, NULL) AS contact_email
+            IF(pc.can_contact, pc.contact_email, NULL) AS contact_email,
+            COUNT(s.id) AS site_count
         FROM projects p
-            JOIN project_information pi ON p.id = pi.project_id
-            JOIN languages l ON pi.lang_id = l.id
-                AND l.lang = :lang
+        
+            LEFT JOIN project_information pi 
+                JOIN languages l ON pi.lang_id = l.id
+                    AND l.lang = :lang
+                ON p.id = pi.project_id
+            
+            LEFT JOIN project_information def_pi 
+                JOIN languages def_l ON def_pi.lang_id = def_l.id
+                ON p.id = def_pi.project_id
+                    AND def_pi.lang_id = p.default_language_id
+                
             LEFT JOIN images i ON p.image_id = i.id
             LEFT JOIN project_contact pc ON p.id = pc.project_id
+            LEFT JOIN sites s ON p.id = s.project_id
         WHERE IFNULL(p.starts > CURDATE(), TRUE) AND p.published
+        GROUP BY p.id
         """
     )
 
@@ -116,14 +127,14 @@ class SiteRepo(BaseRepo):
         """
         SELECT
             s.name AS id,
-            IFNULL(si.name, s.name) AS name,
+            COALESCE(si.name, def_si.name, s.name) AS name,
             X(s.location) AS lat,
             Y(s.location) AS lon,
             i.file_name AS image,
             COUNT(m.id) AS memories_count,
-            l.lang,
-            si.abstract,
-            si.description
+            IFNULL(l.lang, def_l.lang) AS lang,
+            IFNULL(si.abstract, def_si.abstract) AS abstract,
+            IFNULL(si.description, def_si.description) AS description
         """
     )
     _end = (
@@ -131,12 +142,21 @@ class SiteRepo(BaseRepo):
         FROM sites s
             JOIN projects p ON p.id = s.project_id
                 AND p.name = :project
-            JOIN site_information si ON s.id = si.site_id
-            JOIN languages l ON si.lang_id = l.id
-                AND l.lang = :lang
+                
+            LEFT JOIN site_information si 
+                JOIN languages l ON si.lang_id = l.id
+                    AND l.lang = :lang
+                ON s.id = si.site_id 
+            
+            LEFT JOIN site_information def_si 
+                JOIN languages def_l ON def_si.lang_id = def_l.id
+                ON s.id = def_si.site_id
+                    AND def_si.lang_id = p.default_language_id 
+                
             LEFT JOIN memories m ON s.id = m.site_id
             LEFT JOIN images i ON i.id = s.image_id
-        WHERE s.published {}
+        WHERE s.published
+            {}
         GROUP BY s.id
         """
     )
@@ -166,8 +186,8 @@ class SiteRepo(BaseRepo):
     def __init__(self, db: Database, project: PID):
         super().__init__(db, project=project)
 
-    @check_lang
-    async def construct_site(self, m):
+    @staticmethod
+    async def construct_site(m):
         return Site(location=Point(**m), info=SiteInfo(**m), **m)
 
     async def all(

@@ -38,3 +38,32 @@ def deleted(url: str) -> JSONResponse:
         status_code=status.HTTP_204_NO_CONTENT,
         headers={LOCATION: url}
     )
+
+
+def make_router() -> APIRouter:
+    from functools import partial
+    from ..errors import Error
+
+    router = APIRouter()
+
+    router.get = partial(router.get, response_model_exclude_none=True, responses={
+        '404': {"model": Error},
+        '406': {"model": Error}
+    })
+    router.post = partial(router.post, response_model_exclude_none=True, responses={
+        '404': {"model": Error},
+        '409': {"model": Error},
+        '406': {"model": Error}
+    })
+    router.put = partial(router.put, response_model_exclude_none=True, responses={
+        '404': {"model": Error},
+        '409': {"model": Error},
+        '406': {"model": Error}
+    })
+    router.patch = partial(router.patch, response_model_exclude_none=True, responses={
+        '404': {"model": Error},
+        '409': {"model": Error},
+        '406': {"model": Error}
+    })
+
+    return router

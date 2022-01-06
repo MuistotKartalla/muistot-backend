@@ -96,16 +96,18 @@ ALTER TABLE users
 
 CREATE TABLE IF NOT EXISTS projects
 (
-    id                INTEGER      NOT NULL AUTO_INCREMENT,
-    name              VARCHAR(255) NOT NULL,
-    image_id          INTEGER      NULL     DEFAULT NULL COMMENT 'fk',
-    starts            DATETIME     NULL     DEFAULT NULL,
-    ends              DATETIME     NULL     DEFAULT NULL,
-    anonymous_posting BOOLEAN      NOT NULL DEFAULT FALSE,
+    id                  INTEGER      NOT NULL AUTO_INCREMENT,
+    name                VARCHAR(255) NOT NULL,
+    image_id            INTEGER      NULL     DEFAULT NULL COMMENT 'fk',
+    starts              DATETIME     NULL     DEFAULT NULL,
+    ends                DATETIME     NULL     DEFAULT NULL,
+    anonymous_posting   BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    published         BOOLEAN      NOT NULL DEFAULT FALSE,
-    modifier_id       INTEGER      NULL COMMENT 'fk',
-    modified_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    default_language_id INTEGER      NOT NULL,
+
+    published           BOOLEAN      NOT NULL DEFAULT FALSE,
+    modifier_id         INTEGER      NULL COMMENT 'fk',
+    modified_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_projects (id),
     UNIQUE INDEX idx_project_name (name),
@@ -116,7 +118,10 @@ CREATE TABLE IF NOT EXISTS projects
         ON DELETE SET NULL,
     CONSTRAINT FOREIGN KEY fk_projects_modifier (modifier_id) REFERENCES users (id)
         ON UPDATE RESTRICT
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+    CONSTRAINT FOREIGN KEY fk_project_default_language (default_language_id) REFERENCES languages (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
 ) COMMENT 'Project base information';
 
 CREATE TABLE IF NOT EXISTS project_information

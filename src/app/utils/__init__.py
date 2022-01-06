@@ -3,7 +3,7 @@ from typing import Optional, Set, Tuple
 
 from fastapi import Request
 
-from ..headers import ACCEPT_LANGUAGE
+from ..headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
 
 ALLOWED_CHARS = re.compile(r'^[a-zA-Z0-9_:-]+$')
 
@@ -13,13 +13,28 @@ def get_languages() -> Set[str]:
     return set(Config.languages)
 
 
-def extract_language_or_default(r: Request) -> str:
-    from ..config import Config
-    try:
-        available = get_languages()
-        lang = r.headers[ACCEPT_LANGUAGE]
+def _validate_lang(lang: str):
+    langs = [lang.split('-')[0] for lang in lang.strip().split(',')]
+    available = get_languages()
+    for lang in langs:
         if lang in available:
             return lang
+
+
+def extract_language(r: Request) -> str:
+    """
+    Extract language from request.
+
+    Default if it is not specified
+    """
+    from ..config import Config
+    try:
+        if r.method == "GET":
+            out = _validate_lang(r.headers[ACCEPT_LANGUAGE])
+        else:
+            out = _validate_lang(r.headers[CONTENT_LANGUAGE])
+        if out is not None:
+            return out
         else:
             return Config.default_language
     except KeyError:
@@ -46,7 +61,7 @@ def check_file(compressed_data: str) -> Optional[Tuple[bytes, str]]:
 
 __all__ = [
     'get_languages',
-    'extract_language_or_default',
+    'extract_language',
     'url_safe',
     'check_file'
 ]

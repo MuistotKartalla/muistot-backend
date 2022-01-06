@@ -7,7 +7,7 @@ from fastapi import Request, HTTPException, status
 
 from .connections import Database
 from ..models import *
-from ..utils import extract_language_or_default
+from ..utils import extract_language
 
 
 def not_implemented(f):
@@ -115,9 +115,12 @@ def check_lang(f):
         if args[1] is None:
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=type(args[0]).__name__.removesuffix('Repo')
-                       + ' not localized in '
-                       + getattr(args[0], 'lang')
+                detail=(
+                        type(args[0]).__name__.removesuffix('Repo')
+                        + ' missing localization in '
+                        + getattr(args[0], 'lang')
+                        + ' and default'
+                )
             )
         else:
             return await f(*args)
@@ -210,7 +213,7 @@ class BaseRepo(ABC):
         - Language
         """
         self.user = r.user
-        self.lang = extract_language_or_default(r)
+        self.lang = extract_language(r)
 
     async def check_admin_privilege(self, project: Optional[PID]) -> NoReturn:
         """

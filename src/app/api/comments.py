@@ -1,12 +1,11 @@
 from .common_imports import *
 
-router = APIRouter()
+router = make_router()
 
 
 @router.get(
     '/projects/{project}/sites/{site}/comments',
-    response_model=Comments,
-    response_model_exclude_none=True
+    response_model=Comments
 )
 async def get_comments(
         r: Request,
@@ -20,7 +19,10 @@ async def get_comments(
     return Comments(items=await repo.all())
 
 
-@router.get('/projects/{project}/sites/{site}/comments/{comment}')
+@router.get(
+    '/projects/{project}/sites/{site}/comments/{comment}',
+    response_model=Comment
+)
 async def get_comment(
         r: Request,
         project: PID,

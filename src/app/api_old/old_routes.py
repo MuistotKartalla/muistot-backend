@@ -18,7 +18,6 @@ from .old_db import old_db as dbb
 from .old_models import *
 from ..database import Depends
 from ..security import require_auth, scopes
-from ..utils import *
 
 router = APIRouter(prefix='/old')
 
@@ -35,46 +34,12 @@ async def get_version() -> PlainTextResponse:
 
 @router.get("/projects")
 async def get_projects(r: Request, db: Database = Depends(dbb), project=None) -> List[Project]:
-    out = []
-    async for res in db.iterate(
-            f"""
-            SELECT
-                p.id,
-                IFNULL(pi.name, p.name) AS title,
-                pi.abstract AS description,
-                pi.description AS contentDescription,
-                p.anonymous_posting AS visitorPosting,
-                i.file_name AS image,
-                p.starts AS Alkaa,
-                p.ends AS Loppuu,
-                NULL AS Poistuu
-            FROM projects p
-                LEFT JOIN project_information pi ON p.id = pi.project_id
-                JOIN languages l ON pi.lang_id = l.id
-                LEFT JOIN images i ON i.id = p.image_id
-            WHERE IFNULL(p.ends > CURDATE(), TRUE) 
-                AND l.lang = :lang
-            {"" if project is None else "   AND p.id = :project"}
-            """,
-            values={
-                'lang': extract_language_or_default(r),
-                **(dict() if project is None else dict(project=project))
-            }
-    ):
-        p = Project(**res)
-        p.moderators = [
-            m[0] async for m in db.iterate(
-                "SELECT user_id FROM project_admins WHERE project_id = :pid",
-                values=dict(pid=p.id)
-            )
-        ]
-        out.append(p)
-    return out
+    pass
 
 
 @router.get("/projects/{project_id}")
 async def get_project(project_id: int, r: Request, db: Database = Depends(dbb)) -> Project:
-    return (await get_projects(r, db, project_id))[0]
+    pass
 
 
 @router.get("/sites")

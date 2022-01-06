@@ -31,6 +31,7 @@ class Project(BaseModel):
 
     admins: Optional[List[str]]
     contact: Optional[ProjectContact]
+    site_count: int
 
 
 class Comment(BaseModel):
