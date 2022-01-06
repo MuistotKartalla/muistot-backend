@@ -8,9 +8,9 @@ services:
     restart: on-failure
     container_name: muistot-compose-server
     volumes:
-      - muistot-files:/opt/files/
-      - ./src/app:/code/app
-      - ./test_docker_config.json:/root/config.json
+      - "muistot-file-data:/opt/files/"
+      - "./src/app:/code/app"
+      - "./test_docker_config.json:/root/config.json"
     ports:
       - "127.0.0.1:5600:80"
     networks:
@@ -26,7 +26,7 @@ services:
     networks:
       - muistot-compose-net
     volumes:
-      - "muistot-testdb:/var/lib/mysql"
+      - "muistot-db-data:/var/lib/mysql"
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql"
   db-access:
     image: adminer
@@ -41,6 +41,7 @@ networks:
   muistot-compose-net:
 
 volumes:
-  muistot-testdb:
+  muistot-db-data:
     external: true
-  muistot-files:
+  muistot-file-data:
+    external: true

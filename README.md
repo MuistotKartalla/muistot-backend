@@ -13,66 +13,86 @@ The final image is around `100MB`
 
 The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [Uvicorn](https://www.uvicorn.org/)
 
-#### Notes
+---
 
-If the database gets messed up its easier to just delete the volume and re-compose.
-
-#### Setting it all up
-
-Create a volume for the database
-
-```shell
-$ sh script/create_volume.sh
-```
-
-To delete it
-
-```shell
-$ sh script/delete_volume.sh
-```
-
-This will setup:
+## Setup
 
 - Server on `5600`
 - Database on `5601`
 - Adminer on `5602`
 
-```shell
-$ docker-compose up -d
-```
+The setup scripts could be refactored into single files.
 
-But only DB is needed for tests
+#### Recreating database
 
 ```shell
-$ docker-compose up -d db
+docker-compse down -v
+docker volume rm muistot-db-data
+docker volume rm muistot-file-data
+docker volume create --name muistot-db-data
+docker volume create --name muistot-file-data
+docker-compose up -d db
 ```
 
-This will recreate all containers
+OR
 
 ```shell
-$ docker-compose up -d --force-recreate
+sh scripts/recreate_db
 ```
 
-This will stop the containers and delete volumes (not db volume)
+#### Running test server
 
 ```shell
-$ docker-compose down -v
+#! /bin/sh
+cd "${0%/*}/.."
+docker-compose up -d db
+docker-compose up --force-recreate --remove-orphans --build app
 ```
 
-Or just stop them
+OR
 
 ```shell
-$ docker-compose down
+sh scripts/server.sh
 ```
 
-Or just running the server:
+#### Stopping
 
 ```shell
-$ sh script/testserver.sh
+docker-compose down -v
 ```
 
-You can build the image too:
+#### Test
+
+Setup and run the tests. Setup is only needed once.
 
 ```shell
-$ sh script/build_testserver.sh
+sh scripts/setup_tests.sh
+sh scripts/run_test.sh
 ```
+
+Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
+
+#### Others
+
+Build the test image
+
+```shell
+docker build -t 'image_name' -f testserver.Dockerfile .
+```
+
+This isn't needed for anything as `docker-compose` takes care of things.
+
+---
+
+## Database Migration
+
+[migration.sql](./database/migration.sql) should migrate the old db data to the new one.
+
+1. Connect to the MariaDB `root:test` and dump the database into the server.
+2. Then run the `migration.sql`
+
+You might need to change the database name if your dump is a bit different.
+
+#### TODO
+
+The old dump didn't include users or comments so migrating them is yet untested

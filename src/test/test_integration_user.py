@@ -37,7 +37,7 @@ def do_login(client: TestClient, data: Dict, username: str):
     from app.headers import AUTHORIZATION
     from app.security.jwt import read_jwt
     from app.security.scopes import SUBJECT
-    resp = client.post("/login", json=data)
+    resp = client.post("/api/login", json=data)
 
     assert resp.status_code == 200, resp.json()
     header = resp.headers[AUTHORIZATION]
@@ -70,7 +70,7 @@ async def test_user_login_email(client: TestClient, login):
 async def test_user_create(client: TestClient, credentials):
     username, email, password = credentials
 
-    resp = client.post("/register", json={
+    resp = client.post("/api/register", json={
         'username': username,
         'email': email,
         'password': password
@@ -87,7 +87,7 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
         'username': username,
         'password': password
     }
-    resp = client.post("/login", json=data)
+    resp = client.post("/api/login", json=data)
     assert resp.status_code == 401 and 'verified' in resp.json()["error"]["message"]
 
 
@@ -102,7 +102,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
     try:
         # LOGIN
         data = {'username': username, 'password': password}
-        resp = client.post("/login", json=data)
+        resp = client.post("/api/login", json=data)
 
         # TRY UN-PUBLISH
         resp = client.delete(f'/api/projects/{username}', headers={AUTHORIZATION: resp.headers[AUTHORIZATION]})
@@ -124,7 +124,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
         )
 
         # LOGIN
-        resp = client.post("/login", json=data)
+        resp = client.post("/api/login", json=data)
 
         # UN-PUBLISH
         resp = client.delete(
@@ -144,7 +144,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
         )
 
         # RE-LOGIN
-        resp = client.post("/login", json=data)
+        resp = client.post("/api/login", json=data)
         user = CustomUser(read_jwt(resp.headers[AUTHORIZATION].split()[1]))
 
         # ASSERT LOST ADMIN

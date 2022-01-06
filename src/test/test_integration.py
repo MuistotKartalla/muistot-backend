@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 
 def test_hello(client: TestClient):
-    resp = client.get("/")
+    resp = client.get("/api/")
     assert resp.json() == {"hello": "world"}
 
 
