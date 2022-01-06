@@ -33,7 +33,8 @@ def test_bad_encoding():
 
 def test_bad_checksum():
     token = decode(hashes.generate(10))
-    verify('mismatch', token[:-1] + b':')
+    token2 = decode(hashes.generate(10))
+    verify('mismatch', token[:-hashes.HASH_LENGTH] + token2[-hashes.HASH_LENGTH:])
 
 
 def test_bad_plain():
