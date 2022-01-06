@@ -241,7 +241,7 @@ CREATE TABLE IF NOT EXISTS memories
 (
     id          INTEGER  NOT NULL AUTO_INCREMENT,
     site_id     INTEGER  NOT NULL COMMENT 'fk',
-    user_id     INTEGER  NOT NULL COMMENT 'fk',
+    user_id     INTEGER  NULL COMMENT 'fk',
     image_id    INTEGER  NULL COMMENT 'fk',
     title       VARCHAR(255),
     story       TEXT,
@@ -255,7 +255,7 @@ CREATE TABLE IF NOT EXISTS memories
 
     CONSTRAINT FOREIGN KEY fk_memories_user (user_id) REFERENCES users (id)
         ON UPDATE RESTRICT
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT FOREIGN KEY fk_memories_site (site_id) REFERENCES sites (id)
         ON UPDATE RESTRICT
         ON DELETE CASCADE,
