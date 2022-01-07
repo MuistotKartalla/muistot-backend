@@ -128,8 +128,8 @@ class SiteRepo(BaseRepo):
         SELECT
             s.name AS id,
             COALESCE(si.name, def_si.name, s.name) AS name,
-            X(s.location) AS lat,
-            Y(s.location) AS lon,
+            Y(s.location) AS lat,
+            X(s.location) AS lon,
             i.file_name AS image,
             COUNT(m.id) AS memories_count,
             IFNULL(l.lang, def_l.lang) AS lang,

@@ -53,6 +53,15 @@ if not Config.testing:
     )
     app.add_middleware(HTTPSRedirectMiddleware)
 else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_methods={"GET", "POST", "PATCH", "PUT", "DELETE"},
+        allow_headers=['*'],
+        expose_headers=['*']
+    )
+
+
     @app.middleware('http')
     async def timed(r, cn):
         from .logging import log
