@@ -9,13 +9,14 @@ class HttpsUrl(HttpUrl):
 
 
 class Database(BaseModel):
-    host: str = "localhost"
-    port: int = "5601"
-    database: str = "muistot"
-    user: str = "root"
-    password: str = "test"
+    host: str
+    port: int = "3306"
+    database: str
+    user: str
+    password: str
     use_ssl: bool = False
     rollback: bool = False
+    driver: str = 'mysql'
 
 
 class Mailer(BaseModel):
@@ -66,11 +67,11 @@ class BaseConfig(BaseModel):
 
 CONFIG_FILE = expanduser('~/config.json')
 try:
-    Config = parse_file_as(BaseConfig, CONFIG_FILE)
+    Config: BaseConfig = parse_file_as(BaseConfig, CONFIG_FILE)
 except FileNotFoundError:
     try:
         CONFIG_FILE = './test_config.json'
-        Config = parse_file_as(BaseConfig, CONFIG_FILE)
+        Config: BaseConfig = parse_file_as(BaseConfig, CONFIG_FILE)
     except FileNotFoundError:
         raise RuntimeError(f"Failed to find config in {expanduser('~')} and .")
 

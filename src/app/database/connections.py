@@ -79,13 +79,19 @@ async def close() -> NoReturn:
         pass
 
 
+def make_url_from_database_config(database: str) -> str:
+    from ..config import Config
+    db = Config.db[database]
+    return f'{db.driver}://{db.user}:{db.password}@{db.host}:{db.port}/{db.database}'
+
+
 async def start() -> NoReturn:
     """
     Starts the database
     """
     from ..config import Config
     db = Config.db["default"]
-    url = f'mysql://{db.user}:{db.password}@{db.host}:{db.port}/{db.database}'
+    url = make_url_from_database_config("default")
     await init_database(url, persist=not db.rollback, ssl=db.use_ssl, min_size=1, max_size=10, charset='utf8mb4')
 
 

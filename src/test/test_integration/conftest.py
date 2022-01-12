@@ -7,7 +7,8 @@ from app import main
 
 @pytest.fixture
 async def db():
-    db_instance = databases.Database("mysql://root:test@localhost:5601/muistot", force_rollback=False)
+    from app.database.connections import make_url_from_database_config
+    db_instance = databases.Database(make_url_from_database_config("default"), force_rollback=False)
     await db_instance.connect()
     try:
         yield db_instance

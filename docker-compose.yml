@@ -7,10 +7,11 @@ services:
       dockerfile: testserver.Dockerfile
     restart: on-failure
     container_name: muistot-compose-server
+    tty: true
     volumes:
       - "muistot-file-data:/opt/files/"
-      - "./src/app:/code/app"
-      - "./test_docker_config.json:/root/config.json"
+      - "./src/app:/code/app:ro"
+      - "./test_docker_config.json:/root/config.json:ro"
     ports:
       - "127.0.0.1:5600:80"
     networks:
@@ -27,7 +28,7 @@ services:
       - muistot-compose-net
     volumes:
       - "muistot-db-data:/var/lib/mysql"
-      - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql"
+      - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
   db-access:
     image: adminer
     restart: on-failure

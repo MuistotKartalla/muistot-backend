@@ -1,4 +1,5 @@
 #! /bin/sh
 cd "${0%/*}/.."
-docker-compose up -d db
-pytest --cov=app --cov-report term --cov-report html
+docker-compose -f test-runner-compose.yml down -v --remove-orphans
+docker-compose -f test-runner-compose.yml up --force-recreate --remove-orphans --build
+docker-compose -f test-runner-compose.yml down -v --remove-orphans # This can be omitted to leave db on

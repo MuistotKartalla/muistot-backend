@@ -43,10 +43,9 @@ sh scripts/recreate_db
 #### Running test server
 
 ```shell
-#! /bin/sh
-cd "${0%/*}/.."
-docker-compose up -d db
-docker-compose up --force-recreate --remove-orphans --build app
+docker-compose -f test-runner-compose.yml down -v
+docker-compose -f test-runner-compose.yml up --force-recreate --remove-orphans --build app
+docker-compose -f test-runner-compose.yml down -v # This can be omitted to leave db on
 ```
 
 OR
@@ -61,14 +60,21 @@ sh scripts/server.sh
 docker-compose down -v
 ```
 
-#### Test
+#### Testing
 
-Setup and run the tests. Setup is only needed once.
+The tests can be run using the following commands
 
 ```shell
-sh scripts/setup_tests.sh
-sh scripts/run_test.sh
+docker-compose -f test-runner-compose.yml down -v --remove-orphans
+docker-compose -f test-runner-compose.yml up --force-recreate --remove-orphans --build
+docker-compose -f test-runner-compose.yml down -v --remove-orphans # This can be omitted to leave db on
 ```
+
+OR
+
+````shell
+sh scripts/run_tests.sh
+````
 
 Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 

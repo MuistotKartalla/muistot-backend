@@ -4,8 +4,7 @@
   "domain": null,
   "db": {
     "default": {
-      "host": "localhost",
-      "port": "5601",
+      "host": "test-db",
       "database": "muistot",
       "user": "root",
       "password": "test",
