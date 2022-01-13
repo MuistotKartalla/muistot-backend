@@ -21,10 +21,16 @@ async def get_sites(
 
 
 @router.get('/projects/{project}/sites/{site}')
-async def get_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> Site:
+async def get_site(
+        r: Request,
+        project: PID,
+        site: SID,
+        db: Database = Depends(dba),
+        include_memories: bool = False
+) -> Site:
     repo = SiteRepo(db, project)
     repo.configure(r)
-    return await repo.one(site)
+    return await repo.one(site, include_memories=include_memories)
 
 
 @router.post('/projects/{project}/sites')
@@ -55,5 +61,5 @@ async def modify_site(
 async def delete_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
     repo = SiteRepo(db, project)
     repo.configure(r)
-    await repo.delete(site)
+    await repo.toggle_publish(site, False)
     return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)

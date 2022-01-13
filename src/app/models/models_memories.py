@@ -9,35 +9,17 @@ MID = int
 CID = int
 
 
-class ProjectInfo(BaseModel):
-    lang: str
-    name: str
-    abstract: Optional[str]
-    description: Optional[str]
-
-
-class ProjectContact(BaseModel):
-    contact_email: Optional[str]
-    research_permit: bool
-
-
-class Project(BaseModel):
-    id: PID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
-    info: ProjectInfo
-    image: Optional[str]
-
-    starts: Optional[datetime]
-    ends: Optional[datetime]
-
-    admins: Optional[List[str]]
-    contact: Optional[ProjectContact]
-    site_count: int
-
-
 class Comment(BaseModel):
     id: CID
     user: str
     comment: str
+    modified_at: datetime
+
+
+class UserComment(Comment):
+    project: PID
+    site: SID
+    memory: MID
 
 
 class Memory(BaseModel):
@@ -46,7 +28,15 @@ class Memory(BaseModel):
     title: str
     story: Optional[str]
     image: Optional[str]
+    comments_count: int
+    modified_at: datetime
+
     comments: Optional[List[Comment]]
+
+
+class UserMemory(Memory):
+    project: PID
+    site: SID
 
 
 class Point(BaseModel):
@@ -61,20 +51,48 @@ class SiteInfo(BaseModel):
     description: Optional[str]
 
 
-class Site(BaseModel):
-    id: SID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
-    info: SiteInfo
-    location: Point
-    image: Optional[str]
-    memories_count: int
-    memories: Optional[List[Memory]]
-
-
 class NewSite(BaseModel):
     id: SID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
     info: SiteInfo
     location: Point
     image: Optional[str]
+
+
+class Site(NewSite):
+    memories_count: int
+
+    memories: Optional[List[Memory]]
+
+
+class ProjectInfo(BaseModel):
+    lang: str
+    name: str
+    abstract: Optional[str]
+    description: Optional[str]
+
+
+class ProjectContact(BaseModel):
+    contact_email: Optional[str]
+    has_research_permit: bool
+    can_contact: bool
+
+
+class NewProject(BaseModel):
+    id: PID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
+    info: ProjectInfo
+    image: Optional[str]
+
+    starts: Optional[datetime]
+    ends: Optional[datetime]
+
+    admins: Optional[List[str]]
+    contact: Optional[ProjectContact]
+    anonymous_posting: bool = False
+
+
+class Project(NewProject):
+    site_count: int
+    sites: Optional[List[Site]]
 
 
 class NewMemory(BaseModel):
@@ -144,6 +162,7 @@ __all__ = [
     'NewSite',
     'NewMemory',
     'NewComment',
+    'NewProject',
 
     'ModifiedMemory',
     'ModifiedSite',
@@ -155,5 +174,8 @@ __all__ = [
     'Sites',
     'Projects',
     'Memories',
-    'Comments'
+    'Comments',
+
+    'UserComment',
+    'UserMemory'
 ]

@@ -13,7 +13,7 @@ def get_languages() -> Set[str]:
     return set(Config.languages)
 
 
-def _validate_lang(lang: str):
+def _validate_lang(lang: str) -> Optional[str]:
     langs = [lang.split('-')[0] for lang in lang.strip().split(',')]
     available = get_languages()
     for lang in langs:
@@ -25,18 +25,24 @@ def extract_language(r: Request) -> str:
     """
     Extract language from request.
 
-    Default if it is not specified
+    Default if it is not specified or not allowed
     """
     from ..config import Config
     try:
         if r.method == "GET":
-            out = _validate_lang(r.headers[ACCEPT_LANGUAGE])
+            out = r.headers[ACCEPT_LANGUAGE]
         else:
-            out = _validate_lang(r.headers[CONTENT_LANGUAGE])
+            out = r.headers[CONTENT_LANGUAGE]
         if out is not None:
-            return out
+            out = out.strip()
+            if len(out) > 0:
+                out = _validate_lang(out)
+            else:
+                out = Config.default_language
+        if out is None:
+            raise ValueError('bad-lang')
         else:
-            return Config.default_language
+            return out
     except KeyError:
         return Config.default_language
 

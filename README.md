@@ -102,3 +102,20 @@ You might need to change the database name if your dump is a bit different.
 #### TODO
 
 The old dump didn't include users or comments so migrating them is yet untested
+
+- Happy path integration tests
+- Test shown counts for sites, memories, comments, etc.
+- Test permissions
+- Test site fetch params
+- Not so happy tests
+
+## DEV Notes
+
+#### 13.01.2022
+
+Added new column to memories, please migrate existing data:
+
+````mariadb
+ALTER TABLE memories
+    ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE
+````

@@ -2,20 +2,41 @@ from .common_imports import *
 
 router = make_router(tags=["Admin"])
 
+ID_MAP = {
+    'project': 'name',
+    'site': 'name',
+    'memory': 'id',
+    'comment': 'id'
+}
 
-@router.put('/projects/publish')
+TABLE_MAP = {
+    'project': 'projects',
+    'site': 'sites',
+    'memory': 'memories',
+    'comment': 'comments'
+}
+
+
+@router.post('/projects/{project}/admin/publish')
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def publish_project(r: Request, project: PID, db: Database = Depends(dba)):
-    repo = ProjectRepo(db)
-    repo.configure(r)
-    new_id = await repo.publish(project)
-    return created(router.url_path_for('get_project', project=new_id))
-
-
-@router.put("/projects/{project}/sites/publish")
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def publish_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
-    repo = SiteRepo(db, project)
-    repo.configure(r)
-    new_id = await repo.publish(site)
-    return created(router.url_path_for('get_site', project=project, site=new_id))
+async def publish(
+        project: str,
+        r: Request,
+        object_type: Literal['site', 'memory', 'comment'],
+        identifier: Union[str, int],
+        set_published: bool,
+        db: Database = Depends(dba)
+):
+    if not r.user.is_authenticated or not r.user.is_admin_in(project):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Unauthorized')
+    try:
+        await db.execute(
+            f"""
+            UPDATE {TABLE_MAP[object_type]}
+            SET published = {1 if set_published else 0}
+            WHERE {ID_MAP[object_type]} = :id
+            """,
+            values=dict(id=identifier)
+        )
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad object type')

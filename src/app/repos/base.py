@@ -1,168 +1,13 @@
-import functools
 import inspect
 from abc import ABC, abstractmethod
 from typing import List, Any, Optional, NoReturn, Union
 
 from fastapi import Request, HTTPException, status
 
-from .connections import Database
+from ..database import Database
 from ..models import *
 from ..utils import extract_language
-
-
-def not_implemented(f):
-    """
-    Marks function as not used and generates a warning on startup
-
-    Should only be used on Repo instance methods
-    """
-    from ..logging import log
-    log.warning(f'Function not implemented {repr(f)}')
-
-    @functools.wraps(f)
-    async def decorator(*_, **__):
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail='Not Implemented'
-        )
-
-    return decorator
-
-
-def set_published(published: bool):
-    """
-    Changes published status for a Repo
-
-    Usage:
-
-    @set_published(False)
-    def delete(self, *args, **kwargs)
-        return "WHERE PART", DICT[VALUES]
-
-    :param published: 1 if published else 0
-    :return:          Decorated function
-    """
-
-    def factory(f):
-        @functools.wraps(f)
-        async def decorator(*args, **kwargs):
-            res = await f(*args, **kwargs)
-            self: 'BaseRepo' = args[0]
-            await self.db.execute(
-                f'UPDATE {type(self).__name__.removesuffix("Repo").lower()}s'
-                f' SET published = {1 if published else 0}'
-                f' WHERE {res[0]}',
-                values=res[1]
-            )
-
-        return decorator
-
-    return factory
-
-
-def needs_admin(f):
-    """
-    Requires admin rights to a function
-    Only works on Repo instance methods.
-
-
-    Requires one:
-
-    - Repo has field 'project' type 'PID'
-    - Method has parameter named 'project' type 'PID'
-    - Method requires SuperUser
-
-    Usage:
-
-    @needs_admin
-    def do_something(*args, *kwargs):
-        pass
-
-    """
-    param_index = None
-    for idx, name in enumerate(inspect.signature(f).parameters.keys()):
-        if name == 'project':
-            param_index = idx
-            break
-
-    if param_index is None:
-        @functools.wraps(f)
-        async def decorator(*args, **kwargs):
-            self: 'BaseRepo' = args[0]
-            project: PID = getattr(self, 'project', None)
-            await self.check_admin_privilege(project)
-            return await f(*args, **kwargs)
-    else:
-        @functools.wraps(f)
-        async def decorator(*args, **kwargs):
-            self: 'BaseRepo' = args[0]
-            project: PID = args[param_index]
-            await self.check_admin_privilege(project)
-            return await f(*args, **kwargs)
-
-    return decorator
-
-
-def check_lang(f):
-    """
-    Throw a 406 if the function argument is None
-
-    This is used on some construct methods in Repos
-    """
-
-    @functools.wraps(f)
-    async def decorator(*args):
-        if args[1] is None:
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=(
-                        type(args[0]).__name__.removesuffix('Repo')
-                        + ' missing localization in '
-                        + getattr(args[0], 'lang')
-                        + ' and default'
-                )
-            )
-        else:
-            return await f(*args)
-
-    return decorator
-
-
-def check_exists(f):
-    """
-    Checks that the resource exists
-
-    Works only on Repo instance methods where the first argument is an identifier for a
-    resource the Repo represents
-
-    Usage:
-
-    @check_exists
-    def one(project: PID):
-        pass
-
-    Will take the 'project' argument and use that for checking _exist method
-    """
-
-    @functools.wraps(f)
-    async def decorator(*args, **kwargs):
-        await args[0]._check_exists(args[1])
-        return await f(*args, **kwargs)
-
-    return decorator
-
-
-def check_not_exists(f):
-    """
-    Opposite of 'check_exists'
-    """
-
-    @functools.wraps(f)
-    async def decorator(*args, **kwargs):
-        await args[0]._check_not_exists(args[1])
-        return await f(*args, **kwargs)
-
-    return decorator
+from ..config import Config
 
 
 class BaseRepo(ABC):
@@ -195,7 +40,6 @@ class BaseRepo(ABC):
     def __init__(self, db: Database, **kwargs):
         from starlette.authentication import UnauthenticatedUser
         from ..security.auth import CustomUser
-        from ..config import Config
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -213,7 +57,10 @@ class BaseRepo(ABC):
         - Language
         """
         self.user = r.user
-        self.lang = extract_language(r)
+        try:
+            self.lang = extract_language(r)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Can not localize')
 
     async def check_admin_privilege(self, project: Optional[PID]) -> NoReturn:
         """
@@ -271,16 +118,16 @@ class BaseRepo(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, *args):
+    async def delete(self, *args) -> NoReturn:
         """
-        Delete or un-publish the resource
+        Delete the resource
         """
         pass
 
     @abstractmethod
-    async def publish(self, *args):
+    async def toggle_publish(self, *args) -> NoReturn:
         """
-        Set publish to True
+        Set publish
         """
         pass
 
@@ -293,25 +140,25 @@ class BaseRepo(ABC):
         """
         pass
 
-    async def _check_exists(self, arg):
-        from pydantic import BaseModel
-        if isinstance(arg, BaseModel):
-            arg = arg.id
-        if not await self._exists(arg):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'{type(self).__name__.removesuffix("Repo")} not found'
-            )
+    async def _set_published(self, published: bool, **values) -> NoReturn:
+        """
+        Changes published status for a Repo
 
-    async def _check_not_exists(self, arg):
-        from pydantic import BaseModel
-        if isinstance(arg, BaseModel):
-            arg = arg.id
-        if await self._exists(arg):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f'{type(self).__name__.removesuffix("Repo")} already exists'
-            )
+        Usage:
+
+        @set_published(False)
+        def delete(self, *args, **kwargs)
+            return "WHERE PART", DICT[VALUES]
+
+        :param published: 1 if published else 0
+        :return:          Decorated function
+        """
+        await self.db.execute(
+            f'UPDATE {type(self).__name__.removesuffix("Repo").lower()}s'
+            f' SET published = {1 if published else 0}'
+            f' WHERE {" AND ".join(f"{k} = :{k}" for k in values.keys())}',
+            values=values
+        )
 
 
 class Files:
@@ -333,10 +180,8 @@ class Files:
         :param file_data:   data in base64
         :return:            image_id if one was generated
         """
-        from ..config import Config
         if file_data is not None and (Config.files.allow_anonymous or self.user.is_authenticated):
             from ..utils import check_file
-            from ..config import Config
             data, file_type = check_file(file_data)
             if data is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad image')
@@ -359,21 +204,3 @@ class Files:
             with open(f'{Config.files.location}{file_name}', 'wb') as f:
                 f.write(data)
             return image_id
-
-
-def check_id(_id: str):
-    """
-    Check that an id is safe for URLs.
-    """
-    from ..utils import url_safe
-    if not url_safe(_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad identifier')
-
-
-def check_language(lang: str):
-    """
-    Check that language is available in config.
-    """
-    from ..utils import get_languages
-    if lang not in get_languages():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad language')

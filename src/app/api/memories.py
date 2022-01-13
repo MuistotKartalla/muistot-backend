@@ -7,20 +7,33 @@ router = make_router(tags=["Memories"])
     '/projects/{project}/sites/{site}/memories',
     response_model=Memories
 )
-async def get_memories(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> Memories:
+async def get_memories(
+        r: Request,
+        project: PID,
+        site: SID,
+        db: Database = Depends(dba),
+        include_comments: bool = False
+) -> Memories:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    return Memories(items=await repo.all())
+    return Memories(items=await repo.all(include_comments=include_comments))
 
 
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}',
     response_model=Memory
 )
-async def get_memory(r: Request, project: PID, site: SID, memory: MID, db: Database = Depends(dba)) -> Memory:
+async def get_memory(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        db: Database = Depends(dba),
+        include_comments: bool = False
+) -> Memory:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    return await repo.one(memory)
+    return await repo.one(memory, include_comments=include_comments)
 
 
 @router.post('/projects/{project}/sites/{site}/memories')
