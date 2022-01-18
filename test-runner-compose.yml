@@ -10,9 +10,6 @@ services:
     tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
-      - "./src/app:/test-runner/src/app/:ro"
-      - "./src/setup.py:/test-runner/src/setup.py:ro"
-      - "./src/test/:/test-runner/test/:ro"
       - "./test_config.json:/test-runner/test_config.json:ro"
     depends_on:
       - test-db
@@ -25,4 +22,4 @@ services:
     volumes:
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     logging:
-      driver: none
+      driver: "none"

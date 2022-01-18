@@ -7,4 +7,6 @@ ENV PATH="/test-runner/venv/bin:$PATH"
 COPY requirements.txt .
 COPY requirements-dev.txt .
 RUN pip install -r requirements-dev.txt
-CMD pip install -e ./src && pytest --cov=app --cov-report term --cov-report html
+COPY ./src/ ./src/
+RUN pip install -e ./src
+CMD pytest --cov=app --cov-report term --cov-report html && echo 'Tests Done'
