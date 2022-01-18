@@ -37,6 +37,7 @@ async def get_memory(
 
 
 @router.post('/projects/{project}/sites/{site}/memories')
+@require_auth(scopes.AUTHENTICATED)
 async def new_memory(
         r: Request,
         project: PID,

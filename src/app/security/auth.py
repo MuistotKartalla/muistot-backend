@@ -127,9 +127,14 @@ def require_auth(*required_scopes: str):
     return actual_auth_thingy
 
 
+def is_superuser(user: SimpleUser) -> bool:
+    return isinstance(user, SuperUser)
+
+
 __all__ = [
     'register_auth_middleware',
     'require_auth',
     'CustomUser',
-    'SuperUser'
+    'SuperUser',
+    'is_superuser'
 ]

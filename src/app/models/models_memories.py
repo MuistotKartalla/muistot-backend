@@ -15,6 +15,8 @@ class Comment(BaseModel):
     comment: str
     modified_at: datetime
 
+    waiting_approval: Optional[bool]
+
 
 class UserComment(Comment):
     project: PID
@@ -30,6 +32,8 @@ class Memory(BaseModel):
     image: Optional[str]
     comments_count: int
     modified_at: datetime
+
+    waiting_approval: Optional[bool]
 
     comments: Optional[List[Comment]]
 
@@ -60,6 +64,8 @@ class NewSite(BaseModel):
 
 class Site(NewSite):
     memories_count: int
+
+    waiting_approval: Optional[bool]
 
     memories: Optional[List[Memory]]
 

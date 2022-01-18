@@ -1,5 +1,5 @@
-from .utils import *
 from .site import SiteRepo
+from .utils import *
 
 
 class ProjectRepo(BaseRepo):
@@ -42,6 +42,36 @@ class ProjectRepo(BaseRepo):
         """
     )
 
+    async def _exists(self, project: PID) -> Status:
+        if self.has_identity:
+            m = await self.db.fetch_one(
+                """
+                SELECT p.published,
+                       ISNULL(pa.user_id)
+                FROM projects p
+                    LEFT JOIN project_admins pa
+                            JOIN users u2 ON pa.user_id = u2.id
+                                AND u2.username = :user
+                         ON p.id = pa.project_id
+                WHERE p.name = :project
+                """,
+                values=dict(project=project, user=self.identity)
+            )
+            if m is None:
+                return Status.DOES_NOT_EXIST
+
+            s = Status.resolve(m[0])
+
+            if m[1] == 0 and s != Status.DOES_NOT_EXIST:
+                return Status.ADMIN
+            else:
+                return s
+        else:
+            return Status.resolve(await self.db.fetch_val(
+                'SELECT published FROM projects WHERE name = :project',
+                values=dict(project=project)
+            ))
+
     async def _get_admins(self, project_id: int):
         out = [admin[0] for admin in await self.db.fetch_all(
             """
@@ -54,15 +84,7 @@ class ProjectRepo(BaseRepo):
         )]
         return out if len(out) > 0 else None
 
-    async def _exists(self, project: PID) -> bool:
-        return await self.db.fetch_val(
-            'SELECT EXISTS(SELECT 1 FROM projects WHERE name = :project)',
-            values=dict(project=project)
-        ) == 1
-
     async def _handle_localization(self, project: PID, localized_data: ProjectInfo) -> int:
-        if not self.user.is_authenticated:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authorized to update')
         return await self.db.fetch_val(
             """
             REPLACE INTO project_information (
@@ -84,11 +106,11 @@ class ProjectRepo(BaseRepo):
                 JOIN languages l ON l.lang = :lang
                 JOIN users u ON u.username = :user
             WHERE p.name = :project
-            RETURNING l.id
+            RETURNING lang_id
             """,
             values=dict(
                 **localized_data.dict(include={'name', 'abstract', 'description', 'lang'}),
-                user=self.user.identity,
+                user=self.identity,
                 project=project
             )
         )
@@ -96,8 +118,6 @@ class ProjectRepo(BaseRepo):
     async def _handle_contact(self, project: PID, contact: Optional[ProjectContact]):
         if contact is None:
             return
-        if not self.user.is_authenticated:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authorized to update')
         await self.db.execute(
             """
             REPLACE INTO project_contact (
@@ -119,7 +139,7 @@ class ProjectRepo(BaseRepo):
             """,
             values=dict(
                 **contact.dict(),
-                user=self.user.identity,
+                user=self.identity,
                 project=project
             )
         )
@@ -170,7 +190,7 @@ class ProjectRepo(BaseRepo):
             values=dict(lang=self.lang)
         ) if m is not None]
 
-    @check_exists
+    @check_published_or_admin
     async def one(self, project: PID, include_sites: bool = False) -> Project:
         out = await self.construct_project(await self.db.fetch_one(
             self._select + " AND p.name = :project",
@@ -180,16 +200,16 @@ class ProjectRepo(BaseRepo):
             out.sites = SiteRepo(self.db, project).all()
         return out
 
-    @needs_admin
     @check_not_exists
     async def create(self, model: NewProject) -> PID:
-
+        if not self.is_superuser:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not enough privileges')
         check_id(model.id)
         check_language(model.info.lang)
         if model.starts is not None and model.ends is not None and model.starts <= model.ends:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='End before start')
         if model.image is not None:
-            image_id = await Files(self.db, self.user).handle(model.image)
+            image_id = self.files.handle(model.image)
         else:
             image_id = None
         await self.db.execute(
@@ -206,20 +226,20 @@ class ProjectRepo(BaseRepo):
             )
             SELECT u.id,
                    l.id,
-                   :id,
                    :image_id,
+                   :published,
+                   :id,
                    :starts,
                    :ends,
-                   :anonymous_posting,
-                   :published
+                   :anonymous_posting
             FROM users u
                      JOIN languages l ON l.lang = :lang
             WHERE u.username = :user
             """,
             values=dict(
-                **model.dict(include={'name', 'starts', 'ends', 'anonymous_posting'}),
+                **model.dict(include={'id', 'starts', 'ends', 'anonymous_posting'}),
                 image_id=image_id,
-                user=self.user.identity,
+                user=self.identity,
                 lang=model.info.lang,
                 published=Config.auto_publish
             )
@@ -232,8 +252,7 @@ class ProjectRepo(BaseRepo):
             await self._handle_admins(model.id, model.admins)
         return model.id
 
-    @needs_admin
-    @check_exists
+    @check_admin
     async def modify(self, project: PID, model: ModifiedProject) -> bool:
         data = model.dict(exclude_unset=True)
         if len(data) == 0:
@@ -241,7 +260,7 @@ class ProjectRepo(BaseRepo):
         else:
             values = {}
             if 'image' in data:
-                values['image_id'] = await Files(self.db, self.user).handle(model.image)
+                values['image_id'] = self.files.handle(model.image)
             if 'contact' in data:
                 await self._handle_contact(project, model.contact)
             if 'info' in data:
@@ -253,10 +272,12 @@ class ProjectRepo(BaseRepo):
                 modified = await self.db.fetch_val(
                     f"""
                     UPDATE projects p
-                    SET {",".join(f"{k}=:{k}" for k in values.keys())} 
+                        LEFT JOIN users u ON u.username = :user
+                    SET {",".join(f"p.{k}=:{k}" for k in values.keys())},
+                        p.modifier_id = u.id
                     WHERE p.name = :project
                     """,
-                    values=dict(**values, project=project)
+                    values=dict(**values, project=project, user=self.identity)
                 )
             else:
                 modified = False
@@ -265,7 +286,7 @@ class ProjectRepo(BaseRepo):
                 modified = True
             return modified
 
-    @needs_admin
+    @check_super
     async def delete(self, project: PID):
         await self.db.execute(
             """
@@ -274,12 +295,10 @@ class ProjectRepo(BaseRepo):
             values=dict(project=project)
         )
 
-    @needs_admin
-    @check_exists
+    @check_admin
     async def toggle_publish(self, project: PID, publish: bool):
         await self._set_published(publish, name=project)
 
-    @needs_admin
-    @check_exists
+    @check_admin
     async def localize(self, project: PID, localized_data: ProjectInfo):
         await self._handle_localization(project, localized_data)

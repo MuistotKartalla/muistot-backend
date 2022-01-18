@@ -8,7 +8,7 @@ def do_login(client: TestClient, data: Dict, username: str):
     from app.headers import AUTHORIZATION
     from app.security.jwt import read_jwt
     from app.security.scopes import SUBJECT
-    resp = client.post("/api/login", json=data)
+    resp = client.post("/login", json=data)
 
     assert resp.status_code == 200, resp.json()
     header = resp.headers[AUTHORIZATION]
@@ -41,7 +41,7 @@ async def test_user_login_email(client: TestClient, login):
 async def test_user_create(client: TestClient, credentials):
     username, email, password = credentials
 
-    resp = client.post("/api/register", json={
+    resp = client.post("/register", json={
         'username': username,
         'email': email,
         'password': password
@@ -58,7 +58,7 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
         'username': username,
         'password': password
     }
-    resp = client.post("/api/login", json=data)
+    resp = client.post("/login", json=data)
     assert resp.status_code == 401 and 'verified' in resp.json()["error"]["message"]
 
 
@@ -73,10 +73,10 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
     try:
         # LOGIN
         data = {'username': username, 'password': password}
-        resp = client.post("/api/login", json=data)
+        resp = client.post("/login", json=data)
 
         # TRY UN-PUBLISH
-        resp = client.delete(f'/api/projects/{username}', headers={AUTHORIZATION: resp.headers[AUTHORIZATION]})
+        resp = client.delete(f'/projects/{username}', headers={AUTHORIZATION: resp.headers[AUTHORIZATION]})
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.json()
 
         # PREP
@@ -95,14 +95,17 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
         )
 
         # LOGIN
-        resp = client.post("/api/login", json=data)
+        resp = client.post("/login", json=data)
 
         # UN-PUBLISH
         resp = client.delete(
-            f'/api/projects/{username}',
+            f'/projects/{username}',
             headers={AUTHORIZATION: resp.headers[AUTHORIZATION]}
         )
-        assert resp.status_code == status.HTTP_204_NO_CONTENT, resp.json()
+        print(client.get(f'/projects/{username}').json())
+        assert resp.status_code == status.HTTP_204_NO_CONTENT, await db.fetch_all(
+            "SELECT name, published FROM projects"
+        )
         assert await db.fetch_val(
             "SELECT published FROM projects WHERE name = :pname",
             values=dict(pname=username)
@@ -115,7 +118,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
         )
 
         # RE-LOGIN
-        resp = client.post("/api/login", json=data)
+        resp = client.post("/login", json=data)
         user = CustomUser(read_jwt(resp.headers[AUTHORIZATION].split()[1]))
 
         # ASSERT LOST ADMIN

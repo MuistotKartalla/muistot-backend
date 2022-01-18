@@ -1,5 +1,8 @@
+from typing import cast
+
 import databases
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from app import main
@@ -26,7 +29,7 @@ def client(db):
 def _credentials():
     """username, email, password"""
     from passlib.pwd import genword
-    length = 64
+    length = 10
     username, email, password = genword(length=length), genword(length=length), genword(length=length)
     yield username, email, password
 
@@ -48,3 +51,28 @@ async def create_user(db: databases.Database, credentials):
         values=dict(password=hash_password(password), username=username, email=email)
     )
     yield username, email, password
+
+
+@pytest.fixture
+def mock_request(login):
+    from app.security.auth import SuperUser
+    uid = login[0]
+
+    class MockRequest:
+        method = "GET"
+        headers = dict()
+        user = SuperUser(uid)
+
+    return cast(Request, MockRequest())
+
+
+@pytest.fixture
+def auth(client, login):
+    from app.headers import AUTHORIZATION
+    jwt = client.post('login/', json={
+        'username': login[0],
+        'password': login[2]
+    }, allow_redirects=True).headers[AUTHORIZATION]
+    return {
+        AUTHORIZATION: jwt
+    }

@@ -1,36 +1,4 @@
-# [Framework]
-#
-# This should be quite stable
-FastAPI >= 0.70.0, < 1.0.0
-
-# [Important]
-#
-# These should be kept as up-to-date as possible
-# So as long as they don't break FastAPI
-uvicorn >= 0.15.0, < 1.0.0
-pydantic >= 1.8.2, < 2.0.0
-asgi-ratelimit[redis] >= 0.6.1, < 1.0.0
-
-# [Crypto]
-#
-# Let's try and always keep these up to date
-# if they happen to have any vulnerabilities
-python-jose[cryptography] >= 3.3.0, < 4.0.0
-passlib[bcrypt] >= 1.7.4, < 2.0.0
-cryptography >= 35.0.0, < 36.0.0
-
-# [DB]
-#
-# When using higher versions please check
-# database.__init__.py if the imports are still correct
-# Similarly if the underlying DB implementation changes
-databases[mysql] == 0.5.3
-aiomysql == 0.0.21
-
-# [Other]
-#
-# These aren't vry critical
-aiohttp >= 3.8.1, < 4.0.0
+-r requirements.txt
 
 # [TEST]
 pytest
