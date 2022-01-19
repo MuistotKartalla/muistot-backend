@@ -1,8 +1,4 @@
-from dataclasses import dataclass
-from typing import Dict, Tuple
-
 import pytest
-from fastapi.testclient import TestClient
 
 from utils import *
 

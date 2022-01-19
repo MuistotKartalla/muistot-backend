@@ -4,7 +4,7 @@ router = make_router(tags=["Comments"])
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/comments',
+    '/projects/{project}/sites/{site}/memories/{memory}/comments',
     response_model=Comments
 )
 async def get_comments(
@@ -20,7 +20,7 @@ async def get_comments(
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/comments/{comment}',
+    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
     response_model=Comment
 )
 async def get_comment(
@@ -36,7 +36,7 @@ async def get_comment(
     return await repo.one(comment)
 
 
-@router.post('/projects/{project}/sites/{site}/comments')
+@router.post('/projects/{project}/sites/{site}/memories/{memory}/comments')
 @require_auth(scopes.AUTHENTICATED)
 async def new_comment(
         r: Request,
@@ -48,7 +48,7 @@ async def new_comment(
 ) -> JSONResponse:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
-    new_id = repo.create(model)
+    new_id = await repo.create(model)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         headers={
@@ -62,7 +62,7 @@ async def new_comment(
     )
 
 
-@router.patch('/projects/{project}/sites/{site}/comments/{comment}')
+@router.patch('/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}')
 @require_auth(scopes.AUTHENTICATED)
 async def modify_comment(
         r: Request,
@@ -85,7 +85,7 @@ async def modify_comment(
     ), changed)
 
 
-@router.delete('/projects/{project}/sites/{site}/comments/{comment}')
+@router.delete('/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}')
 @require_auth(scopes.AUTHENTICATED)
 async def delete_comment(
         r: Request,

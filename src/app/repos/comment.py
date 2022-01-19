@@ -20,8 +20,6 @@ class CommentRepo(BaseRepo):
                  JOIN projects p ON s.project_id = p.id
             AND p.name = :project
                  JOIN users u ON c.user_id = u.id
-                 JOIN memories m ON c.memory_id = m.id
-                    AND m.id = :memory
         WHERE c.published
         """
     )
@@ -62,8 +60,6 @@ class CommentRepo(BaseRepo):
                  JOIN projects p ON s.project_id = p.id
             AND p.name = :project
                  JOIN users u ON c.user_id = u.id
-                 JOIN memories m ON c.memory_id = m.id
-                    AND m.id = :memory
         WHERE TRUE
         """
     )
@@ -167,7 +163,7 @@ class CommentRepo(BaseRepo):
         ) if m is not None]
 
     @check_published_or_admin
-    async def one(self, comment: CID, *, _status) -> Comment:
+    async def one(self, comment: CID, *, _status: Status) -> Comment:
         values = dict(site=self.site, project=self.project, memory=self.memory, comment=comment)
         if _status == Status.ADMIN:
             sql = self._select_for_admin
@@ -178,7 +174,7 @@ class CommentRepo(BaseRepo):
             sql = self._select
         return self.construct_comment(await self.db.fetch_one(
             sql + ' AND c.id = :comment',
-            values=dict(memory=self.memory, comment=comment, user=self.identity)
+            values=values
         ))
 
     @check_parents

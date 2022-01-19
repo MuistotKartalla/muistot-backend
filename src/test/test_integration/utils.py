@@ -1,11 +1,12 @@
 import random
 
-from databases import Database
-from passlib.pwd import genword
-
 from app.config import Config
 from app.models import *
 from app.repos import *
+from databases import Database
+from passlib.pwd import genword
+
+from urls import *
 
 
 class Setup:
@@ -24,20 +25,27 @@ class Setup:
 
     @property
     def url(self):
-        url = ''
+        url = ROOT
+        values = []
         if hasattr(self, 'project'):
-            url += f'/projects/{self.project}'
+            values.append(self.project)
+            url = PROJECT
         if hasattr(self, 'site'):
-            url += f'/sites/{self.site}'
+            values.append(self.site)
+            url = SITE
         if hasattr(self, 'memory'):
-            url += f'/memories/{self.memory}'
-        return url
+            values.append(self.memory)
+            url = MEMORY
+        return url.format(*values)
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
         return self.url
+
+    def __iter__(self):
+        return iter(getattr(self, o) for o in ['project', 'site', 'memory'] if hasattr(self, o))
 
 
 async def create_memory(pid: PID, sid: SID, db: Database, config, **additional_properties) -> MID:
