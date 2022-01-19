@@ -126,9 +126,9 @@ class CommentRepo(BaseRepo):
         s = Status.resolve(m[3])
 
         if self.has_identity and s != Status.DOES_NOT_EXIST:
-            if m[6] == 0:
+            if m[5] == 0:
                 return Status.ADMIN
-            if m[5] == self.identity:
+            if m[4] == self.identity:
                 return Status.OWN
 
         if m[0] == 0:
@@ -196,14 +196,15 @@ class CommentRepo(BaseRepo):
 
     @check_own
     async def modify(self, comment: CID, model: ModifiedComment) -> bool:
-        return await self.db.fetch_val(
+        await self.db.fetch_val(
             """
             UPDATE comments 
-            SET comment=:comment, published=0
+            SET comment=:comment, published=DEFAULT
             WHERE id = :id
             """,
             values=dict(id=comment, comment=model.comment)
-        ) == 1
+        )
+        return await self.db.fetch_val("SELECT ROW_COUNT()") != 0
 
     @check_own_or_admin
     async def delete(self, comment: CID):
@@ -211,7 +212,7 @@ class CommentRepo(BaseRepo):
             """
             DELETE c FROM comments c
             JOIN users u ON c.user_id = u.id
-                AND u.id = :user
+                AND u.username = :user
             WHERE c.id = :cid 
             """,
             values=dict(user=self.identity, cid=comment)

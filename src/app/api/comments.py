@@ -5,7 +5,12 @@ router = make_router(tags=["Comments"])
 
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}/comments',
-    response_model=Comments
+    response_model=Comments,
+    description=(
+            """
+            Returns all comments for a memory.
+            """
+    )
 )
 async def get_comments(
         r: Request,
@@ -21,7 +26,12 @@ async def get_comments(
 
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
-    response_model=Comment
+    response_model=Comment,
+    description=(
+            """
+            Returns all relevant data for a single comment.
+            """
+    )
 )
 async def get_comment(
         r: Request,
@@ -36,7 +46,14 @@ async def get_comment(
     return await repo.one(comment)
 
 
-@router.post('/projects/{project}/sites/{site}/memories/{memory}/comments')
+@router.post(
+    '/projects/{project}/sites/{site}/memories/{memory}/comments',
+    description=(
+            """
+            Adds a new comment to a site.
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def new_comment(
         r: Request,
@@ -62,7 +79,16 @@ async def new_comment(
     )
 
 
-@router.patch('/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}')
+@router.patch(
+    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
+    description=(
+            """
+            Edits a comment.
+            
+            Currently only the Author and a SuperUser can modify the comment.
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def modify_comment(
         r: Request,
@@ -85,7 +111,16 @@ async def modify_comment(
     ), changed)
 
 
-@router.delete('/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}')
+@router.delete(
+    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
+    description=(
+            """
+            Permanently deletes a comment.
+            
+            This can be done by the author or an admin.
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def delete_comment(
         r: Request,

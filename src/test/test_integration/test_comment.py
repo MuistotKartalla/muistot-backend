@@ -49,3 +49,39 @@ async def test_fetch_all(client, setup, credentials, auth, db):
     for c in Comments(**client.get(COMMENTS.format(*setup)).json()).items:
         assert c.comment in comments
         assert c.user == credentials[0]
+
+@pytest.mark.anyio
+async def test_delete(client, setup, auth, db):
+    r = client.post(
+        COMMENTS.format(*setup),
+        json=NewComment(comment='test').dict(),
+        headers=auth
+    )
+    assert r.status_code == 201
+    _id = r.headers[LOCATION].removesuffix('/').split('/')[-1]
+    assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 1
+    assert client.delete(r.headers[LOCATION], headers=auth).status_code == 204
+    assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 0
+
+@pytest.mark.anyio
+async def test_modify(client, setup, auth, db):
+    r = client.post(
+        COMMENTS.format(*setup),
+        json=NewComment(comment='test').dict(),
+        headers=auth
+    )
+    assert r.status_code == 201
+
+    _id = r.headers[LOCATION].removesuffix('/').split('/')[-1]
+    assert await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == 'test'
+
+    r = client.patch(
+        r.headers[LOCATION],
+        json=ModifiedComment(comment='test2').dict(),
+        headers=auth
+    )
+
+    assert await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == 'test2'
+
+    assert r.status_code == 200
+    assert Comment(**client.get(r.headers[LOCATION], headers=auth).json()).comment == 'test2'

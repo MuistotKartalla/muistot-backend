@@ -5,7 +5,14 @@ from .common_imports import *
 router = make_router(tags=["Files"])
 
 
-@router.get("/images/{image}")
+@router.get(
+    "/images/{image}",
+    description=(
+            """
+            Return's an image from the uploads folder.
+            """
+    )
+)
 async def get_image(image: str, db: Database = Depends(dba)):
     exists = await db.fetch_val(
         'SELECT EXISTS(SELECT 1 FROM images WHERE file_name = :name)',

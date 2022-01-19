@@ -5,7 +5,14 @@ router = make_router(tags=["Memories"])
 
 @router.get(
     '/projects/{project}/sites/{site}/memories',
-    response_model=Memories
+    response_model=Memories,
+    description=(
+            """
+            Returns all memories for a single site.
+            
+            Optionally returns all comments with the memories.
+            """
+    )
 )
 async def get_memories(
         r: Request,
@@ -21,7 +28,14 @@ async def get_memories(
 
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}',
-    response_model=Memory
+    response_model=Memory,
+    description=(
+            """
+            Returns a single memory for a single site.
+    
+            Optionally returns all comments with the memory.
+            """
+    )
 )
 async def get_memory(
         r: Request,
@@ -36,7 +50,14 @@ async def get_memory(
     return await repo.one(memory, include_comments=include_comments)
 
 
-@router.post('/projects/{project}/sites/{site}/memories')
+@router.post(
+    '/projects/{project}/sites/{site}/memories',
+    description=(
+            """
+            Adds a new memory
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def new_memory(
         r: Request,
@@ -51,7 +72,14 @@ async def new_memory(
     return created(router.url_path_for('get_memory', project=project, site=site, memory=str(new_id)))
 
 
-@router.patch('/projects/{project}/sites/{site}/memories/{memory}')
+@router.patch(
+    '/projects/{project}/sites/{site}/memories/{memory}',
+    description=(
+            """
+            Allows modifying memories partially
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def modify_memory(
         r: Request,
@@ -67,7 +95,16 @@ async def modify_memory(
     return modified(lambda: router.url_path_for('get_memory', project=project, site=site, memory=str(memory)), changed)
 
 
-@router.delete('/projects/{project}/sites/{site}/memories/{memory}')
+@router.delete(
+    '/projects/{project}/sites/{site}/memories/{memory}',
+    description=(
+            """
+            Soft deletes a memory and sets it invisible for normal users.
+            
+            Hard delete can be performed by admins from admin interface.
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED)
 async def delete_memory(
         r: Request,

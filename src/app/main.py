@@ -9,14 +9,53 @@ from .errors import register_error_handlers, modify_openapi
 from .logins import *
 from .security import *
 
+description = (
+    """
+    Backend for the https://www.muistojakartalla.fi service.
+    
+    
+    Notes:
+    - Image upload is handled as Base64 String at the moment
+      => This might change to signed urls in the future
+    """
+)
+
+tags = [
+    {
+        "name": "Common",
+        "description": "Common unauthenticated endpoints without actual use"
+    },
+    {
+        "name": "Projects",
+        "description": "For viewing, creating, and managing Projects"
+    },
+    {
+        "name": "Sites",
+        "description": "CRUD for sites"
+    },
+    {
+        "name": "Memories",
+        "description": "User created memories"
+    },
+    {
+        "name": "Comments",
+        "description": "User comments"
+    },
+    {
+        "name": "Admin",
+        "description": "Administration utilities"
+    }
+]
+
 app = FastAPI(
     title="Muistoja Kartalla",
-    description="Backend for the https://www.muistojakartalla.fi service.",
-    version="1.0.1",
+    description=description,
+    version="1.1.0",
     docs_url="/docs",
     # root_path="/api", # Doesn't work without proxy
     redoc_url=None,
-    default_response_class=JSONResponse
+    default_response_class=JSONResponse,
+    openapi_tags=tags
 )
 
 # ERROR HANDLERS

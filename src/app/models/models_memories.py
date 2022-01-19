@@ -1,157 +1,257 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr, conint, confloat
 
-PID = str
-SID = str
-MID = int
-CID = int
+_IMAGE_TXT = 'Image file name to be fetched from the image endpoint'
+_IMAGE_NEW = 'Image data in base64'
+IMAGE = constr(strict=True, strip_whitespace=True, min_length=1)
 
+__ID_REGEX = r'^[a-zA-Z0-9_:-]+$'
+__ID_TYPE_STR = constr(
+    strip_whitespace=True,
+    min_length=4,
+    max_length=250,
+    regex=__ID_REGEX
+)
+__ID_TYPE_INT = conint(gt=0)
+
+UID = constr(
+    strip_whitespace=True,
+    min_length=4,
+    max_length=24,
+    regex=__ID_REGEX
+)
+
+PID = __ID_TYPE_STR
+SID = __ID_TYPE_STR
+MID = __ID_TYPE_INT
+CID = __ID_TYPE_INT
+
+LAT = confloat(ge=-90, le=90)
+LON = confloat(ge=-180, le=180)
+
+COMMENT = constr(strip_whitespace=True, min_length=1, max_length=2500)
+LANG = constr(strip_whitespace=True, min_length=2, max_length=5)
+NAME = constr(strip_whitespace=True, min_length=4, max_length=200)
+LONG_TEXT = constr(strip_whitespace=True, min_length=4, max_length=10_000)
 
 class Comment(BaseModel):
-    id: CID
-    user: str
-    comment: str
-    modified_at: datetime
+    """
+    Represents a comment on an entity
+    """
+    id: CID = Field(description="ID of this comment")
+    user: UID = Field(description="Author's ID")
+    comment: COMMENT = Field(description='Content')
+    modified_at: datetime = Field(description="Last modified time")
 
     waiting_approval: Optional[bool]
 
 
 class UserComment(Comment):
-    project: PID
-    site: SID
-    memory: MID
+    """
+    Comment model for user specific listings
+    """
+    project: PID = Field(description='Project the comment connects to')
+    site: SID = Field(description='Site the comment connects to')
+    memory: MID = Field(description='Memory the comment connects to')
 
 
 class Memory(BaseModel):
-    id: MID
-    user: str
-    title: str
-    story: Optional[str]
-    image: Optional[str]
-    comments_count: int
-    modified_at: datetime
+    """
+    Describes a memory
+    """
+    id: MID = Field(description="ID of this memory")
+    user: UID = Field(description="Author's ID")
+    title: NAME = Field(description='Short title for this memory')
+    story: Optional[COMMENT] = Field(description='Longer description of this memory')
+    image: Optional[IMAGE] = Field(description=_IMAGE_TXT)
+    comments_count: int = Field(ge=0, description="Amount of comments on this memory")
+    modified_at: datetime = Field(description='LAst modified time')
 
-    waiting_approval: Optional[bool]
+    waiting_approval: Optional[bool] = Field(description='Tells the approval status if present')
 
-    comments: Optional[List[Comment]]
+    comments: Optional[List[Comment]] = Field(description='Optional list of comments for this memory')
 
 
 class UserMemory(Memory):
-    project: PID
-    site: SID
+    """
+    Memory model for user specific listings
+    """
+    project: PID = Field(description='Project this memory connects to')
+    site: SID = Field(description='Site this memory connects to')
 
 
 class Point(BaseModel):
-    lon: float
-    lat: float
+    """
+    Point on the map in geographic coordinates on earth.
+    """
+    lon: LON = Field(description="Longitude")
+    lat: LAT = Field(description="Latitude")
 
 
 class SiteInfo(BaseModel):
-    lang: str
-    name: str
-    abstract: Optional[str]
-    description: Optional[str]
+    """
+    Localized information about a site.
+
+    Description and abstract are optional and not used in all projects.
+    """
+    lang: LANG = Field(description='Language of this info object')
+    name: NAME = Field(description="Display Name")
+    abstract: Optional[COMMENT] = Field(description="Short Description")
+    description: Optional[LONG_TEXT] = Field(description="Long Description")
 
 
 class NewSite(BaseModel):
-    id: SID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
-    info: SiteInfo
-    location: Point
-    image: Optional[str]
+    """
+    Describes necessary information to create a new project
+    """
+    id: SID = Field(description="Unique and Descriptive ID for this site")
+    info: SiteInfo = Field(description="Default localization option for this project")
+    location: Point = Field(description='Location of this site')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
 
 class Site(NewSite):
-    memories_count: int
-
-    waiting_approval: Optional[bool]
-
-    memories: Optional[List[Memory]]
+    """
+    Presents a location on a map which can be augmented with memories.
+    """
+    image: Optional[IMAGE] = Field(description=_IMAGE_TXT)
+    memories_count: int = Field(ge=0, description="Total amount of published memories")
+    waiting_approval: Optional[bool] = Field(description="If present, will tell approval status")
+    memories: Optional[List[Memory]] = Field(description="List of memories fo this site")
 
 
 class ProjectInfo(BaseModel):
-    lang: str
-    name: str
-    abstract: Optional[str]
-    description: Optional[str]
+    """
+    Localized data for a project
+    """
+    lang: LANG = Field(description='Language of this info object')
+    name: NAME = Field(description='Display name')
+    abstract: Optional[COMMENT] = Field(description='Short Description of the project')
+    description: Optional[LONG_TEXT] = Field(description='Longer version of the description')
 
 
 class ProjectContact(BaseModel):
-    contact_email: Optional[str]
-    has_research_permit: bool
-    can_contact: bool
+    """
+    Research related contacts for a project
+    """
+    contact_email: Optional[str] = Field(description='Contact email for the organizer')
+    has_research_permit: bool = Field(description='True if this project is running with a research permit')
+    can_contact: bool = Field(description="Does the project have permission to contact participants/researcher")
 
 
 class NewProject(BaseModel):
-    id: PID = Field(regex=r'^[a-zA-Z0-9_:-]+$')
-    info: ProjectInfo
-    image: Optional[str]
+    """
+    Creates a new project
+    """
+    id: PID = Field(default='Unique and descriptive ID for the project')
+    info: ProjectInfo = Field(default='Default locale inf o for the Project')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
-    starts: Optional[datetime]
-    ends: Optional[datetime]
+    starts: Optional[datetime] = Field(description='Project Start Time')
+    ends: Optional[datetime] = Field(description='Project End Time')
 
-    admins: Optional[List[str]]
-    contact: Optional[ProjectContact]
-    anonymous_posting: bool = False
+    admins: Optional[List[UID]] = Field(unique_items=True, description="Admins for the project")
+    contact: Optional[ProjectContact] = Field(description='Project contact details if any are available')
+    anonymous_posting: bool = Field(default=False, description="Whether the project allows anonymous users to post")
 
 
 class Project(NewProject):
-    site_count: int
-    sites: Optional[List[Site]]
+    """
+    Basic model for a Project
+    """
+    image: Optional[IMAGE] = Field(description=_IMAGE_TXT)
+    site_count: conint(ge=0) = Field(description='Number of sites this project has')
+    sites: Optional[List[Site]] = Field(description='List of Sites (Optional)')
 
 
 class NewMemory(BaseModel):
-    title: str
-    story: Optional[str]
-    image: Optional[str]
+    """
+    Creates a memory
+    """
+    title: NAME = Field(description='Default name for this memory')
+    story: Optional[LONG_TEXT] = Field(description='Longer description of the memory if available')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
 
 class ModifiedSite(BaseModel):
-    info: Optional[SiteInfo]
-    location: Optional[Point]
-    image: Optional[str]
+    """
+    Modifies a memory
+    """
+    info: Optional[SiteInfo] = Field(description="Any modified locale data, doesn't affect default locale")
+    location: Optional[Point] = Field(description='If position was modified')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
 
 class ModifiedMemory(BaseModel):
-    title: Optional[str]
-    story: Optional[str]
-    image: Optional[str]
+    """
+    Model for modifying a Memory
+    """
+    title: Optional[NAME] = Field(description='Short memory title')
+    story: Optional[LONG_TEXT] = Field(description='Longer description of this memory')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
 
 class ModifiedProject(BaseModel):
-    info: Optional[ProjectInfo]
-    image: Optional[str]
+    """
+    Used to modify project and/or its default settings.
+    """
+    info: Optional[ProjectInfo] = Field(description='Modifies the default locale for a project or sets a new one')
+    image: Optional[IMAGE] = Field(description=_IMAGE_NEW)
 
-    starts: Optional[datetime]
-    ends: Optional[datetime]
+    starts: Optional[datetime] = Field(description='Optional start date for the project')
+    ends: Optional[datetime] = Field(description='Optional end date for the project')
 
-    admins: Optional[List[str]]
-    contact: Optional[ProjectContact]
+    admins: Optional[List[UID]] = Field(
+        unique_items=True,
+        description="Contains the complete Project administrator list"
+    )
+    contact: Optional[ProjectContact] = Field(description='Modified contact data if any')
 
 
 class ModifiedComment(BaseModel):
-    comment: str
+    """
+    Represents a comment that is being modified
+    """
+    comment: COMMENT = Field(description="Modified content")
 
 
 class NewComment(BaseModel):
-    comment: str
+    """
+    Represents a new comment made by a user on another entity.
+
+    The user identification is located automagically from the api access key.
+    """
+    comment: COMMENT = Field(description="Comment to make")
 
 
 class Sites(BaseModel):
-    items: List[Site]
+    """
+    Sites Collection
+    """
+    items: List[Site] = Field(min_items=0, description="List of Sites in the current collection")
 
 
 class Projects(BaseModel):
-    items: List[Project]
+    """
+    Projects Collection
+    """
+    items: List[Project] = Field(min_items=0, description="List of Projects in the current collection")
 
 
 class Memories(BaseModel):
-    items: List[Memory]
+    """
+    Memories Collection
+    """
+    items: List[Memory] = Field(min_items=0, description="List of Memories in the current collection")
 
 
 class Comments(BaseModel):
-    items: List[Comment]
+    """
+    Comments Collection
+    """
+    items: List[Comment] = Field(min_items=0, description="List of Comments in the current collection")
 
 
 __all__ = [

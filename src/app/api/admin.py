@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from .common_imports import *
 
 router = make_router(tags=["Admin"])
@@ -17,26 +19,48 @@ TABLE_MAP = {
 }
 
 
-@router.post('/projects/{project}/admin/publish')
+class PUPOrder(BaseModel):
+    """
+    Publish-UnPublish Order
+
+    Setting entities in a project to a published or un-published state.
+    """
+    type: Literal['site', 'memory', 'comment']
+    identifier: Union[SID, MID, CID]
+    publish: bool = True
+
+
+@router.post(
+    '/projects/{project}/admin/publish',
+    description=(
+            """
+            This admin endpoint is for publishing entities.
+            
+            Type can be any child of Project.
+            Identifier is its ID.
+            """
+    )
+)
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish(
         project: str,
         r: Request,
-        object_type: Literal['site', 'memory', 'comment'],
-        identifier: Union[str, int],
-        set_published: bool,
+        order: PUPOrder,
         db: Database = Depends(dba)
 ):
     if not r.user.is_authenticated or not r.user.is_admin_in(project):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Unauthorized')
     try:
-        await db.execute(
-            f"""
-            UPDATE {TABLE_MAP[object_type]}
-            SET published = {1 if set_published else 0}
-            WHERE {ID_MAP[object_type]} = :id
+        if await db.fetch_val(
+                f"""
+            UPDATE {TABLE_MAP[order.type]}
+            SET published = {1 if order.publish else 0}
+            WHERE {ID_MAP[order.type]} = :id
             """,
-            values=dict(id=identifier)
-        )
+                values=dict(id=order.identifier)
+        ) == 1:
+            return JSONResponse(204)
+        else:
+            return JSONResponse(status.HTTP_304_NOT_MODIFIED)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad object type')

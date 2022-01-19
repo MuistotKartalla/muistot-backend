@@ -54,7 +54,7 @@ async def create_memory(pid: PID, sid: SID, db: Database, config, **additional_p
         story=genword(length=1500),
         **additional_properties
     ))
-    assert isinstance(out, MID), f"Was {type(out)}: {repr(out)}"
+    assert out is not None
     await db.execute(f"UPDATE memories SET published = 1 WHERE id = :id", values=dict(id=out))
     return out
 
@@ -63,7 +63,7 @@ async def create_comment(pid: PID, sid: SID, mid: MID, db, config) -> CID:
     out = await CommentRepo(db, pid, sid, mid).configure(config).create(NewComment(
         comment=genword(length=500)
     ))
-    assert isinstance(out, CID), f"Was {type(out)}: {repr(out)}"
+    assert out is not None
     await db.execute(f"UPDATE comments SET published = 1 WHERE id = :id", values=dict(id=out))
     return out
 
@@ -87,7 +87,7 @@ async def create_site(pid: PID, db, config, **additional_properties) -> SID:
         ),
         **additional_properties
     ))
-    assert isinstance(out, SID), f"Was {type(out)}: {repr(out)}"
+    assert out is not None
     await db.execute(f"UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=out))
     return out
 
@@ -107,6 +107,6 @@ async def create_project(db, config, **additional_properties) -> PID:
         info=create_project_info(Config.default_language),
         **additional_properties
     ))
-    assert isinstance(out, PID), f"Was {type(out)}: {repr(out)}"
+    assert out is not None
     await db.execute(f"UPDATE projects SET published = 1 WHERE name = :id", values=dict(id=out))
     return out

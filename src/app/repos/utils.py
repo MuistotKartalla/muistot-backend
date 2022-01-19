@@ -58,7 +58,7 @@ def _mapper_common(self, s):
     if s == Status.DOES_NOT_EXIST:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{_name(self)} not found')
     else:
-        return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not enough privileges')
+        return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Not enough privileges ({s})')
 
 
 def check(
