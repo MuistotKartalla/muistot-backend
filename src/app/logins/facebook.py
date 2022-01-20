@@ -1,6 +1,6 @@
+import aiohttp
 from fastapi import APIRouter, Response
 from pydantic import BaseModel
-import aiohttp
 
 router = APIRouter(prefix="/login")
 CLIENT_ID = 123

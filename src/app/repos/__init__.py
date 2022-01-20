@@ -10,10 +10,10 @@
 #      \::/  /                      /:/  /       |:|  |
 #       \/__/                       \/__/         \|__|
 
+from .comment import *
+from .memory import *
 from .project import *
 from .site import *
-from .memory import *
-from .comment import *
 
 __all__ = [
     'ProjectRepo',

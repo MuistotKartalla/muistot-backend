@@ -50,6 +50,7 @@ async def test_fetch_all(client, setup, credentials, auth, db):
         assert c.comment in comments
         assert c.user == credentials[0]
 
+
 @pytest.mark.anyio
 async def test_delete(client, setup, auth, db):
     r = client.post(
@@ -62,6 +63,7 @@ async def test_delete(client, setup, auth, db):
     assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 1
     assert client.delete(r.headers[LOCATION], headers=auth).status_code == 204
     assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 0
+
 
 @pytest.mark.anyio
 async def test_modify(client, setup, auth, db):

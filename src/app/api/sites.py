@@ -7,13 +7,13 @@ router = make_router(tags=["Sites"])
     '/projects/{project}/sites',
     response_model=Sites,
     description=(
-        """
-        Returns all sites for the current project.
-        
-        This endpoint can be used in return-all or return nearest mode.
-        The return nearest mode is useful if the project has a lot of projects.
-        Either all the query parameters have to be specified or none of them.
-        """
+            """
+            Returns all sites for the current project.
+            
+            This endpoint can be used in return-all or return nearest mode.
+            The return nearest mode is useful if the project has a lot of projects.
+            Either all the query parameters have to be specified or none of them.
+            """
     )
 )
 async def get_sites(
@@ -32,11 +32,11 @@ async def get_sites(
 @router.get(
     '/projects/{project}/sites/{site}',
     description=(
-        """
-        Return info for a single Site.
-        
-        Allows for returning all the memories for the site using a query parameter.
-        """
+            """
+            Return info for a single Site.
+            
+            Allows for returning all the memories for the site using a query parameter.
+            """
     )
 )
 async def get_site(
@@ -54,12 +54,12 @@ async def get_site(
 @router.post(
     '/projects/{project}/sites',
     description=(
-        """
-        Crates a new site.
-        
-        This should use the Project default language for localizing the initial information.
-        The API currently does not restrict which translation is used as long as the language is enabled.
-        """
+            """
+            Crates a new site.
+            
+            This should use the Project default language for localizing the initial information.
+            The API currently does not restrict which translation is used as long as the language is enabled.
+            """
     )
 )
 async def new_site(r: Request, project: PID, model: NewSite, db: Database = Depends(dba)) -> JSONResponse:
@@ -72,12 +72,12 @@ async def new_site(r: Request, project: PID, model: NewSite, db: Database = Depe
 @router.patch(
     '/projects/{project}/sites/{site}',
     description=(
-        """
-        Modify a site
-        
-        This endpoint is for modifying site location etc.
-        This does not set any defaults.
-        """
+            """
+            Modify a site
+            
+            This endpoint is for modifying site location etc.
+            This does not set any defaults.
+            """
     )
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
@@ -97,11 +97,11 @@ async def modify_site(
 @router.delete(
     '/projects/{project}/sites/{site}',
     description=(
-        """
-        Soft deletes a Site and hides it from normal users.
-        
-        Actual deletion can only be done by a maintainer or from the admin interface.
-        """
+            """
+            Soft deletes a Site and hides it from normal users.
+            
+            Actual deletion can only be done by a maintainer or from the admin interface.
+            """
     )
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)

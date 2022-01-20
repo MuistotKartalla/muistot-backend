@@ -6,9 +6,9 @@ router = APIRouter(tags=["Common"])
 @router.get(
     "/",
     description=(
-        """
-        This path is for ensuring the API works.
-        """
+            """
+            This path is for ensuring the API works.
+            """
     )
 )
 def entry():
