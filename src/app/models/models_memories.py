@@ -7,7 +7,7 @@ _IMAGE_TXT = 'Image file name to be fetched from the image endpoint'
 _IMAGE_NEW = 'Image data in base64'
 IMAGE = constr(strict=True, strip_whitespace=True, min_length=1)
 
-__ID_REGEX = r'^[a-zA-Z0-9_:-]+$'
+__ID_REGEX = r'^[a-zA-Z0-9-_]+$'
 __ID_TYPE_STR = constr(
     strip_whitespace=True,
     min_length=4,
@@ -20,7 +20,7 @@ UID = constr(
     strip_whitespace=True,
     min_length=4,
     max_length=24,
-    regex=__ID_REGEX
+    regex=r'^[a-zA-Z0-9-_@.: ]+$'
 )
 
 PID = __ID_TYPE_STR
@@ -35,6 +35,7 @@ COMMENT = constr(strip_whitespace=True, min_length=1, max_length=2500)
 LANG = constr(strip_whitespace=True, min_length=2, max_length=5)
 NAME = constr(strip_whitespace=True, min_length=4, max_length=200)
 LONG_TEXT = constr(strip_whitespace=True, min_length=4, max_length=10_000)
+
 
 class Comment(BaseModel):
     """

@@ -110,3 +110,14 @@ async def create_project(db, config, **additional_properties) -> PID:
     assert out is not None
     await db.execute(f"UPDATE projects SET published = 1 WHERE name = :id", values=dict(id=out))
     return out
+
+
+def authenticate(client, login):
+    from app.headers import AUTHORIZATION
+    auth = client.post('/login/', json={
+        'username': login[0],
+        'password': login[2]
+    }, allow_redirects=True).headers[AUTHORIZATION]
+    return {
+        AUTHORIZATION: auth
+    }

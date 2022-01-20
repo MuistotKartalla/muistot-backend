@@ -17,7 +17,7 @@ class SiteRepo(BaseRepo):
             IFNULL(l.lang, def_l.lang)                  AS lang,
             IFNULL(si.abstract, def_si.abstract)        AS abstract,
             IFNULL(si.description, def_si.description)  AS description,
-            IF(s.published, NULL, 1)                    AS waiting_approval,
+            IF(s.published, NULL, 1)                    AS waiting_approval
             %s
         FROM sites s
             JOIN projects p ON p.id = s.project_id
@@ -127,23 +127,17 @@ class SiteRepo(BaseRepo):
     @check_parents
     async def all(
             self,
-            n: Optional[int],
-            lat: Optional[float],
-            lon: Optional[float],
+            n: Optional[int] = None,
+            lat: Optional[float] = None,
+            lon: Optional[float] = None,
             *,
             _status: Status
     ) -> List[Site]:
-        values = dict(lang=self.lang, project=self.project)
+        values = dict(lang=self.lang, project=self.project, user=self.identity)
         if _status == Status.ADMIN:
             where = 'WHERE TRUE'
         elif self.has_identity:
-            where = (
-                'LEFT JOIN users um '
-                'ON um.id = s.modifier_id '
-                'AND um.username = :user '
-                'WHERE (s.published OR um.id IS NOT NULL)'
-            )
-            values.update(user=self.identity)
+            where = 'WHERE (s.published OR um.username = :user)'
         else:
             where = 'WHERE s.published'
         if n is not None and lat is not None and lon is not None:
@@ -163,17 +157,13 @@ class SiteRepo(BaseRepo):
 
     @check_published_or_admin
     async def one(self, site: SID, include_memories: bool = False, *, _status: Status) -> Site:
-        values = dict(lang=self.lang, project=self.project, site=site)
+        values = dict(lang=self.lang, project=self.project, site=site, user=self.identity)
         if _status == Status.ADMIN:
             where = 'WHERE TRUE'
         elif self.has_identity:
             where = (
-                'LEFT JOIN users um '
-                'ON um.id = s.modifier_id '
-                'AND um.username = :user '
-                'WHERE (s.published OR um.id IS NOT NULL)'
+                'WHERE (s.published OR um.username = :user)'
             )
-            values.update(user=self.identity)
         else:
             where = 'WHERE s.published'
         out = self.construct_site(await self.db.fetch_one(
@@ -181,7 +171,7 @@ class SiteRepo(BaseRepo):
             values=values
         ))
         if include_memories:
-            out.memories = await MemoryRepo(self.db, self.project, out.id).all(include_comments=False)
+            out.memories = await MemoryRepo(self.db, self.project, out.id)._configure(self).all(include_comments=False)
         return out
 
     @check_not_exists

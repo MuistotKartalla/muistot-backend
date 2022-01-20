@@ -2,10 +2,9 @@ from typing import cast
 
 import databases
 import pytest
+from app import main
 from fastapi import Request
 from fastapi.testclient import TestClient
-
-from app import main
 
 
 @pytest.fixture
@@ -44,35 +43,39 @@ async def delete_user(db: databases.Database, credentials):
 
 @pytest.fixture(name="login")
 async def create_user(db: databases.Database, credentials):
-    from app.logins._default import hash_password
+    from app.security.password import hash_password
     username, email, password = credentials
     await db.execute(
-        "INSERT INTO users (email, username, password_hash, verified) VALUE (:email, :username, :password, 1)",
-        values=dict(password=hash_password(password), username=username, email=email)
+        "INSERT INTO users (email, username, password_hash, verified) "
+        "VALUE (:email, :username, :password, 1) ",
+        values=dict(password=hash_password(password=password), username=username, email=email)
     )
     yield username, email, password
 
 
+@pytest.fixture(name='superuser')
+async def super_user(login):
+    await db.execute(
+        "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
+        values=dict(user=login[0])
+    )
+
+
 @pytest.fixture
 def mock_request(login):
-    from app.security.auth import SuperUser
+    from app.security.auth import User
+    from app.security.scopes import SECURITY_SCOPES
     uid = login[0]
 
     class MockRequest:
         method = "GET"
         headers = dict()
-        user = SuperUser(uid)
+        user = User(username=uid, scopes=set(SECURITY_SCOPES))
 
     return cast(Request, MockRequest())
 
 
-@pytest.fixture
-def auth(client, login):
-    from app.headers import AUTHORIZATION
-    jwt = client.post('login/', json={
-        'username': login[0],
-        'password': login[2]
-    }, allow_redirects=True).headers[AUTHORIZATION]
-    return {
-        AUTHORIZATION: jwt
-    }
+@pytest.fixture(name='auth')
+def auth_fixture(client, login):
+    from utils import authenticate as auth
+    return auth(client, login)

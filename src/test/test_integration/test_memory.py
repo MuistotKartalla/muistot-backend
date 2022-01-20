@@ -4,8 +4,8 @@ from utils import *
 
 
 @pytest.fixture(name="setup")
-async def setup(mock_request, db):
-    pid = await create_project(db, mock_request)
+async def setup(mock_request, db, login):
+    pid = await create_project(db, mock_request, admins=[login[0]])
     sid = await create_site(pid, db, mock_request)
     yield Setup(pid, sid)
     await db.execute("DELETE FROM projects WHERE name = :project", dict(project=pid))
@@ -52,7 +52,7 @@ async def test_create_and_publish(client, db, setup, auth, login, title: str, st
         story=story
     ).dict()
     r = client.post(f'{setup.url}/memories', json=new_memory, headers={})
-    assert r.status_code == 401, "Created memory without auth"
+    assert r.status_code == 403, "Created memory without auth"
 
     r = client.post(f'{setup.url}/memories', json=new_memory, headers=auth)
     assert r.status_code == 201, "Failed to make new memory"
@@ -66,6 +66,7 @@ async def test_create_and_publish(client, db, setup, auth, login, title: str, st
     )
     assert (await db.fetch_val("SELECT published FROM memories WHERE id = :id", values=dict(id=_id))) == 0
 
+    print("Fetching unpublished")
     r = client.get(memory_url, headers=auth)
     assert r.status_code == 200, f"{repr(r.json())} - {memory_url} - {await db.fetch_all('SELECT * FROM memories')}"
     memory = Memory(**r.json())

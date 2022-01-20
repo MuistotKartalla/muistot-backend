@@ -83,7 +83,8 @@ register_oauth_providers(app)
 
 
 register_csrf_middleware(app)
-register_auth_middleware(app)
+# This is a hack
+register_auth(app)
 
 if not Config.testing:
     app.add_middleware(

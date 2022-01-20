@@ -155,7 +155,7 @@ class ProjectRepo(BaseRepo):
             SELECT p.id, u.id
             FROM users u
                 JOIN projects p ON p.name = :project
-            WHERE u.username IN ({",".join(f"admin_{i}" for i in range(0, len(admins)))})
+            WHERE u.username IN ({",".join(f":admin_{i}" for i in range(0, len(admins)))})
             """,
             values=dict(
                 project=project,
@@ -197,7 +197,7 @@ class ProjectRepo(BaseRepo):
             values=dict(lang=self.lang, project=project)
         ))
         if include_sites:
-            out.sites = SiteRepo(self.db, project).all()
+            out.sites = await SiteRepo(self.db, project)._configure(self).all()
         return out
 
     @check_not_exists

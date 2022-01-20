@@ -115,7 +115,20 @@ The old dump didn't include users or comments so migrating them is yet untested
 
 Added new column to memories, please migrate existing data:
 
-````mariadb
+```mariadb
 ALTER TABLE memories
     ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE
-````
+```
+
+#### 20.01
+
+Added superusers. Migrate please.
+
+```mariadb
+CREATE TABLE IF NOT EXISTS superusers
+(
+    user_id INTEGER NOT NULL,
+    PRIMARY KEY pk_superusers (user_id),
+    CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id)
+) COMMENT 'Global SuperUsers';
+```

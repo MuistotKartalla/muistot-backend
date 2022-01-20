@@ -43,12 +43,12 @@ class PUPOrder(BaseModel):
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish(
-        project: str,
         r: Request,
+        project: str,
         order: PUPOrder,
         db: Database = Depends(dba)
 ):
-    if not r.user.is_authenticated or not r.user.is_admin_in(project):
+    if not r.user.is_admin_in(project):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Unauthorized')
     try:
         if await db.fetch_val(

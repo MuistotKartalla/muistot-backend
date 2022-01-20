@@ -2,6 +2,7 @@
 #
 # This should be quite stable
 FastAPI >= 0.70.0, < 1.0.0
+python-multipart
 
 # [Important]
 #

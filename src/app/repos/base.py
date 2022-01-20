@@ -102,12 +102,11 @@ class BaseRepo(ABC):
                 log.warning(f'No {name} declared in repo {cls.__name__}')
 
     def __init__(self, db: Database, **kwargs):
-        from starlette.authentication import UnauthenticatedUser
-        from ..security.auth import CustomUser
+        from ..security.auth import User
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
-        self._user: Union[UnauthenticatedUser, CustomUser] = UnauthenticatedUser()
+        self._user: Union[User] = User()
         self.lang = "fi"
         self.auto_publish = Config.auto_publish
 
@@ -125,6 +124,11 @@ class BaseRepo(ABC):
             self.lang = extract_language(r)
         except ValueError:
             raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Can not localize')
+        return self
+
+    def _configure(self, repo: 'BaseRepo'):
+        self._user = repo._user
+        self.lang = repo.lang
         return self
 
     @abstractmethod
@@ -217,8 +221,7 @@ class BaseRepo(ABC):
 
     @property
     def is_superuser(self):
-        from ..security.auth import is_superuser
-        return is_superuser(self._user)
+        return self._user.is_superuser
 
     @property
     def files(self):

@@ -144,7 +144,6 @@ class MemoryRepo(BaseRepo):
 
     @staticmethod
     def construct_memory(m) -> Memory:
-        print(m)
         return Memory(**m)
 
     @check_parents
@@ -172,7 +171,6 @@ class MemoryRepo(BaseRepo):
         if _status == Status.ADMIN:
             sql = self._select_for_admin
         elif self.has_identity:
-            print(self.identity)
             sql = self._select_for_user
             values.update(user=self.identity)
         else:
@@ -184,7 +182,7 @@ class MemoryRepo(BaseRepo):
         ))
 
         if include_comments:
-            out.comments = await CommentRepo(self.db, self.project, self.site, out.id).all()
+            out.comments = await CommentRepo(self.db, self.project, self.site, out.id)._configure(self).all()
         return out
 
     @check_parents

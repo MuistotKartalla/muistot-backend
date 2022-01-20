@@ -1,5 +1,13 @@
 AUTHENTICATED = 'authenticated'
 ADMIN = 'admin'
-ADMIN_IN_PROJECTS = 'projects'
 SUBJECT = 'sub'
-TRUE = "true"
+SUPERUSER = 'superuser'
+EXPIRE = 'exp'
+ISSUED_AT = 'iat'
+PROJECTS = 'projects'
+
+SECURITY_SCOPES = {
+    AUTHENTICATED,
+    ADMIN,
+    SUPERUSER
+}

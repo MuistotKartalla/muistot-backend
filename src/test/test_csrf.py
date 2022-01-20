@@ -1,11 +1,10 @@
 import json
 
-from fastapi.responses import JSONResponse
-from starlette.authentication import UnauthenticatedUser
-
-from app.security.auth import CustomUser, scopes
+from app.security.auth import User, scopes
 from app.security.csrf import csrf
 from app.security.csrf import hashes
+from fastapi.responses import JSONResponse
+from starlette.authentication import UnauthenticatedUser
 
 
 class MockRequest:
@@ -46,10 +45,11 @@ def test_request():
 
 
 def test_request_with_payload():
+    from app.security import scopes
     token = csrf.generate(10, payload='test'.encode('utf-8'))
     r = MockRequest()
     r.headers[csrf.HEADER] = token
-    r.user = CustomUser({scopes.SUBJECT: 'test'})
+    r.user = User(username='test', scopes={scopes.AUTHENTICATED})
     response = csrf.check_request(r)
     assert response is None, json.dumps(json.loads(response.body))
 
@@ -58,7 +58,7 @@ def test_request_with_bad_payload():
     token = csrf.generate(10, payload='test2'.encode('utf-8'))
     r = MockRequest()
     r.headers[csrf.HEADER] = token
-    r.user = CustomUser({scopes.SUBJECT: 'test'})
+    r.user = User(username='test', scopes={scopes.AUTHENTICATED})
     check2(r, 'bad-payload')
 
 

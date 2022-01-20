@@ -1,12 +1,9 @@
-from calendar import timegm
 from datetime import datetime, timedelta
 from typing import Dict
 
-from fastapi import FastAPI, Request
 from jose import jwt as jose_jwt, JWTError
 
 from ..config import Config
-from ..headers import AUTHORIZATION
 
 
 def generate_jwt(claims: Dict) -> str:
@@ -39,21 +36,6 @@ def read_jwt(jwt: str) -> Dict:
         )
     except JWTError:
         raise ValueError("Invalid JWT")
-
-
-def register_jwt_updater_middleware(app: FastAPI):  # pragma: no cover
-    @app.middleware('http')
-    async def jwt_middleware(request: Request, call_next):
-        res = await call_next
-        if AUTHORIZATION in request.headers:
-            alg, jwt = request.headers[AUTHORIZATION].split()
-            if alg == 'JWT':
-                claims = read_jwt(jwt)
-                now = timegm(datetime.utcnow().utctimetuple())
-                exp = int(claims.pop("exp"))
-                if exp < (now - Config.security.jwt.reissue_threshold):
-                    res.headers[AUTHORIZATION] = generate_jwt(claims)
-        return res
 
 
 __all__ = [

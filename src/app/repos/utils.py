@@ -77,6 +77,13 @@ def check(
         @functools.wraps(f)
         async def decorator(*args, **kwargs):
             s = await _exists(*args)
+
+            if s != Status.DOES_NOT_EXIST and args[0].is_superuser:
+                if kwrd is None:
+                    return await f(*args, **kwargs)
+                else:
+                    return await f(*args, **{**kwargs, kwrd: s})
+
             if s not in allowed_types if invert else s in allowed_types:
                 if kwrd is None:
                     return await f(*args, **kwargs)

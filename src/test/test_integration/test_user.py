@@ -2,6 +2,7 @@ from typing import Dict
 
 import pytest
 from fastapi.testclient import TestClient
+
 from urls import *
 
 
@@ -14,7 +15,7 @@ def do_login(client: TestClient, data: Dict, username: str):
     assert resp.status_code == 200, resp.json()
     header = resp.headers[AUTHORIZATION]
     alg, token = header.split()
-    assert alg == 'JWT'
+    assert alg == 'bearer'
     assert read_jwt(token)[SUBJECT] == username
 
 
@@ -60,14 +61,13 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
         'password': password
     }
     resp = client.post(LOGIN, json=data)
-    assert resp.status_code == 401 and 'verified' in resp.json()["error"]["message"]
+    assert resp.status_code == 403 and 'verified' in resp.json()["error"]["message"]
 
 
 @pytest.mark.anyio
 async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient, login, db):
     from app.headers import AUTHORIZATION
-    from app.security.jwt import read_jwt
-    from app.security.auth import CustomUser
+    from app.security.auth import get_user, HTTPBearer
     from fastapi import status
 
     username, email, password = login
@@ -78,7 +78,7 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
 
         # TRY UN-PUBLISH
         resp = client.delete(PROJECT.format(username), headers={AUTHORIZATION: resp.headers[AUTHORIZATION]})
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.json()
+        assert resp.status_code in {401, 403}, resp.json()
 
         # PREP
         await db.execute(
@@ -120,7 +120,12 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
 
         # RE-LOGIN
         resp = client.post(LOGIN, json=data)
-        user = CustomUser(read_jwt(resp.headers[AUTHORIZATION].split()[1]))
+
+        o = type('', (), {})()
+        o.state = type('', (), {})()
+        o.state.resolved = False
+
+        user = get_user(o, await HTTPBearer()(resp))
 
         # ASSERT LOST ADMIN
         assert user.is_authenticated

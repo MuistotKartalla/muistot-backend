@@ -327,6 +327,16 @@ CREATE TABLE IF NOT EXISTS user_personal_data
         ON DELETE CASCADE
 ) COMMENT 'User personal data';
 
+/**
+MORE
+*/
+CREATE TABLE IF NOT EXISTS superusers
+(
+    user_id INTEGER NOT NULL,
+    PRIMARY KEY pk_superusers (user_id),
+    CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id)
+) COMMENT 'Global SuperUsers';
+
 SET GLOBAL event_scheduler = TRUE;
 
 DELIMITER $$
