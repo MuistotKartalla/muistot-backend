@@ -13,11 +13,13 @@ from ..utils import extract_language
 
 
 class Status(IntEnum):
-    DOES_NOT_EXIST = -1
-    NOT_PUBLISHED = 0
-    PUBLISHED = 1
+    DOES_NOT_EXIST = 0
+    NOT_PUBLISHED = 1
+    PUBLISHED = 2
+
     OWN = 3
-    ADMIN = 9
+    ADMIN = 4
+    OWN_AND_ADMIN = OWN + ADMIN
 
     @staticmethod
     def resolve(value: Optional[int]) -> 'Status':
@@ -226,3 +228,18 @@ class BaseRepo(ABC):
     @property
     def files(self):
         return Files(self.db, self._user)
+
+    def _saoh(self, m, s: Status, idx_admin: int, idx_own: int):
+        """
+        Helper for admin, self checks
+        """
+        if self.has_identity and s != Status.DOES_NOT_EXIST:
+            admin = m[idx_admin] == 0
+            own = m[idx_own] == self.identity
+
+            if admin and own:
+                return Status.OWN_AND_ADMIN
+            elif admin:
+                return Status.ADMIN
+            elif own:
+                return Status.OWN

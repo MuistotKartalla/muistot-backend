@@ -58,7 +58,7 @@ def _mapper_common(self, s):
     if s == Status.DOES_NOT_EXIST:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{_name(self)} not found')
     else:
-        return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Not enough privileges ({s})')
+        return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Not enough privileges ({s})')
 
 
 def check(
@@ -147,7 +147,7 @@ def check_admin(f):
     """
 
     return check(
-        {Status.ADMIN},
+        {Status.ADMIN, Status.OWN_AND_ADMIN},
         _mapper_common
     )(f)
 
@@ -158,7 +158,7 @@ def check_own(f):
     """
 
     return check(
-        {Status.OWN},
+        {Status.OWN, Status.OWN_AND_ADMIN},
         _mapper_common
     )(f)
 
@@ -170,7 +170,7 @@ def check_published_or_admin(f):
     Admins will bypass this
     """
     return check(
-        {Status.PUBLISHED, Status.OWN, Status.ADMIN},
+        {Status.PUBLISHED, Status.OWN, Status.ADMIN, Status.OWN_AND_ADMIN},
         _mapper_common
     )(f)
 
@@ -182,7 +182,7 @@ def check_own_or_admin(f):
     Admins will bypass this
     """
     return check(
-        {Status.OWN, Status.ADMIN},
+        {Status.OWN, Status.ADMIN, Status.OWN_AND_ADMIN},
         _mapper_common
     )(f)
 

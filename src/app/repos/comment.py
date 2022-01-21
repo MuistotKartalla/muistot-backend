@@ -125,11 +125,9 @@ class CommentRepo(BaseRepo):
 
         s = Status.resolve(m[3])
 
-        if self.has_identity and s != Status.DOES_NOT_EXIST:
-            if m[5] == 0:
-                return Status.ADMIN
-            if m[4] == self.identity:
-                return Status.OWN
+        _s = self._saoh(m, s, 5, 4)
+        if _s is not None:
+            return _s
 
         if m[0] == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')

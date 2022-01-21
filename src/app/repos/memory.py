@@ -126,11 +126,9 @@ class MemoryRepo(BaseRepo):
 
         s = Status.resolve(m[2])
 
-        if self.has_identity and s != Status.DOES_NOT_EXIST:
-            if m[4] == 0:
-                return Status.ADMIN
-            if m[3] == self.identity:
-                return Status.OWN
+        _s = self._saoh(m, s, 4, 3)
+        if _s is not None:
+            return _s
 
         if m[0] == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
@@ -216,7 +214,7 @@ class MemoryRepo(BaseRepo):
         if 'image' in data:
             data['image_id'] = await self.files.handle(model.image)
         if len(data) > 0:
-            return await self.db.fetch_val(
+            await self.db.execute(
                 f"""
                 UPDATE memories
                 SET {', '.join(f'{k}=:{k}' for k in data.keys())}
@@ -224,6 +222,7 @@ class MemoryRepo(BaseRepo):
                 """,
                 values=dict(**data, memory=memory)
             )
+            return await self.db.fetch_val("SELECT ROW_COUNT()") > 0
 
     @check_own
     async def delete(self, memory: MID):

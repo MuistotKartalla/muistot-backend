@@ -104,20 +104,15 @@ def require_auth(*required_scopes: str):
             assert False, f'Request (r) parameter is not found for function {f.__name__}. Should be first.'
 
         user_param = None
-        ok = False
         for a in inspect.signature(f).parameters.values():
             if a.annotation == User:
                 user_param = a.name
-                ok = True
 
         @wraps(f)
         async def check_auth(r: Request, *args, **kwargs):
             from fastapi import HTTPException
             try:
-                if user_param is None:
-                    user: User = kwargs.pop('__auth_helper__')
-                else:
-                    user = kwargs[user_param]
+                user: User = kwargs.pop('__auth_helper__')
                 if user_param is not None:
                     kwargs[user_param] = user
                 for scope in required_scopes:
@@ -140,15 +135,17 @@ def require_auth(*required_scopes: str):
                 )
             return await f(r, *args, **kwargs)
 
-        if not ok:
-            s: inspect.Signature = inspect.signature(check_auth)
-            s = s.replace(parameters=[*s.parameters.values(), inspect.Parameter(
-                '__auth_helper__',
-                inspect.Parameter.KEYWORD_ONLY,
-                default=Depends(get_user),
-                annotation=User
-            )])
-            check_auth.__signature__ = s
+        s: inspect.Signature = inspect.signature(check_auth)
+        s = s.replace(
+            parameters=[
+                *list(p for p in s.parameters.values() if p.name != user_param),
+                inspect.Parameter(
+                    '__auth_helper__',
+                    inspect.Parameter.KEYWORD_ONLY,
+                    default=Depends(get_user),
+                    annotation=User
+                )])
+        check_auth.__signature__ = s
 
         return check_auth
 

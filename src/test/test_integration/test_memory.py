@@ -82,3 +82,21 @@ async def test_create_and_publish(client, db, setup, auth, login, title: str, st
     assert memory.title == title
     assert memory.story == story
     assert memory.waiting_approval is None, "Fetched published status unauthenticated"
+
+
+@pytest.mark.anyio
+async def test_modify(client, db, setup, auth, login):
+    from app.headers import LOCATION
+    memory = NewMemory(
+        title=genword(length=100),
+        story=genword(length=100)
+    ).dict()
+    r = client.post(f'{setup.url}/memories', json=memory, headers=auth)
+    url = r.headers[LOCATION]
+
+    for k, v in dict(title=200, story=1000).items():
+        r = client.patch(url, json={k: genword(length=v)}, headers=auth)
+        assert r.status_code == 200, await db.fetch_all("SELECT * FROM memories")
+        assert len(client.get(url, headers=auth).json()[k]) == v, await db.fetch_all(
+            "SELECT LENGTH(story) FROM memories"
+        )
