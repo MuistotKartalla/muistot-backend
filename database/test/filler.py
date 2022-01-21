@@ -87,8 +87,8 @@ async def make_site(db: T, project: int, admin: int):
     lon = low[1] + diff_lon * random.random()
 
     site = await db.fetch_val(
-        'INSERT INTO sites (name, project_id, modifier_id, location) '
-        'VALUE (:name, :project, :admin, POINT(:lon, :lat)) RETURNING id',
+        'INSERT INTO sites (name, project_id, modifier_id, location, published) '
+        'VALUE (:name, :project, :admin, POINT(:lon, :lat), 1) RETURNING id',
         values={
             'name': name,
             'project': project,
