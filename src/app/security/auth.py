@@ -52,7 +52,7 @@ def get_user(r: Request, token: HTTPAuthorizationCredentials = Depends(auth_sche
     try:
         if r.state.resolved:
             return r.user
-        if token.scheme != 'bearer':
+        if token.scheme.lower() != 'bearer':
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad Auth')
         claims: Dict = read_jwt(token.credentials)
         return User(
@@ -81,9 +81,16 @@ def register_auth(app: FastAPI):  # pragma: no cover
                 r.state.resolved = False
                 r.scope['user'] = get_user(r, await auth_scheme(r))
                 r.state.resolved = True
-            except (IndexError, ValueError, HTTPException):
+            except HTTPException as e:
                 from fastapi.responses import JSONResponse
-                return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST)
+                from ..errors import ErrorResponse, ApiError
+                return ErrorResponse(ApiError(code=e.status_code, message=e.detail))
+            except (IndexError, ValueError) as e:
+                from ..logging import log
+                log.exception("Invalid auth", exc_info=e)
+                from fastapi.responses import JSONResponse
+                from ..errors import ErrorResponse, ApiError
+                return ErrorResponse(ApiError(code=status.HTTP_400_BAD_REQUEST, message=type(e).__name__))
         else:
             r.state.resolved = False
 
