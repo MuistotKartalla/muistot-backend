@@ -122,7 +122,7 @@ async def make_project(db: T):
     image = await make_image(db, admin)
     project = await db.fetch_val(
         "INSERT INTO projects (name, modifier_id, published, image_id, default_language_id) "
-        "VALUE (:name, :modifier_id, 1, :image, 1) RETURNING id",
+        "VALUE (:name, :modifier_id, 1, :image, 2) RETURNING id",
         values={
             'name': name,
             'modifier_id': admin,

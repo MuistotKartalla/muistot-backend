@@ -52,6 +52,7 @@ def url_safe(name: str) -> bool:
 
 
 def check_file(compressed_data: str) -> Optional[Tuple[bytes, str]]:
+    from ..logging import log
     try:
         import base64
         import imghdr
@@ -60,9 +61,11 @@ def check_file(compressed_data: str) -> Optional[Tuple[bytes, str]]:
         file_type = imghdr.what(None, h=raw_data)
         if file_type in Config.files.allowed_filetypes:
             return raw_data, file_type
+        else:
+            log.info(f'Failed file validation: {file_type}')
     except Exception as e:
-        from ..logging import log
         log.exception('Failed file validation', exc_info=e)
+    return None, None
 
 
 __all__ = [
