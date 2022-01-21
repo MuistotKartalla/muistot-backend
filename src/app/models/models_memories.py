@@ -19,7 +19,7 @@ __ID_TYPE_INT = conint(gt=0)
 UID = constr(
     strip_whitespace=True,
     min_length=4,
-    max_length=24,
+    max_length=64,
     regex=r'^[a-zA-Z0-9-_@.: ]+$'
 )
 
@@ -34,7 +34,7 @@ LON = confloat(ge=-180, le=180)
 COMMENT = constr(strip_whitespace=True, min_length=1, max_length=2500)
 LANG = constr(strip_whitespace=True, min_length=2, max_length=5)
 NAME = constr(strip_whitespace=True, min_length=4, max_length=200)
-LONG_TEXT = constr(strip_whitespace=True, min_length=4, max_length=10_000)
+LONG_TEXT = constr(strip_whitespace=True, max_length=10_000)
 
 
 class Comment(BaseModel):
