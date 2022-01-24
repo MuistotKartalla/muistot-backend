@@ -10,8 +10,14 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 async def db():
     from app.database.connections import make_url_from_database_config
+    from pymysql.err import OperationalError
     db_instance = databases.Database(make_url_from_database_config("default"), force_rollback=False)
-    await db_instance.connect()
+    while True:
+        try:
+            await db_instance.connect()
+            break
+        except OperationalError:
+            pass
     try:
         yield db_instance
     finally:
