@@ -32,15 +32,8 @@ class JWT(BaseModel):
     reissue_threshold: int = 24 * 60 * 60
 
 
-class CSRF(BaseModel):
-    secret: str
-    lifetime: int = 60
-    enabled: bool = False
-
-
 class Security(BaseModel):
     jwt: JWT
-    csrf: CSRF = CSRF(secret="not in use")
     bcrypt_cost: int = 12
 
 

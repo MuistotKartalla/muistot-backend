@@ -1,4 +1,14 @@
 import pytest
+from starlette.authentication import UnauthenticatedUser
+
+
+class MockRequest:
+
+    def __init__(self):
+        self.check_headers = {}
+        self.headers = {}
+        self.method = "POST"
+        self.user = UnauthenticatedUser()
 
 
 @pytest.mark.parametrize("test_input", [
@@ -38,7 +48,6 @@ def test_bad(test_input: str):
     ('', 'fi'),
 ])
 def test_get_language(lang: str, expected: str):
-    from test_csrf import MockRequest
     from app.headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
     from app.utils import extract_language
 
@@ -59,7 +68,6 @@ def test_get_language(lang: str, expected: str):
 
 @pytest.mark.parametrize("lang", ['ax'])
 def test_trow_language(lang: str):
-    from test_csrf import MockRequest
     from app.headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
     from app.utils import extract_language
 

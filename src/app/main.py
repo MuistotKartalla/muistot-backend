@@ -82,7 +82,6 @@ register_oauth_providers(app)
 # The latest gets executed first.
 
 
-register_csrf_middleware(app)
 # This is a hack
 register_auth(app)
 

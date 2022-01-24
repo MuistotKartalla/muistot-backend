@@ -21,11 +21,6 @@
       "algorithm": "HS256",
       "reissue_threshold": 86400
     },
-    "csrf": {
-      "secret": "not in use",
-      "lifetime": 60,
-      "enabled": false
-    },
     "bcrypt_cost": 12
   },
   "oauth": {},
