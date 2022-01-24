@@ -13,9 +13,9 @@ def register_oauth_providers(app, **kwargs):
 
     @app.get("/oauth", tags=["Auth"])
     async def get_providers() -> OAuthProviders:
-        return OAuthProviders(oauth_providers=[k for k in Config.oauth])
+        return OAuthProviders(oauth_providers=[k for k in Config.security.oauth])
 
-    for oauth_provider in Config.oauth:
+    for oauth_provider in Config.security.oauth:
         try:
             oauth_module = import_module(f".{oauth_provider}")
             app.include_router(getattr(oauth_module, 'router'), **kwargs)

@@ -1,27 +1,24 @@
 from os.path import expanduser
 from typing import Dict, Optional, Set
 
-from pydantic import parse_file_as, BaseModel, HttpUrl, Field
-
-
-class HttpsUrl(HttpUrl):
-    allowed_schemes = {'https'}
+from pydantic import parse_file_as, BaseModel, AnyHttpUrl, Field
 
 
 class Database(BaseModel):
     host: str
-    port: int = "3306"
+    port: int
     database: str
     user: str
     password: str
-    use_ssl: bool = False
-    rollback: bool = False
+    use_ssl: bool
+    rollback: bool
     driver: str = 'mysql'
 
 
 class Mailer(BaseModel):
-    key: str
-    url: HttpsUrl
+    username: str
+    password: str
+    url: AnyHttpUrl
     port: int
 
 
@@ -35,27 +32,30 @@ class JWT(BaseModel):
 class Security(BaseModel):
     jwt: JWT
     bcrypt_cost: int = 12
+    auto_publish: bool = False
+    oauth: Dict[str, Dict] = Field(default_factory=lambda: dict())
 
 
 class FileStore(BaseModel):
-    allowed_filetypes: Set[str] = {'jpeg', 'png'}  # https://docs.python.org/3/library/imghdr.html
-    location: str = Field(regex='^.*/$', default='/opt/files/')
-    allow_anonymous: bool = False
+    location: str = Field(regex='^.*/$')
+    allow_anonymous: bool
+    allowed_filetypes: Set[str]  # https://docs.python.org/3/library/imghdr.html
+
+
+class Localization(BaseModel):
+    default: str
+    supported: Set[str]
 
 
 class BaseConfig(BaseModel):
-    testing: bool = True
-    auto_publish: bool = False
-
-    default_language = "fi"
-    languages: Set[str]
-
-    security: Security
     domain: Optional[str] = None
+    testing: bool = True
+    db: Dict[str, Database]
+
+    localization: Localization
+    security: Security
+    files: FileStore
     mailer: Optional[Mailer] = None
-    db: Dict[str, Database] = {}
-    oauth: Dict[str, Dict] = {}
-    files: FileStore = FileStore()
 
 
 CONFIG_FILE = expanduser('~/config.json')

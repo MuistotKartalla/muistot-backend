@@ -10,7 +10,7 @@ ALLOWED_CHARS = re.compile(r'^[a-zA-Z0-9_:-]+$')
 
 def get_languages() -> Set[str]:
     from ..config import Config
-    return set(Config.languages)
+    return set(Config.localization.supported)
 
 
 def _validate_lang(lang: str) -> Optional[str]:
@@ -38,13 +38,13 @@ def extract_language(r: Request) -> str:
             if len(out) > 0:
                 out = _validate_lang(out)
             else:
-                out = Config.default_language
+                out = Config.localization.default
         if out is None:
             raise ValueError('bad-lang')
         else:
             return out
     except KeyError:
-        return Config.default_language
+        return Config.localization.default
 
 
 def url_safe(name: str) -> bool:

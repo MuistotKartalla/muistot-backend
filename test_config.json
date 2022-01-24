@@ -1,19 +1,18 @@
 {
   "testing": true,
-  "auto_publish": true,
-  "domain": null,
   "db": {
     "default": {
       "host": "test-db",
       "database": "muistot",
       "user": "root",
       "password": "test",
+      "port": 3306,
       "use_ssl": false,
       "rollback": false
     }
   },
-  "mailer": null,
   "security": {
+    "auto_publish": true,
     "jwt": {
       "secret": "test123",
       "lifetime": 1209600,
@@ -22,12 +21,16 @@
     },
     "bcrypt_cost": 12
   },
-  "oauth": {},
-  "languages": [
-    "fi",
-    "en"
-  ],
+  "localization": {
+    "default": "fi",
+    "supported": [
+      "fi",
+      "en"
+    ]
+  },
   "files": {
-    "allow_anonymous": "true"
+    "allow_anonymous": "true",
+    "allowed_filetypes" : ["jpg", "png", "jpeg"],
+    "location" : "/opt/files/"
   }
 }

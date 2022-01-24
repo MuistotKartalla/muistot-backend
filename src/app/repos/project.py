@@ -241,7 +241,7 @@ class ProjectRepo(BaseRepo):
                 image_id=image_id,
                 user=self.identity,
                 lang=model.info.lang,
-                published=Config.auto_publish
+                published=self.auto_publish
             )
         )
         if model.contact is not None:

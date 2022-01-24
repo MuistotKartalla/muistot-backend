@@ -80,7 +80,7 @@ def create_site_info(lang: str) -> SiteInfo:
 async def create_site(pid: PID, db, config, **additional_properties) -> SID:
     out = await SiteRepo(db, pid).configure(config).create(NewSite(
         id=genword(length=10),
-        info=create_site_info(Config.default_language),
+        info=create_site_info(Config.localization.default),
         location=Point(
             lat=random.randint(0, 89) + random.random(),
             lon=random.randint(1, 71) + random.random()
@@ -104,7 +104,7 @@ def create_project_info(lang: str) -> ProjectInfo:
 async def create_project(db, config, **additional_properties) -> PID:
     out = await ProjectRepo(db).configure(config).create(NewProject(
         id=genword(length=10),
-        info=create_project_info(Config.default_language),
+        info=create_project_info(Config.localization.default),
         **additional_properties
     ))
     assert out is not None

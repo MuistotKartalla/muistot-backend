@@ -110,7 +110,7 @@ class BaseRepo(ABC):
             setattr(self, k, v)
         self._user: Union[User] = User()
         self.lang = "fi"
-        self.auto_publish = Config.auto_publish
+        self.auto_publish = Config.security.auto_publish
 
     def configure(self, r: Request):
         """
