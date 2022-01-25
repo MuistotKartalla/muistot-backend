@@ -17,42 +17,32 @@ The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [U
 
 ## Setup
 
-- Server on `5600`
+- Backend on `5600`
 - Database on `5601`
 - Adminer on `5602`
+- MailDev on `5603`
 
 The setup scripts could be refactored into single files.
 
 #### Recreating database
 
 ```shell
-docker-compse down -v
-docker volume rm muistot-db-data
-docker volume rm muistot-file-data
-docker volume create --name muistot-db-data
-docker volume create --name muistot-file-data
-docker-compose up -d db
-```
-
-OR
-
-```shell
-sh scripts/recreate_db
+sh scripts/recreate_db.sh
 ```
 
 #### Running test server
 
 ```shell
-docker-compose -f test-runner-compose.yml down -v
-docker-compose -f test-runner-compose.yml up --force-recreate --remove-orphans --build app
-docker-compose -f test-runner-compose.yml down -v # This can be omitted to leave db on
+sh scripts/run_server.sh
 ```
 
 OR
 
 ```shell
-sh scripts/server.sh
+sh scripts/run_alt_server.sh
 ```
+
+for new Docker versions.
 
 #### Stopping
 
@@ -64,17 +54,17 @@ docker-compose down -v
 
 The tests can be run using the following commands
 
-```shell
-docker-compose -f test-runner-compose.yml down -v --remove-orphans
-docker-compose -f test-runner-compose.yml up --force-recreate --remove-orphans --build
-docker-compose -f test-runner-compose.yml down -v --remove-orphans # This can be omitted to leave db on
-```
+````shell
+sh scripts/run_tests.sh
+````
 
 OR
 
 ````shell
-sh scripts/run_tests.sh
+sh scripts/run_alt_tests.sh
 ````
+
+for new Docker versions.
 
 Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
