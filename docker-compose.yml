@@ -6,20 +6,21 @@ services:
       context: .
       dockerfile: testserver.Dockerfile
     restart: on-failure
-    container_name: muistot-compose-server
     tty: true
     volumes:
       - "muistot-file-data:/opt/files/"
-      - "./src/app:/code/app:ro"
+      - "./src/muistoja:/code/muistoja:ro"
       - "./test_docker_config.json:/root/config.json:ro"
     ports:
       - "127.0.0.1:5600:80"
     networks:
       - muistot-compose-net
+    depends_on:
+      - db
+      - maildev
   db:
     image: mariadb:latest
     restart: on-failure
-    container_name: muistot-compose-testdb
     environment:
       MYSQL_ROOT_PASSWORD: test
     ports:
@@ -32,11 +33,15 @@ services:
   db-access:
     image: adminer
     restart: on-failure
-    container_name: muistot-compose-dbview
     ports:
       - "127.0.0.1:5602:8080"
     networks:
       - muistot-compose-net
+  maildev:
+    image: maildev/maildev
+    restart: on-failure
+    ports:
+      - "127.0.0.1:5603:80"
 
 networks:
   muistot-compose-net:

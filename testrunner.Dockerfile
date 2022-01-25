@@ -9,4 +9,4 @@ COPY requirements-dev.txt .
 RUN pip install -r requirements-dev.txt
 COPY ./src/ ./src/
 RUN pip install -e ./src
-CMD pytest --cov=app --cov-report term --cov-report html && echo 'Tests Done'
+CMD pytest --cov=muistoja --cov-report term --cov-report html && echo 'Tests Done'

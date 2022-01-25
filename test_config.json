@@ -30,7 +30,15 @@
   },
   "files": {
     "allow_anonymous": "true",
-    "allowed_filetypes" : ["jpg", "png", "jpeg"],
-    "location" : "/opt/files/"
+    "allowed_filetypes": [
+      "jpg",
+      "png",
+      "jpeg"
+    ],
+    "location": "/opt/files/"
+  },
+  "mailer": {
+    "host": "mailer",
+    "token": "test"
   }
 }

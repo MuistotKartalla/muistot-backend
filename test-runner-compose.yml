@@ -6,20 +6,22 @@ services:
       context: .
       dockerfile: testrunner.Dockerfile
     restart: "no"
-    container_name: muistot-test-runner
     tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
       - "./test_config.json:/test-runner/test_config.json:ro"
     depends_on:
       - test-db
+      - test-maildev
   test-db:
     image: mariadb:latest
     restart: "no"
-    container_name: muistot-compose-testdb
     environment:
       MYSQL_ROOT_PASSWORD: test
     volumes:
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     logging:
       driver: "none"
+  test-maildev:
+    image: maildev/maildev
+    restart: "no"

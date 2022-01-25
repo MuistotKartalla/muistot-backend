@@ -15,6 +15,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_dir={"": "."},
-    packages=["app"],
+    packages=["muistoja"],
     python_requires=">=3.9",
 )
