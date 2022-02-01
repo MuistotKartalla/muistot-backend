@@ -2,7 +2,7 @@
   "testing": true,
   "db": {
     "default": {
-      "host": "test-db",
+      "host": "db",
       "database": "muistot",
       "user": "root",
       "password": "test",
@@ -38,7 +38,13 @@
     "location": "/opt/files/"
   },
   "mailer": {
-    "host": "mailer",
-    "token": "test"
+    "host": "http://mailer",
+    "token": "test",
+    "user": "muistoja",
+    "password": "test",
+    "ssl": false,
+    "url": "maildev",
+    "email": "no-reply@muistojakartalla.fi",
+    "port" : 25
   }
 }

@@ -10,6 +10,15 @@ instance_lock = Lock()
 instance: Database
 rollback: bool = True
 
+min_connections = 1
+max_connections = 100
+
+
+def set_connection_count(*, minimum: int, maximum: int):
+    global min_connections, max_connections
+    min_connections = minimum
+    max_connections = maximum
+
 
 class IntegrityError(HTTPException):
     """
@@ -92,7 +101,14 @@ async def start() -> NoReturn:
     from ..config import Config
     db = Config.db["default"]
     url = make_url_from_database_config("default")
-    await init_database(url, persist=not db.rollback, ssl=db.use_ssl, min_size=1, max_size=100, charset='utf8mb4')
+    await init_database(
+        url,
+        persist=not db.rollback,
+        ssl=db.use_ssl,
+        min_size=min_connections,
+        max_size=max_connections,
+        charset='utf8mb4'
+    )
 
 
-__all__ = ['start', 'dba', 'Database', 'Depends', 'IntegrityError', 'close']
+__all__ = ['start', 'dba', 'Database', 'Depends', 'IntegrityError', 'close', 'set_connection_count']

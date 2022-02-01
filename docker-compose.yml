@@ -10,14 +10,13 @@ services:
     volumes:
       - "muistot-file-data:/opt/files/"
       - "./src/muistoja:/code/muistoja:ro"
-      - "./test_docker_config.json:/root/config.json:ro"
+      - "./config.json:/root/config.json:ro"
     ports:
       - "127.0.0.1:5600:80"
-    networks:
-      - muistot-compose-net
     depends_on:
       - db
       - maildev
+      - mailer
   db:
     image: mariadb:latest
     restart: on-failure
@@ -25,8 +24,6 @@ services:
       MYSQL_ROOT_PASSWORD: test
     ports:
       - "127.0.0.1:5601:3306"
-    networks:
-      - muistot-compose-net
     volumes:
       - "muistot-db-data:/var/lib/mysql"
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
@@ -35,16 +32,23 @@ services:
     restart: on-failure
     ports:
       - "127.0.0.1:5602:8080"
-    networks:
-      - muistot-compose-net
   maildev:
-    image: maildev/maildev
+    build:
+      context: .
+      dockerfile: maildev.Dockerfile
     restart: on-failure
+    command: maildev --smtp 25 --web 80 --incoming-user muistoja --incoming-pass test
     ports:
       - "127.0.0.1:5603:80"
-
-networks:
-  muistot-compose-net:
+  mailer:
+    build:
+      context: .
+      dockerfile: mailer.Dockerfile
+    restart: on-failure
+    volumes:
+      - "./email/templates.txt:/opt/templates.txt:ro"
+      - "./config.json:/root/config.json:ro"
+      - "./src/muistoja/:/code/muistoja/:ro"
 
 volumes:
   muistot-db-data:

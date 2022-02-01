@@ -1,2 +1,2 @@
 from .helpers import modify_openapi, register_error_handlers
-from .models import Error
+from .models import Error, ApiError, ErrorResponse

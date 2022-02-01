@@ -6,6 +6,7 @@ RUN python -m venv /test-runner/venv
 ENV PATH="/test-runner/venv/bin:$PATH"
 COPY requirements.txt .
 COPY requirements-dev.txt .
+COPY requirements-mailer.txt .
 RUN pip install -r requirements-dev.txt
 COPY ./src/ ./src/
 RUN pip install -e ./src

@@ -9,7 +9,7 @@ try:
     Config: BaseConfig = parse_file_as(BaseConfig, CONFIG_FILE)
 except FileNotFoundError:
     try:
-        CONFIG_FILE = './test_config.json'
+        CONFIG_FILE = './config.json'
         Config: BaseConfig = parse_file_as(BaseConfig, CONFIG_FILE)
     except FileNotFoundError:
         raise RuntimeError(f"Failed to find config in {expanduser('~')} and .")

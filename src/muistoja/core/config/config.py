@@ -16,7 +16,13 @@ class Database(BaseModel):
 
 class Mailer(BaseModel):
     host: str
+    port: int
     token: str
+    url: str
+    user: str
+    password: str
+    ssl: bool
+    email: Optional[str]
 
 
 class JWT(BaseModel):
@@ -46,13 +52,13 @@ class Localization(BaseModel):
 
 class BaseConfig(BaseModel):
     domain: Optional[str] = None
-    testing: bool = True
-    db: Dict[str, Database]
+    testing: Optional[bool] = True
+    db: Optional[Dict[str, Database]]
 
-    localization: Localization
-    security: Security
-    files: FileStore
-    mailer: Mailer
+    localization: Optional[Localization]
+    security: Optional[Security]
+    files: Optional[FileStore]
+    mailer: Optional[Mailer]
 
 
 __all__ = ['BaseConfig']

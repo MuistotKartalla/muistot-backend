@@ -8,16 +8,16 @@ class DefaultMailer(Mailer):
     host: str
     token: str
 
-    def __init__(self, *, host: str, token: str):
+    def __init__(self, *, host: str, token: str, **_):
         self.host = host
         self.token = token
 
-    async def send_verify_email(self, username: str, email: str) -> Result:
+    async def send_email(self, email: str, **data) -> Result:
         async with httpx.AsyncClient() as client:
             r = await client.post(f'{self.host}/send', json={
                 'email': email,
-                'user': username
-            })
+                **data
+            }, headers={'Authorization': f'bearer {self.token}'})
             if 199 < r.status_code < 300:
                 return Result(success=True)
             else:
@@ -28,7 +28,7 @@ class DefaultMailer(Mailer):
         async with httpx.AsyncClient() as client:
             r = await client.post(f'{self.host}/validate', json={
                 'email': email
-            })
+            }, headers={'Authorization': f'bearer {self.token}'})
             if r.status_code == httpx.codes.OK:
                 return Result(success=True)
             elif r.status_code == httpx.codes.BAD_REQUEST:
@@ -37,8 +37,8 @@ class DefaultMailer(Mailer):
                 return Result(success=False)
 
 
-def get(*, host: str, token: str) -> Mailer:
-    return DefaultMailer(host=host, token=token)
+def get(**kwargs) -> Mailer:
+    return DefaultMailer(**kwargs)
 
 
 __all__ = ['get']

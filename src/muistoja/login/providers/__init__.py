@@ -4,6 +4,7 @@ from typing import List
 from pydantic import BaseModel
 
 from ._default import router as default_login
+from ._email_only import router as email_login
 from ...core.config import Config
 from ...core.logging import log
 
@@ -25,4 +26,4 @@ def register_oauth_providers(app, **kwargs):
             log.warning(f"Failed to load OAuth provider: {oauth_provider}", exc_info=e)
 
 
-__all__ = ['default_login', 'register_oauth_providers']
+__all__ = ['default_login', 'register_oauth_providers', 'email_login']

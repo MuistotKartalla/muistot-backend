@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  test-runner:
+  runner:
     build:
       context: .
       dockerfile: testrunner.Dockerfile
@@ -9,11 +9,12 @@ services:
     tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
-      - "./test_config.json:/test-runner/test_config.json:ro"
+      - "./config.json:/test-runner/config.json:ro"
     depends_on:
-      - test-db
-      - test-maildev
-  test-db:
+      - db
+      - maildev
+      - mailer
+  db:
     image: mariadb:latest
     restart: "no"
     environment:
@@ -22,6 +23,18 @@ services:
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     logging:
       driver: "none"
-  test-maildev:
-    image: maildev/maildev
+  maildev:
+    build:
+      context: .
+      dockerfile: maildev.Dockerfile
     restart: "no"
+    command: maildev --smtp 25 --web 80 --incoming-user muistoja --incoming-pass test
+  mailer:
+    build:
+      context: .
+      dockerfile: mailer.Dockerfile
+    restart: on-failure
+    volumes:
+      - "./email/templates.txt:/opt/templates.txt:ro"
+      - "./config.json:/root/config.json:ro"
+      - "./src/muistoja/:/code/muistoja/:ro"

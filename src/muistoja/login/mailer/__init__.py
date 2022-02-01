@@ -23,12 +23,11 @@ class Mailer(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    async def send_verify_email(self, username: str, email: str) -> Result:
+    async def send_email(self, email: str, **data) -> Result:
         """
-        Sends a verification email to a specified user
+        Sends an email to a specified email
         The email should be verified first
 
-        :param username:    Name of the user
         :param email:       Email to send to
         :return:            Result
         """

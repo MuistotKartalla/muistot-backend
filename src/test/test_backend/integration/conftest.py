@@ -41,6 +41,7 @@ def _credentials():
     """username, email, password"""
     length = 10
     username, email, password = genword(length=length), genword(length=length), genword(length=length)
+    email = f'{email}@example.com'
     yield username, email, password
 
 

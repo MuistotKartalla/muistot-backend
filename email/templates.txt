@@ -1,0 +1,58 @@
+DEFAULT = FI
+
+FI = {
+from: Muistojakartalla <[EMAIL]>
+subject: Muistojakrtalla Kirjautuminen
+content:
+'''
+<html>
+<body>
+<h>Hei, [USER]. Tässä kirjautumiskoodisi Muistojakartalla palveluun<h>
+<a href="[URL]">Klikkaa tästä kirjautuaksesi sisään</a>
+</body>
+</html>
+'''
+}
+
+EN = {
+from: Memories on a Map <[EMAIL]>
+subject: Memories Login
+content:
+'''
+<html>
+<body>
+<h>Hi [USER]. Here is your login link for Memories on a Map<h>
+<a href="[URL]">Click this link to login</a>
+</body>
+</html>
+'''
+}
+
+FI-Register = {
+from: Muistojakartalla <[EMAIL]>
+subject: Muistojakrtalla Rekisteröinti
+content:
+'''
+<html>
+<body>
+<h>Hei, [USER]. Tässä kirjautumiskoodisi Muistojakartalla palveluun<h>
+<a href="[URL]">Klikkaa tästä kirjautuaksesi sisään ja vahvistaaksesi tunnuksesi</a>
+</body>
+</html>
+'''
+}
+
+EN-Register = {
+from: Memories on a Map <[EMAIL]>
+subject: Memories on a Map Registration
+content:
+'''
+<html>
+<body>
+<h>Hi [USER]. Here is your login link for Memories on a Map<h>
+<a href="[URL]">Click this link to login and verify your account</a>
+</body>
+</html>
+'''
+}
+
