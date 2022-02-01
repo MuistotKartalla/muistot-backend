@@ -49,9 +49,10 @@ instance: Optional[Mailer] = None
 
 
 def _derive_default() -> Mailer:
-    mailer = Config.mailer
-    from .default_mail import get
-    return get(**mailer.dict())
+    import importlib
+    mailer_config = Config.mailer.config
+    mailer_impl = Config.mailer.name
+    return getattr(importlib.import_module(f'.{mailer_impl}', __name__), 'get')(**mailer_config)
 
 
 def get_mailer() -> Mailer:

@@ -15,14 +15,8 @@ class Database(BaseModel):
 
 
 class Mailer(BaseModel):
-    host: str
-    port: int
-    token: str
-    url: str
-    user: str
-    password: str
-    ssl: bool
-    email: Optional[str]
+    name: str
+    config: Dict
 
 
 class JWT(BaseModel):

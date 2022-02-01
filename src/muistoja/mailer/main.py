@@ -1,10 +1,39 @@
+from secrets import compare_digest
+
+from email_validator import validate_email, EmailNotValidError
 from fastapi import FastAPI, status, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from .parse import parse_file
 from ..core.errors import modify_openapi, register_error_handlers, ApiError, ErrorResponse
+from ..core.headers import AUTHORIZATION
 from ..core.logging import log
+
+
+class MailConfig(BaseModel):
+    user: str
+    password: str
+    email: str
+    url: str
+    port: int
+    token: str
+
+
+class SendEmailOrder(BaseModel):
+    user: str
+    email: str
+    lang: str
+    url: str
+
+
+class VerifyEmail(BaseModel):
+    email: str
+
+
+TEMPLATES = parse_file('/opt/templates.txt')
+with open("/opt/mailer-config.json") as f:
+    CONFIG = MailConfig.parse_raw(f.read())
 
 description = (
     """
@@ -33,16 +62,11 @@ app = FastAPI(
 
 register_error_handlers(app)
 
-TEMPLATES = parse_file('/opt/templates.txt')
-
 
 def verify_request(r: Request):
     try:
-        from ..core.headers import AUTHORIZATION
-        from ..core.config import Config
-        from secrets import compare_digest
         token = r.headers[AUTHORIZATION].split()[1]
-        if compare_digest(token, Config.mailer.token):
+        if compare_digest(token, CONFIG.token):
             return True
         else:
             log.warning(f'Failed attempt to send mail: {r.client}')
@@ -59,24 +83,12 @@ async def verify_request_middleware(r: Request, call_next):
         return ErrorResponse(ApiError(code=status.HTTP_403_FORBIDDEN, message='Forbidden'))
 
 
-class SendEmailOrder(BaseModel):
-    user: str
-    email: str
-    lang: str
-    url: str
-
-
-class VerifyEmail(BaseModel):
-    email: str
-
-
 @app.post('/send', status_code=status.HTTP_202_ACCEPTED)
-def send_email(model: SendEmailOrder):
+def endpoint_send_email(model: SendEmailOrder):
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
-    from smtplib import SMTP_SSL, SMTP
-    from ..core.config import Config
-    cnf = Config.mailer
+    from smtplib import SMTP
+    cnf = CONFIG
     sender = cnf.user if cnf.email is None else cnf.email
     template = TEMPLATES[model.lang]
     mail = MIMEMultipart('alternative')
@@ -87,19 +99,16 @@ def send_email(model: SendEmailOrder):
         template.content.replace('[URL]', model.url).replace('[USER]', model.user),
         'html'
     ))
-    with (SMTP_SSL if cnf.ssl else SMTP)(cnf.url, port=cnf.port) as s:
+    with SMTP(cnf.url, port=cnf.port) as s:
         s.login(cnf.user, cnf.password)
         s.send_message(mail)
 
 
 @app.post('/validate', response_model=VerifyEmail)
-def validate_email(model: VerifyEmail):
-    from email_validator import validate_email, EmailNotValidError
+def endpoint_validate_email(model: VerifyEmail):
     try:
         valid = validate_email(model.email)
-        return {
-            'email': valid.email
-        }
+        return VerifyEmail(email=valid.email)
     except EmailNotValidError as e:
         return ErrorResponse(ApiError(code=status.HTTP_400_BAD_REQUEST, message=str(e)))
 

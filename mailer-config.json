@@ -1,0 +1,9 @@
+{
+  "token": "test",
+  "user": "muistoja",
+  "password": "test",
+  "ssl": false,
+  "url": "maildev",
+  "email": "no-reply@muistojakartalla.fi",
+  "port": 25
+}

@@ -14,3 +14,6 @@ target
 __pycache__
 .coverage
 htmlcov
+
+# For custom
+alt-config.json

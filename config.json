@@ -38,13 +38,10 @@
     "location": "/opt/files/"
   },
   "mailer": {
-    "host": "http://mailer",
-    "token": "test",
-    "user": "muistoja",
-    "password": "test",
-    "ssl": false,
-    "url": "maildev",
-    "email": "no-reply@muistojakartalla.fi",
-    "port" : 25
+    "name": "default",
+    "config": {
+      "host": "http://mailer",
+      "token": "test"
+    }
   }
 }

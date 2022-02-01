@@ -47,7 +47,7 @@ services:
     restart: on-failure
     volumes:
       - "./email/templates.txt:/opt/templates.txt:ro"
-      - "./config.json:/root/config.json:ro"
+      - "./mailer-config.json:/opt/mailer-config.json:ro"
       - "./src/muistoja/:/code/muistoja/:ro"
 
 volumes:
