@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS projects
     image_id            INTEGER      NULL     DEFAULT NULL COMMENT 'fk',
     starts              DATETIME     NULL     DEFAULT NULL,
     ends                DATETIME     NULL     DEFAULT NULL,
-    anonymous_posting   BOOLEAN      NOT NULL DEFAULT FALSE,
+    admin_posting       BOOLEAN      NOT NULL DEFAULT FALSE,
 
     default_language_id INTEGER      NOT NULL,
 
@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS user_personal_data
     user_id     INTEGER      NOT NULL,
     first_name  VARCHAR(255) NULL,
     last_name   VARCHAR(255) NULL,
-    birth_date  DATETIME     NULL DEFAULT NULL,
+    birth_date  DATE         NULL DEFAULT NULL,
     country     VARCHAR(5)   NULL,
     city        VARCHAR(255) NULL,
 
@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS superusers
 (
     user_id INTEGER NOT NULL,
     PRIMARY KEY pk_superusers (user_id),
-    CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id)
+    CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE
 ) COMMENT 'Global SuperUsers';
 
 SET GLOBAL event_scheduler = TRUE;

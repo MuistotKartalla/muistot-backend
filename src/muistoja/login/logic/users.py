@@ -195,10 +195,9 @@ async def handle_login_token(user: str, token: str, db: Database) -> JSONRespons
             values=dict(user=user)
         )
         if m[2] != 1:
-            res.headers['should-change-username'] = 'true'
+            res.headers['Muistot-Change-Username'] = 'true'
         return res
-
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Not found')
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found')
 
 
 __all__ = [

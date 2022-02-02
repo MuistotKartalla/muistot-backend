@@ -2,7 +2,7 @@
     PREPARE ------------------------------------------------------------------------------------------------------------
 */
 
-USE muistot_skeleton;
+USE muistot_old;
 
 SET autocommit = FALSE;
 START TRANSACTION;
@@ -42,7 +42,7 @@ FROM Kuva;
 */
 INSERT INTO muistot.projects (migration_id,
                               name,
-                              anonymous_posting,
+                              admin_posting,
                               image_id,
                               starts,
                               ends,
@@ -50,8 +50,12 @@ INSERT INTO muistot.projects (migration_id,
                               default_language_id,
                               modifier_id)
 SELECT p.PID,
-       CONCAT_WS('-', REPLACE(LOWER(IFNULL(p3.Nimi, p2.Nimi)), ' ', '-'), p.PID),
-       visitorPosting,
+       IF(
+                   p.PID = 1,
+                   REPLACE(LOWER(IFNULL(p3.Nimi, p2.Nimi)), ' ', '-'),
+                   CONCAT_WS('-', REPLACE(LOWER(IFNULL(p3.Nimi, p2.Nimi)), ' ', '-'), p.PID - 1)
+           ),
+       FALSE,
        il.id,
        CONVERT(Alkaa, DATETIME),
        CONVERT(Loppuu, DATETIME),
@@ -82,8 +86,13 @@ FROM Projektilupa pc
 */
 
 INSERT INTO muistot.users (migration_id, email, username, password_hash)
-SELECT u.UID, u.email, u.Tunnus, IF(u.Logintype = 'email', u.Salasana, NULL)
+SELECT u.UID, u.email, u.Tunnus, NULL
 FROM User u;
+
+INSERT INTO muistot.user_personal_data (user_id, first_name, last_name, birth_date, country, city)
+SELECT nu.id, u.Etunimi, u.Sukunimi, MAKEDATE(u.Syntv, 1), 'fi', u.Paikkakunta
+FROM User u
+         JOIN muistot.users nu ON nu.migration_id = u.UID;
 
 
 INSERT INTO muistot.project_admins (project_id, user_id)

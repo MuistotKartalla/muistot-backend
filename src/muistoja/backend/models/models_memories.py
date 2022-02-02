@@ -155,7 +155,7 @@ class NewProject(BaseModel):
 
     admins: Optional[List[UID]] = Field(unique_items=True, description="Admins for the project")
     contact: Optional[ProjectContact] = Field(description='Project contact details if any are available')
-    anonymous_posting: bool = Field(default=False, description="Whether the project allows anonymous users to post")
+    admin_posting: bool = Field(default=False, description="Whether the project allows users to post")
 
 
 class Project(NewProject):

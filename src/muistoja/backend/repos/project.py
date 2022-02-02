@@ -222,7 +222,7 @@ class ProjectRepo(BaseRepo):
                     name,
                     starts,
                     ends,
-                    anonymous_posting
+                    admin_posting
             )
             SELECT u.id,
                    l.id,
@@ -231,13 +231,13 @@ class ProjectRepo(BaseRepo):
                    :id,
                    :starts,
                    :ends,
-                   :anonymous_posting
+                   :admin_posting
             FROM users u
                      JOIN languages l ON l.lang = :lang
             WHERE u.username = :user
             """,
             values=dict(
-                **model.dict(include={'id', 'starts', 'ends', 'anonymous_posting'}),
+                **model.dict(include={'id', 'starts', 'ends', 'admin_posting'}),
                 image_id=image_id,
                 user=self.identity,
                 lang=model.info.lang,

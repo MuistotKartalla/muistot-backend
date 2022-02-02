@@ -122,3 +122,22 @@ CREATE TABLE IF NOT EXISTS superusers
     CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id)
 ) COMMENT 'Global SuperUsers';
 ```
+
+#### 2.2.
+
+Modified projects posting column and added clarification to superusers constraint. Also, changes birthdate to `DATE`.
+
+```mariadb
+ALTER TABLE projects
+    DROP COLUMN IF EXISTS anonymous_posting;
+ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS admin_posting BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE superusers
+    DROP CONSTRAINT fk_superusers;
+ALTER TABLE superusers
+    ADD CONSTRAINT FOREIGN KEY IF NOT EXISTS fk_superusers (user_id) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE;
+ALTER TABLE user_personal_data
+    DROP COLUMN IF EXISTS birth_date;
+ALTER TABLE user_personal_data
+    ADD COLUMN IF NOT EXISTS birth_date DATE NULL DEFAULT NULL;
+```
