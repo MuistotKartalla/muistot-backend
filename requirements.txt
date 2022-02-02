@@ -26,4 +26,5 @@ aiomysql >= 0.0.22, < 0.1.0
 # These aren't very critical
 # asgi-ratelimit[redis] # TODO: Do this one day
 httpx
+python-magic
 # python-multipart # Needed for form data

@@ -16,5 +16,11 @@ __pycache__
 htmlcov
 
 # For custom
-alt-config.json
+config-*.json
+!config.json
 config.json.bak
+
+# image storage
+images/*
+!images/placeholder.jpg
+!images/favicon.ico

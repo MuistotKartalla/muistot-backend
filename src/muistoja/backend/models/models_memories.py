@@ -7,7 +7,7 @@ _IMAGE_TXT = 'Image file name to be fetched from the image endpoint'
 _IMAGE_NEW = 'Image data in base64'
 IMAGE = constr(strict=True, strip_whitespace=True, min_length=1)
 
-__ID_REGEX = r'^[a-zA-Z0-9-_]+$'
+__ID_REGEX = r'^[a-zA-Z0-9-_#]+$'
 __ID_TYPE_STR = constr(
     strip_whitespace=True,
     min_length=4,
@@ -20,7 +20,7 @@ UID = constr(
     strip_whitespace=True,
     min_length=4,
     max_length=64,
-    regex=r'^[a-zA-Z0-9-_@.: ]+$'
+    regex=r'^[a-zA-Z0-9-_@.: #]+$'
 )
 
 PID = __ID_TYPE_STR
@@ -65,7 +65,7 @@ class Memory(BaseModel):
     id: MID = Field(description="ID of this memory")
     user: UID = Field(description="Author's ID")
     title: NAME = Field(description='Short title for this memory')
-    story: Optional[COMMENT] = Field(description='Longer description of this memory')
+    story: Optional[LONG_TEXT] = Field(description='Longer description of this memory')
     image: Optional[IMAGE] = Field(description=_IMAGE_TXT)
     comments_count: int = Field(ge=0, description="Amount of comments on this memory")
     modified_at: datetime = Field(description='LAst modified time')

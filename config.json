@@ -31,9 +31,9 @@
   "files": {
     "allow_anonymous": "true",
     "allowed_filetypes": [
-      "jpg",
-      "png",
-      "jpeg"
+      "image/jpg",
+      "image/png",
+      "image/jpeg"
     ],
     "location": "/opt/files/"
   },

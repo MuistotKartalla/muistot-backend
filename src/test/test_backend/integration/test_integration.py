@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 def test_hello(client: TestClient):
     resp = client.get("/")
-    assert resp.json() == {"hello": "world"}
+    assert resp.status_code == 200
 
 
 def test_projects(client: TestClient):

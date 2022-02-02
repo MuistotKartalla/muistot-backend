@@ -1,6 +1,6 @@
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Json
 
 
 class Database(BaseModel):
@@ -16,7 +16,7 @@ class Database(BaseModel):
 
 class Mailer(BaseModel):
     name: str
-    config: Dict
+    config: Any
 
 
 class JWT(BaseModel):
@@ -36,7 +36,7 @@ class Security(BaseModel):
 class FileStore(BaseModel):
     location: str = Field(regex='^.*/$')
     allow_anonymous: bool
-    allowed_filetypes: Set[str]  # https://docs.python.org/3/library/imghdr.html
+    allowed_filetypes: Set[str]
 
 
 class Localization(BaseModel):
