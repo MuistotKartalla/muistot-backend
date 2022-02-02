@@ -38,12 +38,15 @@ class MailgunMailer(Mailer):
                 return Result(success=False, reason=r.json().get('message', ''))
 
     async def verify_email(self, email: str) -> Result:
-        from email_validator import validate_email, EmailNotValidError
         try:
-            validate_email(email, check_deliverability=False)
+            from email_validator import validate_email, EmailNotValidError
+            try:
+                validate_email(email, check_deliverability=False)
+                return Result(success=True)
+            except EmailNotValidError as e:
+                return Result(success=False, reason=str(e))
+        except ImportError:
             return Result(success=True)
-        except EmailNotValidError as e:
-            return Result(success=False, reason=str(e))
 
 
 def get(*, domain: str, token: str, **_):

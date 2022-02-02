@@ -1,7 +1,7 @@
 import abc
 from dataclasses import dataclass
 from threading import Lock
-from typing import NoReturn, Optional
+from typing import Optional
 
 from ...core.config import Config
 
@@ -68,20 +68,8 @@ def get_mailer() -> Mailer:
         return instance
 
 
-def register_mailer(m: Mailer) -> NoReturn:
-    """
-    Registers a mailer to use for mailing
-
-    :param m: A Mailer instance
-    """
-    global instance
-    with instance_lock:
-        instance = m
-
-
 __all__ = [
     'get_mailer',
-    'register_mailer',
     'Mailer',
     'Result'
 ]

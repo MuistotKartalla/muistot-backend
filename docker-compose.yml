@@ -11,6 +11,7 @@ services:
       - "muistot-file-data:/opt/files/"
       - "./src/muistoja:/code/muistoja:ro"
       - "./config.json:/root/config.json:ro"
+      - "./wordlist.txt:/root/wordlist.txt:ro"
     ports:
       - "127.0.0.1:5600:80"
     depends_on:

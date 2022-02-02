@@ -10,6 +10,7 @@ services:
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
       - "./config.json:/test-runner/config.json:ro"
+      - "./wordlist.txt:/root/wordlist.txt:ro"
     depends_on:
       - db
       - maildev
