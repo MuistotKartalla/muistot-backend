@@ -193,16 +193,7 @@ async def handle_login_token(user: str, token: str, db: Database, sm: SessionMan
         values=dict(user=user)
     )
     if db_token is not None and compare_digest(token, db_token):
-        m = await db.fetch_one(
-            """
-            SELECT u.username, su.user_id IS NOT NULL, u.verified
-            FROM users u
-                LEFT JOIN superusers su ON su.user_id = u.id
-            WHERE u.username=:user
-            """,
-            values=dict(user=user)
-        )
-        res = await to_token_response(m[0], m[1] == 1, sm)
+        res = await to_token_response(user, db, sm)
         await db.execute(
             """
             DELETE uev FROM user_email_verifiers uev 
@@ -211,8 +202,6 @@ async def handle_login_token(user: str, token: str, db: Database, sm: SessionMan
             """,
             values=dict(user=user)
         )
-        if m[2] != 1:
-            res.headers['Muistot-Change-Username'] = 'true'
         return res
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found')
 

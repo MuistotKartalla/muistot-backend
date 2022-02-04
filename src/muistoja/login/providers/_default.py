@@ -43,9 +43,8 @@ async def default_register(request: Request, query: RegisterQuery, db: Database 
     if resp.status_code == 201:
         await send_email(
             query.username,
-            lambda user, token: router.url_path_for('register_confirm').make_absolute_url(
-                request.base_url
-            ) + f"?{url.urlencode(dict(user=user, token=token))}",
+            lambda user, token: router.url_path_for('register_confirm')
+                                + f"?{url.urlencode(dict(user=user, token=token))}",
             db,
             lang=f'{lang(request)}-register'
         )

@@ -65,7 +65,7 @@ async def check_can_send(email, db: Database):
 async def email_only_login(request: Request, email: str, db: Database = Depends(dba)):
     username = await fetch_user(email, db)
     if username is None:
-        username = try_create(email, db)
+        username = await try_create(email, db)
         if username is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -74,7 +74,7 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
     if await check_can_send(email, db):
         await send_email(
             username,
-            lambda user, token: f'{request.url_for("exchange_code")}?{url.urlencode(dict(user=user, token=token))}',
+            lambda user, token: f'{router.url_path_for("exchange_code")}?{url.urlencode(dict(user=user, token=token))}',
             db,
             lang=lang(request)
         )
@@ -83,6 +83,6 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS)
 
 
-@router.get("/login/email-only/exchange")
+@router.post("/login/email-only/exchange")
 async def exchange_code(r: Request, user: str, token: str, db: Database = Depends(dba)) -> JSONResponse:
     return await handle_login_token(user, token, db, r.state.manager)

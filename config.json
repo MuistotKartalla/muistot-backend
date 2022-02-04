@@ -41,7 +41,8 @@
     "name": "default",
     "config": {
       "host": "http://mailer",
-      "token": "test"
+      "token": "test",
+      "reroute": "http://localhost:3000"
     }
   }
 }

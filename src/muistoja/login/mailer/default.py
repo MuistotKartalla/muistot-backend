@@ -8,11 +8,14 @@ class DefaultMailer(Mailer):
     host: str
     token: str
 
-    def __init__(self, *, host: str, token: str, **_):
+    def __init__(self, *, host: str, token: str, reroute: str, **_):
         self.host = host
         self.token = token
+        self.reroute = reroute
 
     async def send_email(self, email: str, **data) -> Result:
+        if 'url' in data:
+            data['url'] = f'{self.reroute}{data["url"]}'
         async with httpx.AsyncClient() as client:
             r = await client.post(f'{self.host}/send', json={
                 'email': email,

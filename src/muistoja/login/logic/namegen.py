@@ -29,7 +29,7 @@ def generate():
     end = END.popleft()
     START.append(start)
     END.append(end)
-    return f"{start}{end}#{hex(int.from_bytes(os.urandom(3), byteorder='big', signed=False))}"
+    return f"{start}{end}#{int.from_bytes(os.urandom(3), byteorder='big', signed=False):x}"
 
 
 __all__ = ['generate']
