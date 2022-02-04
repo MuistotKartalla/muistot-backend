@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 
 from .common_imports import *
-from ...core.security import User
 
 router = make_router(tags=["Admin"])
 
@@ -47,13 +46,12 @@ async def publish(
         r: Request,
         project: str,
         order: PUPOrder,
-        current_user: User,
         db: Database = Depends(dba)
 ):
     if not r.user.is_admin_in(project):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Unauthorized ' + current_user.identity
+            detail='Unauthorized ' + r.user.identity
         )
     try:
         await db.execute(

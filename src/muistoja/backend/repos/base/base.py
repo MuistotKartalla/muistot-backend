@@ -6,7 +6,7 @@ from typing import List, Any, NoReturn, Union
 from fastapi import Request, HTTPException, status
 
 from .files import Files
-from .status import Status
+from .publishing import Status
 from .utils import extract_language
 from ....core.config import Config
 from ....core.database import Database

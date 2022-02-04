@@ -41,6 +41,9 @@ services:
     command: maildev --smtp 25 --web 80 --incoming-user muistoja --incoming-pass test
     ports:
       - "127.0.0.1:5603:80"
+  session-storage:
+    image: redis:alpine
+    restart: on-failure
   mailer:
     build:
       context: .

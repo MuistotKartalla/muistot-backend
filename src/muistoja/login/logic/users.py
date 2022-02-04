@@ -8,8 +8,7 @@ from pydantic import BaseModel
 from ..mailer import get_mailer
 from ...core import headers
 from ...core.database import Database
-from ...core.security import scopes
-from ...core.security.jwt import generate_jwt
+from ...core.security import SessionManager
 from ...core.security.password import check_password, hash_password
 
 
@@ -25,42 +24,60 @@ class RegisterQuery(BaseModel):
     password: str
 
 
-async def to_token_response(username: str, superuser: bool, db: Database):
-    admin_list = [m[0] async for m in db.iterate(
+async def load_user_data(username: str, db: Database):
+    from ...core.security.scopes import SUPERUSER, ADMIN
+    out = dict(scopes=set())
+    is_superuser = await db.fetch_val(
+        """
+        SELECT EXISTS(
+            SELECT 1 
+            FROM users u 
+                JOIN superusers su on su.user_id = u.id
+            WHERE u.username = :user
+        )
+        """,
+        values=dict(user=username)
+    )
+    if is_superuser:
+        out['scopes'].add(SUPERUSER)
+        out['scopes'].add(ADMIN)
+    admined_projects = [m[0] for m in await db.fetch_all(
         """
         SELECT p.name
         FROM users u
-            JOIN project_admins pa ON pa.user_id = u.id
-            JOIN projects p ON pa.project_id = p.id
-        WHERE u.username = :username
+            JOIN project_admins pa on u.id = pa.user_id
+            JOIN projects p on pa.project_id = p.id
+        WHERE u.username = :user
         """,
-        values=dict(username=username)
+        values=dict(user=username)
     )]
-    token = generate_jwt({
-        scopes.SUBJECT: username,
-        scopes.AUTHENTICATED: True,
-        **({
-               scopes.ADMIN: True,
-               scopes.PROJECTS: admin_list
-           } if len(admin_list) > 0 else {}),
-        **({
-               scopes.SUPERUSER: True,
-           } if superuser else {})
-    })
+    if len(admined_projects) > 0:
+        out['scopes'].add(ADMIN)
+        out['projects'] = admined_projects
+    out['scopes'] = list(out['scopes'])
+    return out
+
+
+async def to_token_response(
+        username: str,
+        db: Database,
+        sm: SessionManager
+):
+    token = await sm.start_session(username, await load_user_data(username, db))
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         headers={headers.AUTHORIZATION: f'bearer {token}'}
     )
 
 
-async def handle_login(db: Database, m, login: LoginQuery) -> JSONResponse:
+async def handle_login(m, login: LoginQuery, sm: SessionManager, db: Database) -> JSONResponse:
     if m is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
     username: str = m[0]
     stored_hash: str = m[1]
     verified = m[2] == 1
     if check_password(password_hash=stored_hash, password=login.password):
-        res = await to_token_response(username, m[3] == 1, db)
+        res = await to_token_response(username, db, sm)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
     if not verified:
@@ -69,35 +86,35 @@ async def handle_login(db: Database, m, login: LoginQuery) -> JSONResponse:
         return res
 
 
-async def login_username(login: LoginQuery, db: Database) -> JSONResponse:
+async def login_username(login: LoginQuery, db: Database, sm: SessionManager) -> JSONResponse:
     return await handle_login(
-        db,
         await db.fetch_one(
             """
-            SELECT u.username, u.password_hash, u.verified, su.user_id IS NOT NULL
+            SELECT u.username, u.password_hash, u.verified
             FROM users u
-                LEFT JOIN superusers su ON su.user_id = u.id
             WHERE u.username=:uname
             """,
             values=dict(uname=login.username)
         ),
-        login
+        login,
+        sm,
+        db
     )
 
 
-async def login_email(login: LoginQuery, db: Database) -> JSONResponse:
+async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> JSONResponse:
     return await handle_login(
-        db,
         await db.fetch_one(
             """
-            SELECT u.username, u.password_hash, u.verified, su.user_id IS NOT NULL
+            SELECT u.username, u.password_hash, u.verified
             FROM users u
-                LEFT JOIN superusers su ON su.user_id = u.id
             WHERE u.email=:email
             """,
             values=dict(email=login.email)
         ),
-        login
+        login,
+        sm,
+        db
     )
 
 
@@ -163,7 +180,7 @@ async def send_email(
     )
 
 
-async def handle_login_token(user: str, token: str, db: Database) -> JSONResponse:
+async def handle_login_token(user: str, token: str, db: Database, sm: SessionManager) -> JSONResponse:
     from secrets import compare_digest
     db_token = await db.fetch_val(
         """
@@ -185,7 +202,7 @@ async def handle_login_token(user: str, token: str, db: Database) -> JSONRespons
             """,
             values=dict(user=user)
         )
-        res = await to_token_response(m[0], m[1] == 1, db)
+        res = await to_token_response(m[0], m[1] == 1, sm)
         await db.execute(
             """
             DELETE uev FROM user_email_verifiers uev 

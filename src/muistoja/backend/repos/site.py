@@ -1,3 +1,5 @@
+from pydantic import ValidationError
+
 from .base import *
 from .memory import MemoryRepo
 
@@ -122,7 +124,10 @@ class SiteRepo(BaseRepo):
 
     @staticmethod
     def construct_site(m) -> Site:
-        return Site(location=Point(**m), info=SiteInfo(**m), **m)
+        try:
+            return Site(location=Point(**m), info=SiteInfo(**m), **m)
+        except ValidationError:
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Missing localization')
 
     @check_parents
     async def all(

@@ -8,7 +8,7 @@ from muistoja.backend import main
 from muistoja.core.database.connections import make_url_from_database_config
 from muistoja.core.security.auth import User
 from muistoja.core.security.password import hash_password
-from muistoja.core.security.scopes import SECURITY_SCOPES
+from muistoja.core.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
 from passlib.pwd import genword
 from pymysql.err import OperationalError
 
@@ -76,10 +76,14 @@ async def super_user(login):
 def mock_request(login):
     uid = login[0]
 
+    u = User()
+    u.username = uid
+    u.scopes.update({SUPERUSER, AUTHENTICATED, ADMIN})
+
     class MockRequest:
         method = "GET"
         headers = dict()
-        user = User(username=uid, scopes=set(SECURITY_SCOPES))
+        user = u
 
     return cast(Request, MockRequest())
 

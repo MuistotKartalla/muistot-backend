@@ -4,9 +4,6 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 from muistoja.core.headers import AUTHORIZATION
-from muistoja.core.security.auth import get_user, HTTPBearer
-from muistoja.core.security.jwt import read_jwt
-from muistoja.core.security.scopes import SUBJECT
 
 from urls import *
 
@@ -17,7 +14,6 @@ def do_login(client: TestClient, data: Dict, username: str):
     header = resp.headers[AUTHORIZATION]
     alg, token = header.split()
     assert alg == 'bearer'
-    assert read_jwt(token)[SUBJECT] == username
 
 
 @pytest.mark.anyio
@@ -66,7 +62,7 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
 
 
 @pytest.mark.anyio
-async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient, login, db):
+async def test_user_un_publish_project_and_delete(client: TestClient, login, db):
     username, email, password = login
     try:
         # LOGIN
@@ -78,9 +74,12 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
         assert resp.status_code in {401, 403}, resp.json()
 
         # PREP
-        await db.execute(
-            "INSERT INTO projects (name, published, default_language_id) VALUE (:pname, 1, 1)",
+        _id = await db.fetch_val(
+            "INSERT INTO projects (name, published, default_language_id) VALUE (:pname, 1, 1) RETURNING id",
             values=dict(pname=username)
+        )
+        await db.execute(
+            f"INSERT INTO project_information (name, lang_id, project_id) VALUE ('Test', 1, {_id})"
         )
         await db.execute(
             """
@@ -100,10 +99,13 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
             PROJECT.format(username),
             headers={AUTHORIZATION: resp.headers[AUTHORIZATION]}
         )
-        print(client.get(PROJECT.format(username)).json())
-        assert resp.status_code == status.HTTP_204_NO_CONTENT, await db.fetch_all(
+
+        assert resp.status_code == status.HTTP_204_NO_CONTENT, str(await db.fetch_all(
             "SELECT name, published FROM projects"
-        )
+        )) + '\n' + resp.text
+
+        assert client.get(PROJECT.format(username)).status_code == 403
+
         assert await db.fetch_val(
             "SELECT published FROM projects WHERE name = :pname",
             values=dict(pname=username)
@@ -114,18 +116,5 @@ async def test_user_un_publish_project_and_de_admin_on_delete(client: TestClient
             "DELETE FROM projects WHERE name = :pname",
             values=dict(pname=username)
         )
-
-        # RE-LOGIN
-        resp = client.post(LOGIN, json=data)
-
-        o = type('', (), {})()
-        o.state = type('', (), {})()
-        o.state.resolved = False
-
-        user = get_user(o, await HTTPBearer()(resp))
-
-        # ASSERT LOST ADMIN
-        assert user.is_authenticated
-        assert not user.is_admin_in(username)
     finally:
         await db.execute("DELETE FROM projects WHERE name = :pname", values=dict(pname=username))

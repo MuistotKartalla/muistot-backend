@@ -1,6 +1,6 @@
 FROM python:3.9-alpine AS worker
 WORKDIR /test-runner
-RUN apk add --no-cache --update python3-dev libffi-dev gcc musl-dev make g++ libmagic \
+RUN apk add --no-cache --update python3-dev libffi-dev gcc musl-dev make g++ libmagic hiredis \
     && python -m pip install --upgrade pip \
     && python -m venv /test-runner/venv
 ENV PATH="/test-runner/venv/bin:$PATH"

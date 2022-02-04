@@ -1,6 +1,6 @@
 from typing import Dict, Optional, Set, Any
 
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field
 
 
 class Database(BaseModel):
@@ -30,6 +30,11 @@ class Security(BaseModel):
     jwt: JWT
     bcrypt_cost: int = 12
     auto_publish: bool = False
+
+    session_redis: str = 'redis://session-storage?db=0'
+    session_lifetime: int = 60 * 16
+    session_token_bytes: int = 64
+
     oauth: Dict[str, Dict] = Field(default_factory=lambda: dict())
 
 

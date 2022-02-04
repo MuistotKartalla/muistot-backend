@@ -84,5 +84,5 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
 
 
 @router.get("/login/email-only/exchange")
-async def exchange_code(user: str, token: str, db: Database = Depends(dba)) -> JSONResponse:
-    return await handle_login_token(user, token, db)
+async def exchange_code(r: Request, user: str, token: str, db: Database = Depends(dba)) -> JSONResponse:
+    return await handle_login_token(user, token, db, r.state.manager)

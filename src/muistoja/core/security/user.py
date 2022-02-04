@@ -3,17 +3,28 @@ from typing import Set, Optional
 from pydantic import BaseModel, Field
 from starlette.authentication import BaseUser
 
-from . import scopes
+from .scopes import *
 
 
 class User(BaseModel, BaseUser):
+    """
+    Base class used for users in the current application.
+    """
+    token: Optional[bytes]
     username: Optional[str]
     scopes: Set[str] = Field(default_factory=lambda: set())
     admin_projects: Set[str] = Field(default_factory=lambda: set())
 
+    def __init__(self, username: Optional[str] = None, token: Optional[bytes] = None):
+        if username is not None:
+            super(User, self).__init__(username=username, scopes={AUTHENTICATED}, token=token)
+            self.token = token
+        else:
+            super(User, self).__init__()
+
     @property
     def is_superuser(self) -> bool:
-        return scopes.SUPERUSER in self.scopes
+        return SUPERUSER in self.scopes
 
     @property
     def identity(self) -> str:
@@ -25,16 +36,9 @@ class User(BaseModel, BaseUser):
 
     @property
     def is_authenticated(self) -> bool:
-        return scopes.AUTHENTICATED in self.scopes
+        return AUTHENTICATED in self.scopes
 
     def is_admin_in(self, project: str) -> bool:
-        """
-        This should be faster than querying DB every time we need to check if someone is an Admin.
-        Only verifying from DB should be ok, but initial rejection based on JWT should save time.
-
-        :param project: PID
-        :return: Bool
-        """
         return project in self.admin_projects or self.is_superuser
 
 

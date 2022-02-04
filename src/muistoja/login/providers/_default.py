@@ -16,11 +16,11 @@ def lang(request: Request):
 
 
 @router.post("/login", tags=["Auth"])
-async def default_login(login: LoginQuery, db: Database = Depends(dba)) -> JSONResponse:
+async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)) -> JSONResponse:
     if login.username is not None:
-        return await login_username(login, db)
+        return await login_username(login, db, r.state.manager)
     elif login.email is not None:
-        return await login_email(login, db)
+        return await login_email(login, db, r.state.manager)
     else:
         raise HTTPException(status_code=400, detail="Email or username required")
 

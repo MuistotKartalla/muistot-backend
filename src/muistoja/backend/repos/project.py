@@ -1,3 +1,5 @@
+from pydantic import ValidationError
+
 from .base import *
 from .site import SiteRepo
 
@@ -165,24 +167,26 @@ class ProjectRepo(BaseRepo):
             )
         )
 
-    @check_lang
     async def construct_project(self, m) -> Project:
-        if m is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Project not found'
+        try:
+            if m is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail='Project not found'
+                )
+            pi = ProjectInfo(**m)
+            if not m[8] is None:
+                pc = ProjectContact(**m)
+            else:
+                pc = None
+            return Project(
+                **m,
+                info=pi,
+                contact=pc,
+                admins=await self._get_admins(m[0])
             )
-        pi = ProjectInfo(**m)
-        if not m[8] is None:
-            pc = ProjectContact(**m)
-        else:
-            pc = None
-        return Project(
-            **m,
-            info=pi,
-            contact=pc,
-            admins=await self._get_admins(m[0])
-        )
+        except ValidationError:
+            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Missing localization')
 
     async def all(self) -> List[Project]:
         return [await self.construct_project(m) for m in await self.db.fetch_all(
@@ -203,7 +207,7 @@ class ProjectRepo(BaseRepo):
     @check_not_exists
     async def create(self, model: NewProject) -> PID:
         if not self.is_superuser:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not enough privileges')
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Not enough privileges')
         check_id(model.id)
         check_language(model.info.lang)
         if model.starts is not None and model.ends is not None and model.starts <= model.ends:

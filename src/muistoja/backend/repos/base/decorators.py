@@ -4,7 +4,7 @@ from typing import Set, Callable, Optional
 from fastapi import HTTPException, status
 
 from .base import BaseRepo
-from .status import Status
+from .publishing import Status
 from ....core.logging import log
 
 
@@ -200,31 +200,6 @@ def check_super(f):
     )(f)
 
 
-def check_lang(f):
-    """
-    Throw a 406 if the function argument is None
-
-    This is used on some construct methods in Repos
-    """
-
-    @functools.wraps(f)
-    async def decorator(*args):
-        if args[1] is None:
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=(
-                        _name(args[0])
-                        + ' missing localization in '
-                        + getattr(args[0], 'lang')
-                        + ' and default'
-                )
-            )
-        else:
-            return await f(*args)
-
-    return decorator
-
-
 __all__ = [
     'check_exists',
     'check_not_exists',
@@ -235,5 +210,4 @@ __all__ = [
     'check_parents',
     'check_own',
     'not_implemented',
-    'check_lang'
 ]

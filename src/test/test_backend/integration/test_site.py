@@ -14,7 +14,8 @@ async def setup(mock_request, db, login):
 
 
 @pytest.mark.anyio
-async def test_create_and_publish(client, setup, db, auth):
+async def test_create_and_publish(client, setup, db, login):
+    auth = authenticate(client, login)
     _id = genword(length=128)
     site = NewSite(
         id=_id,
@@ -24,15 +25,16 @@ async def test_create_and_publish(client, setup, db, auth):
 
     # create
     r = client.post(f'{setup.url}/sites', json=site.dict(), headers=auth)
-    assert r.status_code == 201
+    assert r.status_code == 201, r.text
     url = r.headers[LOCATION]
 
     # un-publish
-    assert client.post(f'{setup.url}/admin/publish', json=PUPOrder(
+    r = client.post(f'{setup.url}/admin/publish', json=PUPOrder(
         identifier=_id,
         type='site',
         publish=False
-    ).dict(), headers=auth).status_code in {204, 304}, setup.url
+    ).dict(), headers=auth)
+    assert r.status_code in {204, 304}, r.text
 
     assert Site(**client.get(url, headers=auth).json()).waiting_approval
 
@@ -41,3 +43,23 @@ async def test_create_and_publish(client, setup, db, auth):
         identifier=_id,
         type='site'
     ).dict(), headers=auth).status_code == 204
+
+
+@pytest.mark.anyio
+async def test_invalid_site_406_edge_case(client, login, db, setup):
+    """
+    It is possible to insert bad values to the database manually.
+
+    This tests they are correctly handled.
+    """
+    from fastapi import status
+    username, _, _ = login
+    await db.execute(
+        f"""
+        INSERT INTO sites (name, published, project_id, location) 
+        VALUE (:name, 1, (SELECT id FROM projects WHERE name = "{setup.project}"), POINT(10, 10))
+        """,
+        values=dict(name=username)
+    )
+    setup.site = username
+    assert client.get(setup.url).status_code == status.HTTP_406_NOT_ACCEPTABLE
