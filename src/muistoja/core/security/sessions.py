@@ -11,6 +11,7 @@ import aioredis
 from fastapi import Request, status, FastAPI
 from fastapi.security import HTTPBearer
 from fastapi.security.utils import get_authorization_scheme_param
+from headers import AUTHORIZATION
 from starlette.middleware.authentication import AuthCredentials, AuthenticationMiddleware
 from starlette.middleware.authentication import AuthenticationBackend, AuthenticationError
 from starlette.requests import HTTPConnection
@@ -19,7 +20,6 @@ from .scopes import AUTHENTICATED
 from .user import User
 from ..config import Config
 from ..errors import ErrorResponse, ApiError
-from ..headers import AUTHORIZATION
 
 
 def encode_token(user: str, token: bytes):
@@ -58,8 +58,9 @@ class _BaseManager(HTTPBearer):
 
     def __init__(self):
         super(_BaseManager, self).__init__(
-            bearerFormat='Verified Claims',
-            description='Contains Username and Validity intervals with a verifier',
+            scheme_name="Session Token Auth",
+            bearerFormat='Binary Data in Base64',
+            description='Contains Username and Session ID in Base64',
             auto_error=False
         )
 
@@ -104,7 +105,7 @@ class SessionManager(AuthenticationBackend):
                         user.scopes.update(session_data['scopes'])
                 else:
                     raise AuthenticationError('Invalid token')
-            except (binascii.Error, IndexError, UnicodeDecodeError) as e:
+            except (binascii.Error, IndexError, UnicodeDecodeError):
                 raise AuthenticationError('Invalid token')
         else:
             user = User()
@@ -120,7 +121,6 @@ class SessionManager(AuthenticationBackend):
         else:
             await self.redis.expire(encoded_token, Config.security.session_lifetime)
         out = json.loads(out)
-        print(out)
         return out
 
     async def _check(self, user: str, token: bytes) -> Optional[str]:

@@ -306,3 +306,21 @@ class ProjectRepo(BaseRepo):
     @check_admin
     async def localize(self, project: PID, localized_data: ProjectInfo):
         await self._handle_localization(project, localized_data)
+
+    @check_admin
+    async def add_admin(self, project: PID, user: UID):
+        if (await self.db.fetch_val(
+                "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
+                values=dict(user=user)
+        )):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+        await self.db.execute(
+            """
+            INSERT IGNORE INTO project_admins (project_id, user_id)
+            SELECT p.id, u.id 
+            FROM users u 
+                JOIN projects p ON p.name = :project 
+            WHERE u.username = :user
+            """,
+            values=dict(project=project, user=user)
+        )

@@ -3,7 +3,7 @@ from typing import Dict
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from muistoja.core.headers import AUTHORIZATION
+from headers import AUTHORIZATION
 
 from urls import *
 

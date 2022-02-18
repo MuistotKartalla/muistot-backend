@@ -1,28 +1,81 @@
+import textwrap
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 
-from .api import *
+from .api import common_paths, api_paths
 from ..core.config import Config
 from ..core.errors import register_error_handlers, modify_openapi
-from ..core.security import *
+from ..core.security import register_auth
 
-description = (
+description = textwrap.dedent(
     """
-    Backend for the https://www.muistojakartalla.fi service.
+    Backend for the [Muistotkartalla](https://www.muistotkartalla.fi) service.
     
+    General
+    --------
+    The API is fairly simple and easy to use. The common resources used in the project are:
     
-    Notes:
-    - Image upload is handled as Base64 String at the moment
-      => This might change to signed urls in the future
+    - User
+    - Project
+    - Site
+    - Memory
+    - Comment
+    
+    All model relations are described clearly by the URL convention.
+    The content is safe to be cached, if any parent node is deleted all children can be assumed gone as well.
+    This means that a project being deleted (or unpublished) will lead to all its children being deleted.
+    
+    Although the admin endpoint
+    
+    Auth
+    ----
+    The authentication and session management is handled by the backend server.
+    The authentication model is very simple, a single user is tied to a single email address 
+    and possibly multiple OAuth identities that can be used to initialize a session on the server side.
+    
+    The login flow is as follows:
+    
+    - Post a login request
+    - An email will be sent
+    - The email link will redirect to token exchange
+    - A session is initialized
+    
+    OR:
+    
+    - Login via OAuth provider
+    - OAuth provider redirects to token exchange
+    - A session is initialized
+    
+    A session length is not fixed and has a maximum limit of inactivity.
+    The session is extended for each authenticated request to the backend
+    and an error response is returned in the event the session had expired.
+    The session expiry is only possible through inactivity or session purging by the user/admin.
+    
+    #### Auth Errors
+    
+    If the session is expired a `403` code is returned. Similarly, if the session token is invalid an error is returned. 
+    If an unauthenticated user is trying to access privileged endpoints a `401`is returned. 
+    If the application is receiving `403` responses on `GET`requests to unprivileged endpoints, the only cause is the 
+    auth token is invalid or expired and should be discarded. 
+    
+    Images
+    ------
+    Image upload is handled as Base64 String at the moment, but the implementation is planned to change to a more stable
+    version in the future. The images are restricted to a subset of allowed formats (e.g. png, jpeg) that are checked
+    after upload on the backend server. 
+    The image format should be an ASCII base64 string using the standard base64 alphabet without any replacements.
+    Error responses are returned if the image format is invalid, base64 or otherwise.
+    Similarly, the returned image MIME type is dependent on the uploaded image.
     """
 )
 
 tags = [
     {
         "name": "Common",
-        "description": "Common unauthenticated endpoints without actual use"
+        "description": "Common unauthenticated endpoints"
     },
     {
         "name": "Projects",
@@ -30,7 +83,7 @@ tags = [
     },
     {
         "name": "Sites",
-        "description": "CRUD for sites"
+        "description": "Site related operations"
     },
     {
         "name": "Memories",
@@ -42,16 +95,19 @@ tags = [
     },
     {
         "name": "Admin",
-        "description": "Administration utilities"
+        "description": "Administrative utilities"
+    },
+    {
+        "name": "Me",
+        "description": "Authenticated user specific endpoints"
     }
 ]
 
 app = FastAPI(
-    title="Muistoja Kartalla",
+    title="Muistotkartalla",
     description=description,
     version="1.1.0",
     docs_url="/docs",
-    # root_path="/api", # Doesn't work without proxy
     redoc_url=None,
     default_response_class=JSONResponse,
     openapi_tags=tags

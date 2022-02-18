@@ -1,5 +1,5 @@
 import pytest
-from muistoja.core.headers import *
+from headers import *
 
 from utils import *
 
@@ -85,5 +85,5 @@ async def test_modify(client, setup, auth, db):
 
     assert await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == 'test2'
 
-    assert r.status_code == 200
+    assert r.status_code == 204
     assert Comment(**client.get(r.headers[LOCATION], headers=auth).json()).comment == 'test2'

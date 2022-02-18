@@ -3,14 +3,14 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Response, status
 from fastapi.responses import JSONResponse
+from headers import ACCEPT_LANGUAGE
 from passlib import pwd
 
 from ..logic import *
 from ..logic.namegen import generate
 from ...core.database import dba, Depends, Database
-from ...core.headers import ACCEPT_LANGUAGE
 
-router = APIRouter()
+router = APIRouter(tags=["Auth"])
 
 
 def lang(request: Request):

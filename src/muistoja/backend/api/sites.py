@@ -1,4 +1,6 @@
-from .common_imports import *
+from typing import Optional
+
+from ._imports import *
 
 router = make_router(tags=["Sites"])
 
@@ -6,15 +8,16 @@ router = make_router(tags=["Sites"])
 @router.get(
     '/projects/{project}/sites',
     response_model=Sites,
-    description=(
-            """
-            Returns all sites for the current project.
-            
-            This endpoint can be used in return-all or return nearest mode.
-            The return nearest mode is useful if the project has a lot of projects.
-            Either all the query parameters have to be specified or none of them.
-            """
-    )
+    description=dedent(
+        """
+        Returns all sites for the current project.
+        
+        This endpoint can be used in return-all or return nearest mode.
+        The return nearest mode is useful if the project has a lot of projects.
+        Either all the query parameters have to be specified or none of them.
+        """
+    ),
+    responses=rex.gets(Sites)
 )
 async def get_sites(
         r: Request,
@@ -22,7 +25,7 @@ async def get_sites(
         n: Optional[int] = None,
         lat: Optional[float] = None,
         lon: Optional[float] = None,
-        db: Database = Depends(dba)
+        db: Database = DEFAULT_DB
 ) -> Sites:
     repo = SiteRepo(db, project)
     repo.configure(r)
@@ -31,19 +34,20 @@ async def get_sites(
 
 @router.get(
     '/projects/{project}/sites/{site}',
-    description=(
-            """
-            Return info for a single Site.
-            
-            Allows for returning all the memories for the site using a query parameter.
-            """
-    )
+    description=dedent(
+        """
+        Return info for a single Site.
+        
+        Allows for returning all the memories for the site using a query parameter.
+        """
+    ),
+    responses=rex.get(Site)
 )
 async def get_site(
         r: Request,
         project: PID,
         site: SID,
-        db: Database = Depends(dba),
+        db: Database = DEFAULT_DB,
         include_memories: bool = False
 ) -> Site:
     repo = SiteRepo(db, project)
@@ -53,16 +57,18 @@ async def get_site(
 
 @router.post(
     '/projects/{project}/sites',
-    description=(
-            """
-            Crates a new site.
-            
-            This should use the Project default language for localizing the initial information.
-            The API currently does not restrict which translation is used as long as the language is enabled.
-            """
-    )
+    description=dedent(
+        """
+        Crates a new site.
+        
+        This should use the Project default language for localizing the initial information.
+        The API currently does not restrict which translation is used as long as the language is enabled.
+        """
+    ),
+    response_class=Response,
+    responses=rex.create(True),
 )
-async def new_site(r: Request, project: PID, model: NewSite, db: Database = Depends(dba)) -> JSONResponse:
+async def new_site(r: Request, project: PID, model: NewSite, db: Database = DEFAULT_DB):
     repo = SiteRepo(db, project)
     repo.configure(r)
     new_id = await repo.create(model)
@@ -71,14 +77,16 @@ async def new_site(r: Request, project: PID, model: NewSite, db: Database = Depe
 
 @router.patch(
     '/projects/{project}/sites/{site}',
-    description=(
-            """
-            Modify a site
-            
-            This endpoint is for modifying site location etc.
-            This does not set any defaults.
-            """
-    )
+    description=dedent(
+        """
+        Modify a site
+        
+        This endpoint is for modifying site location etc.
+        This does not set any defaults.
+        """
+    ),
+    response_class=Response,
+    responses=rex.modify()
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def modify_site(
@@ -86,8 +94,8 @@ async def modify_site(
         project: PID,
         site: SID,
         model: ModifiedSite,
-        db: Database = Depends(dba)
-) -> JSONResponse:
+        db: Database = DEFAULT_DB
+):
     repo = SiteRepo(db, project)
     repo.configure(r)
     changed = await repo.modify(site, model)
@@ -96,17 +104,19 @@ async def modify_site(
 
 @router.delete(
     '/projects/{project}/sites/{site}',
-    description=(
-            """
-            Soft deletes a Site and hides it from normal users.
-            
-            Actual deletion can only be done by a maintainer or from the admin interface.
-            """
-    )
+    description=dedent(
+        """
+        Soft deletes a Site and hides it from normal users.
+        
+        Actual deletion can only be done by a maintainer or from the admin interface.
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def delete_site(r: Request, project: PID, site: SID, db: Database = Depends(dba)) -> JSONResponse:
+async def delete_site(r: Request, project: PID, site: SID, db: Database = DEFAULT_DB):
     repo = SiteRepo(db, project)
     repo.configure(r)
     await repo.toggle_publish(site, False)
-    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
+    deleted(router.url_path_for('get_sites', project=project))

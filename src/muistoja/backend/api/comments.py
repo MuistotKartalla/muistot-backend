@@ -1,4 +1,4 @@
-from .common_imports import *
+from ._imports import *
 
 router = make_router(tags=["Comments"])
 
@@ -6,18 +6,19 @@ router = make_router(tags=["Comments"])
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}/comments',
     response_model=Comments,
-    description=(
-            """
-            Returns all comments for a memory.
-            """
-    )
+    description=dedent(
+        """
+        Returns all comments for a memory.
+        """
+    ),
+    responses=rex.gets(Comments)
 )
 async def get_comments(
         r: Request,
         project: PID,
         site: SID,
         memory: MID,
-        db: Database = Depends(dba)
+        db: Database = DEFAULT_DB
 ) -> Comments:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
@@ -27,11 +28,12 @@ async def get_comments(
 @router.get(
     '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
     response_model=Comment,
-    description=(
-            """
-            Returns all relevant data for a single comment.
-            """
-    )
+    description=dedent(
+        """
+        Returns all relevant data for a single comment.
+        """
+    ),
+    responses=rex.get(Comment)
 )
 async def get_comment(
         r: Request,
@@ -39,7 +41,7 @@ async def get_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        db: Database = Depends(dba)
+        db: Database = DEFAULT_DB
 ) -> Comment:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
@@ -48,11 +50,13 @@ async def get_comment(
 
 @router.post(
     '/projects/{project}/sites/{site}/memories/{memory}/comments',
-    description=(
-            """
-            Adds a new comment to a site.
-            """
-    )
+    description=dedent(
+        """
+        Adds a new comment to a site.
+        """
+    ),
+    responses=rex.create(),
+    response_class=Response
 )
 @require_auth(scopes.AUTHENTICATED)
 async def new_comment(
@@ -61,33 +65,31 @@ async def new_comment(
         site: SID,
         memory: MID,
         model: NewComment,
-        db: Database = Depends(dba)
-) -> JSONResponse:
+        db: Database = DEFAULT_DB
+):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     new_id = await repo.create(model)
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED,
-        headers={
-            LOCATION: router.url_path_for(
-                'get_comment',
-                project=project,
-                site=site,
-                memory=str(memory),
-                comment=str(new_id)
-            )}
-    )
+    return created(router.url_path_for(
+        'get_comment',
+        project=project,
+        site=site,
+        memory=str(memory),
+        comment=str(new_id)
+    ))
 
 
 @router.patch(
     '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
-    description=(
-            """
-            Edits a comment.
-            
-            Currently only the Author and a SuperUser can modify the comment.
-            """
-    )
+    description=dedent(
+        """
+        Edits a comment.
+        
+        Currently only the Author and a SuperUser can modify the comment.
+        """
+    ),
+    responses=rex.modify(),
+    response_class=Response
 )
 @require_auth(scopes.AUTHENTICATED)
 async def modify_comment(
@@ -97,8 +99,8 @@ async def modify_comment(
         memory: MID,
         comment: CID,
         model: ModifiedComment,
-        db: Database = Depends(dba)
-) -> JSONResponse:
+        db: Database = DEFAULT_DB
+):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     changed = await repo.modify(comment, model)
@@ -113,13 +115,15 @@ async def modify_comment(
 
 @router.delete(
     '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
-    description=(
-            """
-            Permanently deletes a comment.
-            
-            This can be done by the author or an admin.
-            """
-    )
+    description=dedent(
+        """
+        Permanently deletes a comment.
+        
+        This can be done by the author or an admin.
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
 async def delete_comment(
@@ -128,8 +132,8 @@ async def delete_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        db: Database = Depends(dba)
-) -> JSONResponse:
+        db: Database = DEFAULT_DB
+):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     await repo.delete(comment)

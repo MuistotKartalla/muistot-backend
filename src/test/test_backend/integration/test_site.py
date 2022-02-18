@@ -1,6 +1,6 @@
 import pytest
 from muistoja.backend.api.admin import PUPOrder
-from muistoja.core.headers import LOCATION
+from headers import LOCATION
 
 from utils import *
 

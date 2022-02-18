@@ -52,7 +52,33 @@ class ValidationErrorDetail(BaseModel):
 
 
 class HTTPValidationError(BaseModel):
+    """
+    This is a serialized Pydantic validation error.
+
+    Contains detailed information on where validation went wrong.
+    Directly from Pydantic.
+    """
     error: ValidationErrorDetail
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "error": {
+                    "code": 422,
+                    "message": "request validation error",
+                    "errors": [
+                        {
+                            "loc": [
+                                "this is from",
+                                "pydantic"
+                            ],
+                            "msg": "a value was wrong somewhere",
+                            "type": "pydantic error type"
+                        }
+                    ]
+                }
+            }
+        }
 
 
 __all__ = ['ApiError', 'ErrorResponse', 'ValidationErrorDetail', 'HTTPValidationError', 'Error']

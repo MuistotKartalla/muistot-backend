@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from fastapi import Request
 
 from ....core.config import Config
-from ....core.headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
+from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
 
 ALLOWED_CHARS = re.compile(r'^[a-zA-Z0-9_:-]+$')
 

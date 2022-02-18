@@ -1,6 +1,6 @@
 import pytest
 from muistoja.backend.repos.base.utils import extract_language, url_safe
-from muistoja.core.headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
+from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
 from starlette.authentication import UnauthenticatedUser
 
 

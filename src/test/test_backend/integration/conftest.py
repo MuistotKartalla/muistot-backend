@@ -5,7 +5,7 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from muistoja.backend import main
-from muistoja.core.database.connections import make_url_from_database_config
+from muistoja.core.database._default_db import make_url_from_database_config
 from muistoja.core.security.auth import User
 from muistoja.core.security.password import hash_password
 from muistoja.core.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER

@@ -1,28 +1,36 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 
 from ..logic import *
 from ...core.database import dba, Depends, Database
 from ...core.errors import Error
-from ...core.headers import *
+from headers import *
 
 router = APIRouter()
 
 
 def lang(request: Request):
-    from ...core.headers import ACCEPT_LANGUAGE
+    from headers import ACCEPT_LANGUAGE
     _lang = request.headers.get(ACCEPT_LANGUAGE, 'fi')
     return 'en-register' if 'fi' not in _lang else 'fi-register'
 
 
-@router.post("/login", tags=["Auth"])
-async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)) -> JSONResponse:
+@router.post(
+    "/login",
+    tags=["Auth"],
+    response_class=Response,
+    status_code=200,
+
+)
+async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)):
+    if login.username is not None and login.email is not None:
+        raise HTTPException(status_code=400, detail='Email or Username required')
     if login.username is not None:
         return await login_username(login, db, r.state.manager)
     elif login.email is not None:
         return await login_email(login, db, r.state.manager)
     else:
-        raise HTTPException(status_code=400, detail="Email or username required")
+        raise HTTPException(status_code=400, detail="Email or Username required")
 
 
 @router.post(
@@ -33,9 +41,11 @@ async def default_login(r: Request, login: LoginQuery, db: Database = Depends(db
             "description": "User already exists or email/username is in use"
         }
     },
-    tags=["Auth"]
+    tags=["Auth"],
+    response_class=Response,
+    status_code=201
 )
-async def default_register(request: Request, query: RegisterQuery, db: Database = Depends(dba)) -> JSONResponse:
+async def default_register(request: Request, query: RegisterQuery, db: Database = Depends(dba)):
     import urllib.parse as url
     if AUTHORIZATION in request:
         return JSONResponse(status_code=409, content="Already signed-in")
@@ -53,9 +63,22 @@ async def default_register(request: Request, query: RegisterQuery, db: Database 
 
 @router.post(
     "/register/confirm",
-    tags=["Auth"]
+    tags=["Auth"],
+    response_class=Response,
+    status_code=204,
+    responses={
+        404: {
+            "description": "Failed to find verifier"
+        },
+        403: {
+            "description": "Invalid Auth token detected"
+        },
+        204: {
+            "description": "Successful verification"
+        }
+    }
 )
-async def register_confirm(_: Request, user: str, token: str, db: Database = Depends(dba)) -> JSONResponse:
+async def register_confirm(_: Request, user: str, token: str, db: Database = Depends(dba)):
     if len(token) != 200:
         raise HTTPException(status_code=404)
     await db.execute(
@@ -74,6 +97,6 @@ async def register_confirm(_: Request, user: str, token: str, db: Database = Dep
             """,
             values=dict(user=user)
         )
-        return JSONResponse(status_code=204)
+        return Response(status_code=204)
     else:
         raise HTTPException(status_code=404)

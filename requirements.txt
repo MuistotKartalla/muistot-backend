@@ -1,16 +1,16 @@
 # [Framework]
 #
 # This should be quite stable
-FastAPI >= 0.73.0, < 0.74.0
-uvicorn >= 0.17.0
+FastAPI>=0.73.0, <0.74.0
+uvicorn>=0.17.0
 
 # [Crypto]
 #
 # Let's try and always keep these up to date
 # if they happen to have any vulnerabilities
-python-jose[cryptography] >= 3.3.0, < 3.4.0
-passlib[bcrypt] >= 1.7.4, < 1.8.0
-cryptography >= 36.0.0, < 37.0.0
+python-jose[cryptography] >=3.3.0, <3.4.0
+passlib[bcrypt] >=1.7.4, <1.8.0
+cryptography>=36.0.0, <37.0.0
 
 # [DB]
 #
@@ -18,16 +18,20 @@ cryptography >= 36.0.0, < 37.0.0
 # database.__init__.py if the imports are still correct
 # Similarly if the underlying DB implementation changes
 # These might be a bit volatile as they are not as standard as some other libraries
-databases[mysql] >= 0.5.5, < 0.6.0
-aiomysql >= 0.0.22, < 0.1.0
+databases[mysql] >=0.5.5, <0.6.0
+aiomysql>=0.0.22, <0.1.0
 
 # [Sessions]
-aioredis[hiredis] == 1.3.1
+aioredis[hiredis] ==1.3.1
 
 # [Other]
 #
 # These aren't very critical
 # asgi-ratelimit[redis] # TODO: Do this one day
+# python-multipart # Needed for form data
 httpx
 python-magic
-# python-multipart # Needed for form data
+email-validator # Pydantic EmailStr
+pycountry # Country validation
+languager
+httpheaders

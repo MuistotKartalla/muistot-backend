@@ -1,12 +1,12 @@
 from typing import Optional, Tuple, Callable
 
+import headers
 from fastapi import HTTPException
 from fastapi import status
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from ..mailer import get_mailer
-from ...core import headers
 from ...core.database import Database
 from ...core.security import SessionManager
 from ...core.security.password import check_password, hash_password
@@ -64,13 +64,13 @@ async def to_token_response(
         sm: SessionManager
 ):
     token = await sm.start_session(username, await load_user_data(username, db))
-    return JSONResponse(
+    return Response(
         status_code=status.HTTP_200_OK,
         headers={headers.AUTHORIZATION: f'bearer {token}'}
     )
 
 
-async def handle_login(m, login: LoginQuery, sm: SessionManager, db: Database) -> JSONResponse:
+async def handle_login(m, login: LoginQuery, sm: SessionManager, db: Database) -> Response:
     if m is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
     username: str = m[0]
@@ -86,7 +86,7 @@ async def handle_login(m, login: LoginQuery, sm: SessionManager, db: Database) -
         return res
 
 
-async def login_username(login: LoginQuery, db: Database, sm: SessionManager) -> JSONResponse:
+async def login_username(login: LoginQuery, db: Database, sm: SessionManager) -> Response:
     return await handle_login(
         await db.fetch_one(
             """
@@ -102,7 +102,7 @@ async def login_username(login: LoginQuery, db: Database, sm: SessionManager) ->
     )
 
 
-async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> JSONResponse:
+async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> Response:
     return await handle_login(
         await db.fetch_one(
             """
@@ -118,7 +118,7 @@ async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> JS
     )
 
 
-async def register_user(user: RegisterQuery, db: Database) -> JSONResponse:
+async def register_user(user: RegisterQuery, db: Database) -> Response:
     mailer = get_mailer()
     if not await mailer.verify_email(user.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Email")
@@ -139,7 +139,7 @@ async def register_user(user: RegisterQuery, db: Database) -> JSONResponse:
             "INSERT INTO users (email, username, password_hash) VALUE (:email, :user, :password)",
             values=dict(email=user.email, user=user.username, password=hash_password(password=user.password))
         )
-        return JSONResponse(status_code=status.HTTP_201_CREATED)
+        return Response(status_code=status.HTTP_201_CREATED)
 
 
 async def create_email_verifier(user: str, db: Database) -> Tuple[str, str]:
@@ -180,7 +180,7 @@ async def send_email(
     )
 
 
-async def handle_login_token(user: str, token: str, db: Database, sm: SessionManager) -> JSONResponse:
+async def handle_login_token(user: str, token: str, db: Database, sm: SessionManager) -> Response:
     from secrets import compare_digest
     db_token = await db.fetch_val(
         """

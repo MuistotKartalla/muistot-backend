@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .parse import parse_file
 from ..core.errors import modify_openapi, register_error_handlers, ApiError, ErrorResponse
-from ..core.headers import AUTHORIZATION
+from headers import AUTHORIZATION
 from ..core.logging import log
 
 

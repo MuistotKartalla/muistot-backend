@@ -3,13 +3,13 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, Any, NoReturn, Union
 
+from databases import Database
 from fastapi import Request, HTTPException, status
 
 from .files import Files
 from .publishing import Status
 from .utils import extract_language
 from ....core.config import Config
-from ....core.database import Database
 from ....core.logging import log
 from ....core.security import User
 

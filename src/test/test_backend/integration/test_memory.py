@@ -1,5 +1,5 @@
 import pytest
-from muistoja.core.headers import LOCATION
+from headers import LOCATION
 
 from utils import *
 
@@ -52,7 +52,7 @@ async def test_create_and_publish(client, db, setup, auth, login, title: str, st
         story=story
     ).dict()
     r = client.post(f'{setup.url}/memories', json=new_memory, headers={})
-    assert r.status_code == 403, "Created memory without auth"
+    assert r.status_code == 401, "Created memory without auth"
 
     r = client.post(f'{setup.url}/memories', json=new_memory, headers=auth)
     assert r.status_code == 201, "Failed to make new memory"
@@ -95,7 +95,7 @@ async def test_modify(client, db, setup, auth, login):
 
     for k, v in dict(title=200, story=1000).items():
         r = client.patch(url, json={k: genword(length=v)}, headers=auth)
-        assert r.status_code == 200, await db.fetch_all("SELECT * FROM memories")
+        assert r.status_code == 204, r.json()
         assert len(client.get(url, headers=auth).json()[k]) == v, await db.fetch_all(
             "SELECT LENGTH(story) FROM memories"
         )

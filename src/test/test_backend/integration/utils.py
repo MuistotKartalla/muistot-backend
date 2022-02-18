@@ -4,7 +4,7 @@ from databases import Database
 from muistoja.backend.models import *
 from muistoja.backend.repos import *
 from muistoja.core.config import Config
-from muistoja.core.headers import AUTHORIZATION
+from headers import AUTHORIZATION
 from passlib.pwd import genword
 
 from urls import *
