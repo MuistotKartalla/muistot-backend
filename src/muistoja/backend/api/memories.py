@@ -4,7 +4,7 @@ router = make_router(tags=["Memories"])
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/memories',
+    "/projects/{project}/sites/{site}/memories",
     response_model=Memories,
     description=dedent(
         """
@@ -20,7 +20,7 @@ async def get_memories(
         project: PID,
         site: SID,
         db: Database = DEFAULT_DB,
-        include_comments: bool = False
+        include_comments: bool = False,
 ) -> Memories:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
@@ -28,7 +28,7 @@ async def get_memories(
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/memories/{memory}',
+    "/projects/{project}/sites/{site}/memories/{memory}",
     response_model=Memory,
     description=dedent(
         """
@@ -45,7 +45,7 @@ async def get_memory(
         site: SID,
         memory: MID,
         db: Database = DEFAULT_DB,
-        include_comments: bool = False
+        include_comments: bool = False,
 ) -> Memory:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
@@ -53,7 +53,7 @@ async def get_memory(
 
 
 @router.post(
-    '/projects/{project}/sites/{site}/memories',
+    "/projects/{project}/sites/{site}/memories",
     description=dedent(
         """
         Adds a new memory
@@ -67,17 +67,21 @@ async def new_memory(
         r: Request,
         project: PID,
         site: SID,
-        model: NewMemory,
-        db: Database = DEFAULT_DB
+        model: NewMemory = sample(NewMemory),
+        db: Database = DEFAULT_DB,
 ):
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for('get_memory', project=project, site=site, memory=str(new_id)))
+    return created(
+        router.url_path_for(
+            "get_memory", project=project, site=site, memory=str(new_id)
+        )
+    )
 
 
 @router.patch(
-    '/projects/{project}/sites/{site}/memories/{memory}',
+    "/projects/{project}/sites/{site}/memories/{memory}",
     description=dedent(
         """
         Allows modifying memories partially
@@ -92,17 +96,22 @@ async def modify_memory(
         project: PID,
         site: SID,
         memory: MID,
-        model: ModifiedMemory,
-        db: Database = DEFAULT_DB
+        model: ModifiedMemory = sample(ModifiedMemory),
+        db: Database = DEFAULT_DB,
 ):
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     changed = await repo.modify(memory, model)
-    return modified(lambda: router.url_path_for('get_memory', project=project, site=site, memory=str(memory)), changed)
+    return modified(
+        lambda: router.url_path_for(
+            "get_memory", project=project, site=site, memory=str(memory)
+        ),
+        changed,
+    )
 
 
 @router.delete(
-    '/projects/{project}/sites/{site}/memories/{memory}',
+    "/projects/{project}/sites/{site}/memories/{memory}",
     description=dedent(
         """
         Soft deletes a memory and sets it invisible for normal users.
@@ -115,13 +124,9 @@ async def modify_memory(
 )
 @require_auth(scopes.AUTHENTICATED)
 async def delete_memory(
-        r: Request,
-        project: PID,
-        site: SID,
-        memory: MID,
-        db: Database = DEFAULT_DB
+        r: Request, project: PID, site: SID, memory: MID, db: Database = DEFAULT_DB
 ):
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     await repo.delete(memory)
-    return deleted(router.url_path_for('get_memories', project=project, site=site))
+    return deleted(router.url_path_for("get_memories", project=project, site=site))

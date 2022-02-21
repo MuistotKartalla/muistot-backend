@@ -10,14 +10,17 @@ class User(BaseModel, BaseUser):
     """
     Base class used for users in the current application.
     """
-    token: Optional[bytes]
+
+    token: Optional[str]
     username: Optional[str]
     scopes: Set[str] = Field(default_factory=lambda: set())
     admin_projects: Set[str] = Field(default_factory=lambda: set())
 
-    def __init__(self, username: Optional[str] = None, token: Optional[bytes] = None):
+    def __init__(self, username: Optional[str] = None, token: Optional[str] = None):
         if username is not None:
-            super(User, self).__init__(username=username, scopes={AUTHENTICATED}, token=token)
+            super(User, self).__init__(
+                username=username, scopes={AUTHENTICATED}, token=token
+            )
             self.token = token
         else:
             super(User, self).__init__()
@@ -28,7 +31,7 @@ class User(BaseModel, BaseUser):
 
     @property
     def identity(self) -> str:
-        return self.username or '! not authenticated !'
+        return self.username or "! not authenticated !"
 
     @property
     def display_name(self) -> str:
@@ -42,6 +45,4 @@ class User(BaseModel, BaseUser):
         return project in self.admin_projects or self.is_superuser
 
 
-__all__ = [
-    'User'
-]
+__all__ = ["User"]

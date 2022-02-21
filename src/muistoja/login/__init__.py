@@ -10,4 +10,4 @@ def register_login(app: FastAPI):
     register_oauth_providers(app)
 
 
-__all__ = ['register_login']
+__all__ = ["register_login"]

@@ -70,9 +70,10 @@ async def dba() -> Generator[Database, None, None]:
             yield instance
     except (InternalError, OperationalError) as e:
         from ..logging import log
+
         log.warning("Exception in Database", exc_info=e)
         # These are serious
-        raise HTTPException(503, 'Database Error')
+        raise HTTPException(503, "Database Error")
     except IELow:
         raise IntegrityError
 
@@ -88,10 +89,8 @@ async def close() -> NoReturn:
         pass
 
 
-def make_url_from_database_config(database: str) -> str:
-    from ..config import Config
-    db = Config.db[database]
-    return f'{db.driver}://{db.user}:{db.password}@{db.host}:{db.port}/{db.database}'
+def make_url_from_database_config(db) -> str:
+    return f"{db.driver}://{db.user}:{db.password}@{db.host}:{db.port}/{db.database}"
 
 
 async def start() -> NoReturn:
@@ -99,16 +98,25 @@ async def start() -> NoReturn:
     Starts the database
     """
     from ..config import Config
+
     db = Config.db["default"]
-    url = make_url_from_database_config("default")
+    url = make_url_from_database_config(db)
     await init_database(
         url,
         persist=not db.rollback,
         ssl=db.use_ssl,
         min_size=min_connections,
         max_size=max_connections,
-        charset='utf8mb4'
+        charset="utf8mb4",
     )
 
 
-__all__ = ['start', 'dba', 'Database', 'Depends', 'IntegrityError', 'close', 'set_connection_count']
+__all__ = [
+    "start",
+    "dba",
+    "Database",
+    "Depends",
+    "IntegrityError",
+    "close",
+    "set_connection_count",
+]

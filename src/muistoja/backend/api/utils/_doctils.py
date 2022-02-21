@@ -4,13 +4,22 @@ from fastapi import Body
 from headers import LOCATION
 
 
+def check_samples(model):
+    import re
+    samples = model.Config.__examples__
+    for k, v in samples.items():
+        assert re.match(r"^[a-z]+$", k), f'Unconventional sample name {k}'
+        assert "value" in v, f'Missing value {v}'
+        assert "summary" in v, f'Missing summary {v}'
+    return samples
+
+
 def sample(model) -> Body:
     return Body(
         ...,
-        examples=
-        model.Config.__examples__
-        if hasattr(model, 'Config') and hasattr(model.Config, '__examples__')
-        else None
+        examples=check_samples(model)
+        if hasattr(model, "Config") and hasattr(model.Config, "__examples__")
+        else None,
     )
 
 
@@ -18,11 +27,7 @@ def sample_response(model, description: str = None) -> Dict:
     out = {}
     if description:
         out["description"] = description
-    out["content"] = {
-        "application/json": {
-            "examples": model.Config.__examples__
-        }
-    }
+    out["content"] = {"application/json": {"examples": check_samples(model)}}
     return out
 
 
@@ -39,7 +44,7 @@ def loc(_description: str):
 
 
 def get_samples(model):
-    if hasattr(model.Config, '__examples__'):
+    if hasattr(model.Config, "__examples__"):
         return sample_response(model)
     else:
         return dict()

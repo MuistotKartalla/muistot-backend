@@ -14,9 +14,9 @@ def load_data(func):
     if not LOADED:
         with LOCK:
             if not LOADED:
-                with open(expanduser('~/wordlist.txt'), 'r') as f:
+                with open(expanduser("~/wordlist.txt"), "r") as f:
                     data = f.read().splitlines()
-                    split = data.index('#split')
+                    split = data.index("#split")
                     START.extend(w[0].upper() + w[1:] for w in data[:split])
                     END.extend(w[0].upper() + w[1:] for w in data[split + 1:])
                 LOADED = True
@@ -29,7 +29,9 @@ def generate():
     end = END.popleft()
     START.append(start)
     END.append(end)
-    return f"{start}{end}#{int.from_bytes(os.urandom(3), byteorder='big', signed=False):x}"
+    return (
+        f"{start}{end}#{int.from_bytes(os.urandom(3), byteorder='big', signed=False):x}"
+    )
 
 
-__all__ = ['generate']
+__all__ = ["generate"]

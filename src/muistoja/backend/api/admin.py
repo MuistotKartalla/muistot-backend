@@ -7,18 +7,13 @@ from ._imports import *
 
 router = make_router(tags=["Admin"])
 
-ID_MAP = {
-    'project': 'name',
-    'site': 'name',
-    'memory': 'id',
-    'comment': 'id'
-}
+ID_MAP = {"project": "name", "site": "name", "memory": "id", "comment": "id"}
 
 TABLE_MAP = {
-    'project': 'projects',
-    'site': 'sites',
-    'memory': 'memories',
-    'comment': 'comments'
+    "project": "projects",
+    "site": "sites",
+    "memory": "memories",
+    "comment": "comments",
 }
 
 
@@ -28,8 +23,9 @@ class PUPOrder(BaseModel):
 
     Setting entities in a project to a published or un-published state.
     """
-    type: Literal['site', 'memory', 'comment']
-    parents: Optional[Dict[Literal['site', 'memory'], Union[SID, MID]]]
+
+    type: Literal["site", "memory", "comment"]
+    parents: Optional[Dict[Literal["site", "memory"], Union[SID, MID]]]
     identifier: Union[SID, MID, CID]
     publish: bool = True
 
@@ -40,10 +36,10 @@ class PUPOrder(BaseModel):
                 "value": {
                     "type": "site",
                     "identifier": "my-awesome-site#1234",
-                    "publish": True
-                }
+                    "publish": True,
+                },
             },
-            "un-publish": {
+            "unpublish": {
                 "summary": "Hiding a Memory",
                 "description": dedent(
                     """
@@ -55,12 +51,10 @@ class PUPOrder(BaseModel):
                 ),
                 "value": {
                     "type": "memory",
-                    "parents": {
-                        "site": "my-awesome-site#1234"
-                    },
+                    "parents": {"site": "my-awesome-site#1234"},
                     "identifier": 1234,
-                    "publish": False
-                }
+                    "publish": False,
+                },
             },
             "comment": {
                 "summary": "Publishing a Comment",
@@ -73,19 +67,16 @@ class PUPOrder(BaseModel):
                 ),
                 "value": {
                     "type": "comment",
-                    "parents": {
-                        "site": "my_site",
-                        "memory": 34
-                    },
+                    "parents": {"site": "my_site", "memory": 34},
                     "identifier": 1,
-                    "publish": True
-                }
-            }
+                    "publish": True,
+                },
+            },
         }
 
 
 @router.post(
-    '/projects/{project}/admin/publish',
+    "/projects/{project}/admin/publish",
     description=dedent(
         """
         This admin endpoint is for publishing entities.
@@ -101,8 +92,10 @@ class PUPOrder(BaseModel):
         204: d("Resource state changed successfully"),
         400: d("Parent or identifier validation failed"),
         404: d("Parents were not found"),
-        403: d("The current user is not an admin for the selected project or session token is invalid")
-    }
+        403: d(
+            "The current user is not an admin for the selected project or session token is invalid"
+        ),
+    },
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish(
@@ -110,12 +103,12 @@ async def publish(
         resp: Response,
         project: str,
         order: PUPOrder = sample(PUPOrder),
-        db: Database = DEFAULT_DB
+        db: Database = DEFAULT_DB,
 ):
     if not r.user.is_admin_in(project):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='Unauthorized ' + r.user.identity
+            detail="Unauthorized " + r.user.identity,
         )
     try:
         await db.execute(
@@ -124,11 +117,13 @@ async def publish(
             SET published = {1 if order.publish else 0}
             WHERE {ID_MAP[order.type]} = :id
             """,
-            values=dict(id=order.identifier)
+            values=dict(id=order.identifier),
         )
-        if await db.fetch_val('SELECT ROW_COUNT()') == 1:
+        if await db.fetch_val("SELECT ROW_COUNT()") == 1:
             resp.status_code = status.HTTP_204_NO_CONTENT
         else:
             resp.status_code = status.HTTP_304_NOT_MODIFIED
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bad object type')
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Bad object type"
+        )

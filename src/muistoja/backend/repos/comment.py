@@ -6,8 +6,7 @@ class CommentRepo(BaseRepo):
     site: SID
     memory: MID
 
-    _select = (
-        """
+    _select = """
         SELECT c.id,
                u.username AS user,
                c.comment,
@@ -22,10 +21,8 @@ class CommentRepo(BaseRepo):
                  JOIN users u ON c.user_id = u.id
         WHERE c.published
         """
-    )
 
-    _select_for_user = (
-        """
+    _select_for_user = """
         SELECT c.id,
                u.username                                         AS user,
                c.comment,
@@ -43,10 +40,8 @@ class CommentRepo(BaseRepo):
                     AND u2.username = :user
         WHERE (c.published OR u.username = :user)
         """
-    )
 
-    _select_for_admin = (
-        """
+    _select_for_admin = """
         SELECT c.id,
                u.username AS user,
                c.comment,
@@ -62,7 +57,6 @@ class CommentRepo(BaseRepo):
                  JOIN users u ON c.user_id = u.id
         WHERE TRUE
         """
-    )
 
     async def _exists(self, comment: CID) -> Status:
         if self.has_identity:
@@ -94,8 +88,8 @@ class CommentRepo(BaseRepo):
                     memory=self.memory,
                     site=self.site,
                     project=self.project,
-                    user=self.identity
-                )
+                    user=self.identity,
+                ),
             )
         else:
             m = await self.db.fetch_one(
@@ -113,15 +107,26 @@ class CommentRepo(BaseRepo):
                     AND c.id = :comment
                 WHERE p.name = :project
                 """,
-                values=dict(comment=comment, memory=self.memory, site=self.site, project=self.project)
+                values=dict(
+                    comment=comment,
+                    memory=self.memory,
+                    site=self.site,
+                    project=self.project,
+                ),
             )
 
         if m is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
         elif m[1] is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
+            )
         elif m[2] is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Memory not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+            )
 
         s = Status.resolve(m[3])
 
@@ -130,11 +135,17 @@ class CommentRepo(BaseRepo):
             return _s
 
         if m[0] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
         elif m[1] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
+            )
         elif m[2] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Memory not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+            )
 
         return s
 
@@ -155,14 +166,17 @@ class CommentRepo(BaseRepo):
             values.update(user=self.identity)
         else:
             sql = self._select
-        return [self.construct_comment(m) async for m in self.db.iterate(
-            sql,
-            values=values
-        ) if m is not None]
+        return [
+            self.construct_comment(m)
+            async for m in self.db.iterate(sql, values=values)
+            if m is not None
+        ]
 
     @check_published_or_admin
     async def one(self, comment: CID, *, _status: Status) -> Comment:
-        values = dict(site=self.site, project=self.project, memory=self.memory, comment=comment)
+        values = dict(
+            site=self.site, project=self.project, memory=self.memory, comment=comment
+        )
         if _status == Status.ADMIN:
             sql = self._select_for_admin
         elif self.has_identity:
@@ -170,10 +184,9 @@ class CommentRepo(BaseRepo):
             values.update(user=self.identity)
         else:
             sql = self._select
-        return self.construct_comment(await self.db.fetch_one(
-            sql + ' AND c.id = :comment',
-            values=values
-        ))
+        return self.construct_comment(
+            await self.db.fetch_one(sql + " AND c.id = :comment", values=values)
+        )
 
     @check_parents
     async def create(self, model: NewComment) -> CID:
@@ -189,7 +202,12 @@ class CommentRepo(BaseRepo):
             WHERE m.id = :memory
             RETURNING id
             """,
-            values=dict(memory=self.memory, user=self.identity, comment=model.comment, published=self.auto_publish)
+            values=dict(
+                memory=self.memory,
+                user=self.identity,
+                comment=model.comment,
+                published=self.auto_publish,
+            ),
         )
 
     @check_own
@@ -200,7 +218,7 @@ class CommentRepo(BaseRepo):
             SET comment=:comment, published=DEFAULT
             WHERE id = :id
             """,
-            values=dict(id=comment, comment=model.comment)
+            values=dict(id=comment, comment=model.comment),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()") != 0
 
@@ -213,7 +231,7 @@ class CommentRepo(BaseRepo):
                 AND u.username = :user
             WHERE c.id = :cid 
             """,
-            values=dict(user=self.identity, cid=comment)
+            values=dict(user=self.identity, cid=comment),
         )
 
     @check_admin
@@ -222,13 +240,20 @@ class CommentRepo(BaseRepo):
 
     @check_parents
     async def by_user(self, user: str) -> List[UserComment]:
-        if await self.db.fetch_val(
-                "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
-                values=dict(user=user)
-        ) != 1:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
-        return [UserComment(**m) async for m in self.db.iterate(
-            """
+        if (
+                await self.db.fetch_val(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
+                    values=dict(user=user),
+                )
+                != 1
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        return [
+            UserComment(**m)
+            async for m in self.db.iterate(
+                """
             SELECT c.id,
                    u.username AS user,
                    c.comment,
@@ -243,5 +268,6 @@ class CommentRepo(BaseRepo):
                      JOIN projects p ON s.project_id = p.id
             WHERE u.username = :user
             """,
-            dict(user=user)
-        )]
+                dict(user=user),
+            )
+        ]

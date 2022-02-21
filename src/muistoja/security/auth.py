@@ -3,20 +3,21 @@ Supplies the functions needed to do the heavy lifting in authentication
 """
 from typing import Any
 
-from fastapi import FastAPI, Depends, status, Request
+from fastapi import Depends, status, Request
 
-from .sessions import auth, add_session_manager
+from .auth_helper import auth_helper
 from .user import User
 
-AUTH_HELPER = '__auth_helper__'
-REQUEST_HELPER = '__request__'
+AUTH_HELPER = "__auth_helper__"
+REQUEST_HELPER = "__request__"
 
 
-def _add_session_params(f: Any, name: str, auth_scheme_choice):
+def _add_auth_params(f: Any, name: str, auth_scheme_choice):
     """
     Adds a session parameter and related dependency into the function signature
     """
     import inspect
+
     s: inspect.Signature = inspect.signature(f)
     s = s.replace(
         parameters=[
@@ -24,15 +25,16 @@ def _add_session_params(f: Any, name: str, auth_scheme_choice):
             inspect.Parameter(
                 AUTH_HELPER,
                 inspect.Parameter.KEYWORD_ONLY,
-                default=Depends(auth_scheme_choice)
+                default=Depends(auth_scheme_choice),
             ),
             inspect.Parameter(
                 REQUEST_HELPER,
                 inspect.Parameter.KEYWORD_ONLY,
                 default=None,
-                annotation=Request
-            )
-        ])
+                annotation=Request,
+            ),
+        ]
+    )
     f.__signature__ = s
 
 
@@ -49,13 +51,6 @@ def _check_func(f: Any):
         if a.annotation == User:
             user_param = a.name
     return user_param
-
-
-def register_auth(app: FastAPI):  # pragma: no cover
-    """
-    Adds the basic auth check to all endpoints
-    """
-    add_session_manager(app)
 
 
 def require_auth(*required_scopes: str):
@@ -77,6 +72,7 @@ def require_auth(*required_scopes: str):
         @wraps(f)
         async def check_auth(*args, **kwargs):
             from fastapi import HTTPException
+
             kwargs.pop(AUTH_HELPER)
             r: Request = kwargs.pop(REQUEST_HELPER)
             user: User = r.user
@@ -88,14 +84,14 @@ def require_auth(*required_scopes: str):
                 if scope not in user.scopes:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f'Unauthorized\n'
+                        detail=f"Unauthorized\n"
                                f'Required ({",".join(required_scopes)})\n'
-                               f'Got ({",".join(user.scopes)})'
+                               f'Got ({",".join(user.scopes)})',
                     )
 
             return await f(r, *args, **kwargs)
 
-        _add_session_params(check_auth, user_param, auth)
+        _add_auth_params(check_auth, user_param, auth_helper)
 
         return check_auth
 
@@ -103,6 +99,5 @@ def require_auth(*required_scopes: str):
 
 
 __all__ = [
-    'register_auth',
-    'require_auth',
+    "require_auth",
 ]

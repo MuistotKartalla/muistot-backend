@@ -12,7 +12,7 @@ class Status(IntEnum):
     OWN_AND_ADMIN = OWN + ADMIN
 
     @staticmethod
-    def resolve(value: Optional[int]) -> 'Status':
+    def resolve(value: Optional[int]) -> "Status":
         if value is None:
             return Status.DOES_NOT_EXIST
         elif value == 1:

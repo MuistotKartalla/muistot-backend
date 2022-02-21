@@ -5,10 +5,10 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from muistoja.backend import main
-from muistoja.core.database._default_db import make_url_from_database_config
-from muistoja.core.security.auth import User
-from muistoja.core.security.password import hash_password
-from muistoja.core.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
+from muistoja.database._default_db import make_url_from_database_config
+from muistoja.security.auth import User
+from muistoja.security.password import hash_password
+from muistoja.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
 from passlib.pwd import genword
 from pymysql.err import OperationalError
 
@@ -17,7 +17,11 @@ from utils import authenticate as auth
 
 @pytest.fixture
 async def db():
-    db_instance = databases.Database(make_url_from_database_config("default"), force_rollback=False)
+    from muistoja.config import Config
+
+    db_instance = databases.Database(
+        make_url_from_database_config(Config.db["default"]), force_rollback=False
+    )
     while True:
         try:
             await db_instance.connect()
@@ -40,8 +44,12 @@ def client(db):
 def _credentials():
     """username, email, password"""
     length = 10
-    username, email, password = genword(length=length), genword(length=length), genword(length=length)
-    email = f'{email}@example.com'
+    username, email, password = (
+        genword(length=length),
+        genword(length=length),
+        genword(length=length),
+    )
+    email = f"{email}@example.com"
     yield username, email, password
 
 
@@ -50,7 +58,13 @@ async def delete_user(db: databases.Database, credentials):
     username, email, password = credentials
     yield
     await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
-    assert await db.fetch_val("SELECT EXISTS(SELECT * FROM users WHERE username = :un)", values=dict(un=username)) == 0
+    assert (
+            await db.fetch_val(
+                "SELECT EXISTS(SELECT * FROM users WHERE username = :un)",
+                values=dict(un=username),
+            )
+            == 0
+    )
 
 
 @pytest.fixture(name="login")
@@ -59,16 +73,18 @@ async def create_user(db: databases.Database, credentials):
     await db.execute(
         "INSERT INTO users (email, username, password_hash, verified) "
         "VALUE (:email, :username, :password, 1) ",
-        values=dict(password=hash_password(password=password), username=username, email=email)
+        values=dict(
+            password=hash_password(password=password), username=username, email=email
+        ),
     )
     yield username, email, password
 
 
-@pytest.fixture(name='superuser')
+@pytest.fixture(name="superuser")
 async def super_user(login):
     await db.execute(
         "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
-        values=dict(user=login[0])
+        values=dict(user=login[0]),
     )
 
 
@@ -88,6 +104,6 @@ def mock_request(login):
     return cast(Request, MockRequest())
 
 
-@pytest.fixture(name='auth')
+@pytest.fixture(name="auth")
 def auth_fixture(client, login):
     return auth(client, login)

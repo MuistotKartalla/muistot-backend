@@ -9,9 +9,9 @@ from fastapi import Request, HTTPException, status
 from .files import Files
 from .publishing import Status
 from .utils import extract_language
-from ....core.config import Config
-from ....core.logging import log
-from ....core.security import User
+from ....config import Config
+from ....logging import log
+from ....security import User
 
 
 class BaseRepo(ABC):
@@ -28,17 +28,17 @@ class BaseRepo(ABC):
         """
 
         resource = cls.__name__.removesuffix("Repo").lower()
-        assert re.fullmatch('^[A-Z][a-z]+(?<!s)Repo$', cls.__name__)
+        assert re.fullmatch("^[A-Z][a-z]+(?<!s)Repo$", cls.__name__)
 
         mro = inspect.getmro(cls)
         if not mro[1] == BaseRepo:
-            log.warning(f'{cls.__name__} not inheriting base repo directly')
+            log.warning(f"{cls.__name__} not inheriting base repo directly")
         funcs = mro[0].__dict__
-        for name in ['_check_exists', '_check_not_exists']:
+        for name in ["_check_exists", "_check_not_exists"]:
             assert name not in funcs
-        for name in [f'construct_{resource}', '_exists']:
+        for name in [f"construct_{resource}", "_exists"]:
             if name not in funcs:
-                log.warning(f'No {name} declared in repo {cls.__name__}')
+                log.warning(f"No {name} declared in repo {cls.__name__}")
 
     def __init__(self, db: Database, **kwargs):
         self.db = db
@@ -61,10 +61,12 @@ class BaseRepo(ABC):
         try:
             self.lang = extract_language(r)
         except ValueError:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Can not localize')
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Can not localize"
+            )
         return self
 
-    def _configure(self, repo: 'BaseRepo'):
+    def _configure(self, repo: "BaseRepo"):
         self._user = repo._user
         self.lang = repo.lang
         return self
@@ -135,10 +137,10 @@ class BaseRepo(ABC):
         """
         await self.db.execute(
             f'UPDATE {type(self).__name__.removesuffix("Repo").lower()}s r'
-            f' LEFT JOIN users u ON u.username = :user'
-            f' SET r.published = {1 if published else 0}, r.modifier_id = u.id'
+            f" LEFT JOIN users u ON u.username = :user"
+            f" SET r.published = {1 if published else 0}, r.modifier_id = u.id"
             f' WHERE {" AND ".join(f"{k} = :{k}" for k in values.keys())}',
-            values={**values, 'user': self.identity}
+            values={**values, "user": self.identity},
         )
 
     @property
@@ -153,7 +155,7 @@ class BaseRepo(ABC):
     def is_admin(self):
         return self._user.is_authenticated and (
             self._user.is_admin_in(self.project)
-            if hasattr(self, 'project')
+            if hasattr(self, "project")
             else self.is_superuser
         )
 
@@ -181,4 +183,4 @@ class BaseRepo(ABC):
                 return Status.OWN
 
 
-__all__ = ['BaseRepo']
+__all__ = ["BaseRepo"]

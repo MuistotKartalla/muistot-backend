@@ -15,21 +15,21 @@ async def setup(mock_request, db):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("comment", ['Hello World öäå', '-äöäö.,mfaw®†¸é¸ß†˛†˛†', 'a\x00'])
+@pytest.mark.parametrize(
+    "comment", ["Hello World öäå", "-äöäö.,mfaw®†¸é¸ß†˛†˛†", "a\x00"]
+)
 async def test_create(client, setup, credentials, auth, db, comment):
     r = client.post(
-        COMMENTS.format(*setup),
-        json=NewComment(comment=comment).dict(),
-        headers=auth
+        COMMENTS.format(*setup), json=NewComment(comment=comment).dict(), headers=auth
     )
     if r.status_code != 201:
-        c = await db.fetch_all('SELECT id, published FROM comments')
-        m = await db.fetch_all('SELECT id, published FROM memories')
-        s = await db.fetch_all('SELECT name, published FROM sites')
-        p = await db.fetch_all('SELECT name, published FROM projects')
-        u = await db.fetch_all('SELECT username FROM users')
+        c = await db.fetch_all("SELECT id, published FROM comments")
+        m = await db.fetch_all("SELECT id, published FROM memories")
+        s = await db.fetch_all("SELECT name, published FROM sites")
+        p = await db.fetch_all("SELECT name, published FROM projects")
+        u = await db.fetch_all("SELECT username FROM users")
         url = COMMENTS.format(*setup)
-        assert r.status_code == 201, '\n-'.join(repr(a) for a in [c, m, s, p, u, url])
+        assert r.status_code == 201, "\n-".join(repr(a) for a in [c, m, s, p, u, url])
     c = Comment(**client.get(r.headers[LOCATION]).json())
     assert c.user == credentials[0]
     assert c.comment == comment
@@ -44,7 +44,7 @@ async def test_fetch_all(client, setup, credentials, auth, db):
         client.post(
             COMMENTS.format(*setup),
             json=NewComment(comment=comment).dict(),
-            headers=auth
+            headers=auth,
         )
     for c in Comments(**client.get(COMMENTS.format(*setup)).json()).items:
         assert c.comment in comments
@@ -54,36 +54,43 @@ async def test_fetch_all(client, setup, credentials, auth, db):
 @pytest.mark.anyio
 async def test_delete(client, setup, auth, db):
     r = client.post(
-        COMMENTS.format(*setup),
-        json=NewComment(comment='test').dict(),
-        headers=auth
+        COMMENTS.format(*setup), json=NewComment(comment="test").dict(), headers=auth
     )
     assert r.status_code == 201
-    _id = r.headers[LOCATION].removesuffix('/').split('/')[-1]
-    assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 1
+    _id = r.headers[LOCATION].removesuffix("/").split("/")[-1]
+    assert (
+            await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')")
+            == 1
+    )
     assert client.delete(r.headers[LOCATION], headers=auth).status_code == 204
-    assert await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')") == 0
+    assert (
+            await db.fetch_val(f"SELECT EXISTS(SELECT 1 FROM comments WHERE id='{_id}')")
+            == 0
+    )
 
 
 @pytest.mark.anyio
 async def test_modify(client, setup, auth, db):
     r = client.post(
-        COMMENTS.format(*setup),
-        json=NewComment(comment='test').dict(),
-        headers=auth
+        COMMENTS.format(*setup), json=NewComment(comment="test").dict(), headers=auth
     )
     assert r.status_code == 201
 
-    _id = r.headers[LOCATION].removesuffix('/').split('/')[-1]
-    assert await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == 'test'
-
-    r = client.patch(
-        r.headers[LOCATION],
-        json=ModifiedComment(comment='test2').dict(),
-        headers=auth
+    _id = r.headers[LOCATION].removesuffix("/").split("/")[-1]
+    assert (
+            await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == "test"
     )
 
-    assert await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == 'test2'
+    r = client.patch(
+        r.headers[LOCATION], json=ModifiedComment(comment="test2").dict(), headers=auth
+    )
+
+    assert (
+            await db.fetch_val(f"SELECT comment FROM comments WHERE id='{_id}'") == "test2"
+    )
 
     assert r.status_code == 204
-    assert Comment(**client.get(r.headers[LOCATION], headers=auth).json()).comment == 'test2'
+    assert (
+            Comment(**client.get(r.headers[LOCATION], headers=auth).json()).comment
+            == "test2"
+    )

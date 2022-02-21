@@ -15,6 +15,9 @@ async def test_invalid_project_406_edge_case(client: TestClient, login, db):
     username, _, _ = login
     _id = await db.fetch_val(
         "INSERT INTO projects (name, published, default_language_id) VALUE (:pname, 1, 1) RETURNING id",
-        values=dict(pname=username)
+        values=dict(pname=username),
     )
-    assert client.get(PROJECT.format(username)).status_code == status.HTTP_406_NOT_ACCEPTABLE
+    assert (
+            client.get(PROJECT.format(username)).status_code
+            == status.HTTP_406_NOT_ACCEPTABLE
+    )

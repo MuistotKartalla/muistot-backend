@@ -6,8 +6,7 @@ class MemoryRepo(BaseRepo):
     project: PID
     site: SID
 
-    _select = (
-        """
+    _select = """
         SELECT m.id,
                IF(m.deleted, '-', m.title)      AS title,
                IF(m.deleted, '-', m.story)      AS story,
@@ -27,10 +26,8 @@ class MemoryRepo(BaseRepo):
         WHERE m.published {}
         GROUP BY m.id
         """
-    )
 
-    _select_for_user = (
-        """
+    _select_for_user = """
         SELECT m.id,
                IF(m.deleted, '-', m.title)                      AS title,
                IF(m.deleted, '-', m.story)                      AS story,
@@ -53,10 +50,8 @@ class MemoryRepo(BaseRepo):
         WHERE (m.published OR u2.id IS NOT NULL) {}
         GROUP BY m.id
         """
-    )
 
-    _select_for_admin = (
-        """
+    _select_for_admin = """
         SELECT m.id,
                IF(m.deleted, '-', m.title)                      AS title,
                IF(m.deleted, '-', m.story)                      AS story,
@@ -77,7 +72,6 @@ class MemoryRepo(BaseRepo):
         WHERE TRUE {}
         GROUP BY m.id
         """
-    )
 
     async def _exists(self, memory: MID) -> Status:
         if self.has_identity:
@@ -101,7 +95,12 @@ class MemoryRepo(BaseRepo):
                          ON p.id = pa.project_id
                 WHERE p.name = :project
                 """,
-                values=dict(memory=memory, site=self.site, project=self.project, user=self.identity)
+                values=dict(
+                    memory=memory,
+                    site=self.site,
+                    project=self.project,
+                    user=self.identity,
+                ),
             )
         else:
             m = await self.db.fetch_one(
@@ -116,13 +115,17 @@ class MemoryRepo(BaseRepo):
                     AND m.id = :memory
                 WHERE p.name = :project
                 """,
-                values=dict(memory=memory, site=self.site, project=self.project)
+                values=dict(memory=memory, site=self.site, project=self.project),
             )
 
         if m is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
         elif m[1] is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
+            )
 
         s = Status.resolve(m[2])
 
@@ -131,9 +134,13 @@ class MemoryRepo(BaseRepo):
             return _s
 
         if m[0] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
         elif m[1] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Site not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
+            )
 
         return s
 
@@ -145,7 +152,9 @@ class MemoryRepo(BaseRepo):
         return Memory(**m)
 
     @check_parents
-    async def all(self, include_comments: bool = False, *, _status: Status) -> List[Memory]:
+    async def all(
+            self, include_comments: bool = False, *, _status: Status
+    ) -> List[Memory]:
         values = dict(site=self.site, project=self.project)
         if _status == Status.ADMIN:
             sql = self._select_for_admin
@@ -154,17 +163,22 @@ class MemoryRepo(BaseRepo):
             values.update(user=self.identity)
         else:
             sql = self._select
-        out = [self.construct_memory(m) async for m in self.db.iterate(
-            sql.format(''),
-            values=values
-        ) if m is not None]
+        out = [
+            self.construct_memory(m)
+            async for m in self.db.iterate(sql.format(""), values=values)
+            if m is not None
+        ]
         if include_comments:
             for m in out:
-                m.comments = await CommentRepo(self.db, self.project, self.site, m.id).all()
+                m.comments = await CommentRepo(
+                    self.db, self.project, self.site, m.id
+                ).all()
         return out
 
     @check_published_or_admin
-    async def one(self, memory: MID, include_comments: bool = False, *, _status: Status) -> Memory:
+    async def one(
+            self, memory: MID, include_comments: bool = False, *, _status: Status
+    ) -> Memory:
         values = dict(memory=memory, site=self.site, project=self.project)
         if _status == Status.ADMIN:
             sql = self._select_for_admin
@@ -174,13 +188,16 @@ class MemoryRepo(BaseRepo):
         else:
             sql = self._select
 
-        out = self.construct_memory(await self.db.fetch_one(
-            sql.format("AND m.id = :memory"),
-            values=values
-        ))
+        out = self.construct_memory(
+            await self.db.fetch_one(sql.format("AND m.id = :memory"), values=values)
+        )
 
         if include_comments:
-            out.comments = await CommentRepo(self.db, self.project, self.site, out.id)._configure(self).all()
+            out.comments = (
+                await CommentRepo(self.db, self.project, self.site, out.id)
+                    ._configure(self)
+                    .all()
+            )
         return out
 
     @check_parents
@@ -204,15 +221,15 @@ class MemoryRepo(BaseRepo):
                 story=model.story,
                 site=self.site,
                 user=self.identity,
-                published=self.auto_publish
-            )
+                published=self.auto_publish,
+            ),
         )
 
     @check_own
     async def modify(self, memory: MID, model: ModifiedMemory) -> bool:
         data = model.dict(exclude_unset=True)
-        if 'image' in data:
-            data['image_id'] = await self.files.handle(model.image)
+        if "image" in data:
+            data["image_id"] = await self.files.handle(model.image)
         if len(data) > 0:
             await self.db.execute(
                 f"""
@@ -220,7 +237,7 @@ class MemoryRepo(BaseRepo):
                 SET {', '.join(f'{k}=:{k}' for k in data.keys())}
                 WHERE id = :memory
                 """,
-                values=dict(**data, memory=memory)
+                values=dict(**data, memory=memory),
             )
             return await self.db.fetch_val("SELECT ROW_COUNT()") > 0
 
@@ -230,7 +247,7 @@ class MemoryRepo(BaseRepo):
             """
             UPDATE memories SET deleted = 1 WHERE id = :id
             """,
-            values=dict(id=memory)
+            values=dict(id=memory),
         )
 
     @check_admin
@@ -239,7 +256,7 @@ class MemoryRepo(BaseRepo):
             """
             DELETE FROM memories WHERE id = :id
             """,
-            values=dict(id=memory)
+            values=dict(id=memory),
         )
 
     @check_admin
@@ -248,13 +265,20 @@ class MemoryRepo(BaseRepo):
 
     @check_parents
     async def by_user(self, user: str) -> List[UserMemory]:
-        if await self.db.fetch_val(
-                "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
-                values=dict(user=user)
-        ) != 1:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
-        return [UserMemory(**m) async for m in self.db.iterate(
-            """
+        if (
+                await self.db.fetch_val(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
+                    values=dict(user=user),
+                )
+                != 1
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        return [
+            UserMemory(**m)
+            async for m in self.db.iterate(
+                """
             SELECT m.id,
                    IF(m.deleted, '-', m.title)      AS title,
                    IF(m.deleted, '-', m.story)      AS story,
@@ -274,5 +298,6 @@ class MemoryRepo(BaseRepo):
             WHERE u.username = :user
             GROUP BY m.id
             """,
-            values=dict(user=user)
-        )]
+                values=dict(user=user),
+            )
+        ]

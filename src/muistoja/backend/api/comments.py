@@ -4,21 +4,17 @@ router = make_router(tags=["Comments"])
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/memories/{memory}/comments',
+    "/projects/{project}/sites/{site}/memories/{memory}/comments",
     response_model=Comments,
     description=dedent(
         """
         Returns all comments for a memory.
         """
     ),
-    responses=rex.gets(Comments)
+    responses=rex.gets(Comments),
 )
 async def get_comments(
-        r: Request,
-        project: PID,
-        site: SID,
-        memory: MID,
-        db: Database = DEFAULT_DB
+        r: Request, project: PID, site: SID, memory: MID, db: Database = DEFAULT_DB
 ) -> Comments:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
@@ -26,14 +22,14 @@ async def get_comments(
 
 
 @router.get(
-    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
+    "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}",
     response_model=Comment,
     description=dedent(
         """
         Returns all relevant data for a single comment.
         """
     ),
-    responses=rex.get(Comment)
+    responses=rex.get(Comment),
 )
 async def get_comment(
         r: Request,
@@ -41,7 +37,7 @@ async def get_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        db: Database = DEFAULT_DB
+        db: Database = DEFAULT_DB,
 ) -> Comment:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
@@ -49,14 +45,14 @@ async def get_comment(
 
 
 @router.post(
-    '/projects/{project}/sites/{site}/memories/{memory}/comments',
+    "/projects/{project}/sites/{site}/memories/{memory}/comments",
     description=dedent(
         """
         Adds a new comment to a site.
         """
     ),
     responses=rex.create(),
-    response_class=Response
+    response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
 async def new_comment(
@@ -64,23 +60,25 @@ async def new_comment(
         project: PID,
         site: SID,
         memory: MID,
-        model: NewComment,
-        db: Database = DEFAULT_DB
+        model: NewComment = sample(NewComment),
+        db: Database = DEFAULT_DB,
 ):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for(
-        'get_comment',
-        project=project,
-        site=site,
-        memory=str(memory),
-        comment=str(new_id)
-    ))
+    return created(
+        router.url_path_for(
+            "get_comment",
+            project=project,
+            site=site,
+            memory=str(memory),
+            comment=str(new_id),
+        )
+    )
 
 
 @router.patch(
-    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
+    "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}",
     description=dedent(
         """
         Edits a comment.
@@ -89,7 +87,7 @@ async def new_comment(
         """
     ),
     responses=rex.modify(),
-    response_class=Response
+    response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
 async def modify_comment(
@@ -98,23 +96,26 @@ async def modify_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        model: ModifiedComment,
-        db: Database = DEFAULT_DB
+        model: ModifiedComment = sample(ModifiedComment),
+        db: Database = DEFAULT_DB,
 ):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     changed = await repo.modify(comment, model)
-    return modified(lambda: router.url_path_for(
-        'get_comment',
-        project=project,
-        site=site,
-        memory=str(memory),
-        comment=str(comment)
-    ), changed)
+    return modified(
+        lambda: router.url_path_for(
+            "get_comment",
+            project=project,
+            site=site,
+            memory=str(memory),
+            comment=str(comment),
+        ),
+        changed,
+    )
 
 
 @router.delete(
-    '/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}',
+    "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}",
     description=dedent(
         """
         Permanently deletes a comment.
@@ -132,14 +133,16 @@ async def delete_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        db: Database = DEFAULT_DB
+        db: Database = DEFAULT_DB,
 ):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
     await repo.delete(comment)
-    return deleted(router.url_path_for(
-        'get_comments',
-        project=project,
-        site=site,
-        memory=str(memory),
-    ))
+    return deleted(
+        router.url_path_for(
+            "get_comments",
+            project=project,
+            site=site,
+            memory=str(memory),
+        )
+    )

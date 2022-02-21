@@ -11,34 +11,48 @@ from .models import *
 def modify_openapi(app: FastAPI):
     try:
         from pydantic.schema import schema
+
         openapi = app.openapi()
-        openapi["components"]["schemas"].update(schema(
-            [HTTPValidationError],
-            ref_prefix="#/components/schemas/"
-        )["definitions"])
+        openapi["components"]["schemas"].update(
+            schema([HTTPValidationError], ref_prefix="#/components/schemas/")[
+                "definitions"
+            ]
+        )
         app.openapi_schema = openapi
     except Exception as e:
         from ..logging import log
-        log.exception('Failed to setup OpenAPI', exc_info=e)
+
+        log.exception("Failed to setup OpenAPI", exc_info=e)
 
 
-async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_error_handler(
+        _: Request, exc: RequestValidationError
+) -> JSONResponse:
     try:
-        return JSONResponse(status_code=422, content=HTTPValidationError(error=ValidationErrorDetail(
-            code=422,
-            message="request validation error",
-            errors=jsonable_encoder(exc.errors())
-        )).dict())
+        return JSONResponse(
+            status_code=422,
+            content=HTTPValidationError(
+                error=ValidationErrorDetail(
+                    code=422,
+                    message="request validation error",
+                    errors=jsonable_encoder(exc.errors()),
+                )
+            ).dict(),
+        )
     except Exception as e:
         from ..logging import log
-        log.exception('Failed request', exc_info=e)
+
+        log.exception("Failed request", exc_info=e)
         return ErrorResponse(ApiError(422, "request validation error"))
 
 
 async def validation_error_handler_2(_: Request, exc: ValidationError) -> JSONResponse:
     from ..logging import log
+
     log.exception("Failed to parse database value", exc_info=exc)
-    return ErrorResponse(ApiError(code=500, message="Could not parse value returned from database"))
+    return ErrorResponse(
+        ApiError(code=500, message="Could not parse value returned from database")
+    )
 
 
 async def api_error_handler(_: Request, exc: ApiError) -> JSONResponse:
@@ -51,6 +65,7 @@ async def low_error_handler(_: Request, exc: LowHTTPException) -> ErrorResponse:
 
 async def db_error_handler(_: Request, exc) -> ErrorResponse:
     from ..logging import log
+
     log.exception("Database Error", exc_info=exc)
     return ErrorResponse(ApiError(code=503, message="Error in database Communication"))
 
@@ -63,9 +78,10 @@ def register_error_handlers(app: FastAPI):
 
     try:
         from aiomysql import DatabaseError
+
         app.exception_handler(DatabaseError)(db_error_handler)
     except ImportError:
         pass
 
 
-__all__ = ['register_error_handlers', 'modify_openapi']
+__all__ = ["register_error_handlers", "modify_openapi"]

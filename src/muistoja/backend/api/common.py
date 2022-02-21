@@ -16,7 +16,7 @@ router = APIRouter(tags=["Common"])
         This will tell if the static image endpoint works properly.
         """
     ),
-    response_class=HTMLResponse
+    response_class=HTMLResponse,
 )
 def entry(request: Request):
     return textwrap.dedent(
@@ -41,15 +41,9 @@ def entry(request: Request):
         """
     ),
     responses={
-        422: {
-            "description": "Invalid language id"
-        },
-        404: {
-            "description": "Language not found"
-        },
-        400: {
-            "description": "Language has no short code"
-        },
+        422: {"description": "Invalid language id"},
+        404: {"description": "Language not found"},
+        400: {"description": "Language has no short code"},
         200: {
             "description": "Successful response",
             "content": {
@@ -60,27 +54,25 @@ def entry(request: Request):
                             "id": {
                                 "type": "string",
                                 "description": "ISO639-3 Language ID",
-                                "example": "fin"
+                                "example": "fin",
                             },
                             "name": {
                                 "type": "string",
                                 "description": "ISO Language Name",
-                                "example": "Finnish"
-                            }
-                        }
+                                "example": "Finnish",
+                            },
+                        },
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
-def languages(q: str = Query(..., regex=r'^[a-z]{2,3}$')):
+def languages(q: str = Query(..., regex=r"^[a-z]{2,3}$")):
     try:
         from languager import get_language
+
         lang = get_language(q)
-        return {
-            'id': lang.code,
-            'name': lang.name
-        }
+        return {"id": lang.code, "name": lang.name}
     except KeyError:
-        raise HTTPException(status_code=404, detail='Language not found')
+        raise HTTPException(status_code=404, detail="Language not found")

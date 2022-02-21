@@ -6,7 +6,7 @@ router = make_router(tags=["Sites"])
 
 
 @router.get(
-    '/projects/{project}/sites',
+    "/projects/{project}/sites",
     response_model=Sites,
     description=dedent(
         """
@@ -17,7 +17,7 @@ router = make_router(tags=["Sites"])
         Either all the query parameters have to be specified or none of them.
         """
     ),
-    responses=rex.gets(Sites)
+    responses=rex.gets(Sites),
 )
 async def get_sites(
         r: Request,
@@ -25,7 +25,7 @@ async def get_sites(
         n: Optional[int] = None,
         lat: Optional[float] = None,
         lon: Optional[float] = None,
-        db: Database = DEFAULT_DB
+        db: Database = DEFAULT_DB,
 ) -> Sites:
     repo = SiteRepo(db, project)
     repo.configure(r)
@@ -33,7 +33,7 @@ async def get_sites(
 
 
 @router.get(
-    '/projects/{project}/sites/{site}',
+    "/projects/{project}/sites/{site}",
     description=dedent(
         """
         Return info for a single Site.
@@ -41,14 +41,14 @@ async def get_sites(
         Allows for returning all the memories for the site using a query parameter.
         """
     ),
-    responses=rex.get(Site)
+    responses=rex.get(Site),
 )
 async def get_site(
         r: Request,
         project: PID,
         site: SID,
         db: Database = DEFAULT_DB,
-        include_memories: bool = False
+        include_memories: bool = False,
 ) -> Site:
     repo = SiteRepo(db, project)
     repo.configure(r)
@@ -56,7 +56,7 @@ async def get_site(
 
 
 @router.post(
-    '/projects/{project}/sites',
+    "/projects/{project}/sites",
     description=dedent(
         """
         Crates a new site.
@@ -68,15 +68,20 @@ async def get_site(
     response_class=Response,
     responses=rex.create(True),
 )
-async def new_site(r: Request, project: PID, model: NewSite, db: Database = DEFAULT_DB):
+async def new_site(
+        r: Request,
+        project: PID,
+        model: NewSite = sample(NewSite),
+        db: Database = DEFAULT_DB,
+):
     repo = SiteRepo(db, project)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for('get_site', project=project, site=new_id))
+    return created(router.url_path_for("get_site", project=project, site=new_id))
 
 
 @router.patch(
-    '/projects/{project}/sites/{site}',
+    "/projects/{project}/sites/{site}",
     description=dedent(
         """
         Modify a site
@@ -86,24 +91,26 @@ async def new_site(r: Request, project: PID, model: NewSite, db: Database = DEFA
         """
     ),
     response_class=Response,
-    responses=rex.modify()
+    responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def modify_site(
         r: Request,
         project: PID,
         site: SID,
-        model: ModifiedSite,
-        db: Database = DEFAULT_DB
+        model: ModifiedSite = sample(ModifiedSite),
+        db: Database = DEFAULT_DB,
 ):
     repo = SiteRepo(db, project)
     repo.configure(r)
     changed = await repo.modify(site, model)
-    return modified(lambda: router.url_path_for('get_site', project=project, site=site), changed)
+    return modified(
+        lambda: router.url_path_for("get_site", project=project, site=site), changed
+    )
 
 
 @router.delete(
-    '/projects/{project}/sites/{site}',
+    "/projects/{project}/sites/{site}",
     description=dedent(
         """
         Soft deletes a Site and hides it from normal users.
@@ -119,4 +126,4 @@ async def delete_site(r: Request, project: PID, site: SID, db: Database = DEFAUL
     repo = SiteRepo(db, project)
     repo.configure(r)
     await repo.toggle_publish(site, False)
-    deleted(router.url_path_for('get_sites', project=project))
+    deleted(router.url_path_for("get_sites", project=project))

@@ -1,17 +1,14 @@
 from pydantic import constr, conint, confloat, Field
 
-IMAGE_TXT = 'Image file name to be fetched from the image endpoint'
-IMAGE_NEW = 'Image data in base64'
+IMAGE_TXT = "Image file name to be fetched from the image endpoint"
+IMAGE_NEW = "Image data in base64"
 IMAGE = constr(strict=True, strip_whitespace=True, min_length=1)
 
-__ID_REGEX = r'^[a-zA-Z0-9-_#]+$'
+__ID_REGEX = r"^[a-zA-Z0-9-_#]+$"
 """Common regex for project and site ID types
 """
 __ID_TYPE_STR = constr(
-    strip_whitespace=True,
-    min_length=4,
-    max_length=250,
-    regex=__ID_REGEX
+    strip_whitespace=True, min_length=4, max_length=250, regex=__ID_REGEX
 )
 """Common Base for String ID types
 
@@ -22,10 +19,7 @@ This is applied to project and site ID's
 __ID_TYPE_INT = conint(gt=0)
 
 UID = constr(
-    strip_whitespace=True,
-    min_length=4,
-    max_length=64,
-    regex=r'^[a-zA-Z0-9-_@.: #]+$'
+    strip_whitespace=True, min_length=4, max_length=64, regex=r"^[a-zA-Z0-9-_@.: #]+$"
 )
 """User ID used in the application
 
@@ -40,7 +34,7 @@ SID = __ID_TYPE_STR
 MID = __ID_TYPE_INT
 CID = __ID_TYPE_INT
 
-LANG = constr(min_length=2, max_length=3, regex=r'^[a-z]{2}$')
+LANG = constr(min_length=2, max_length=3, regex=r"^[a-z]{2}$")
 """Language tag
 
 Notes
@@ -49,14 +43,20 @@ This abides ISO 639-1
 """
 LANG_FIELD = Field(description="Language tag, supports ISO 639-1 format")
 
-COUNTRY = constr(min_length=1, max_length=6, regex=r'^(?:[A-Z]{2,3}|[A-Z]{2}-(?:[A-Z]{1,3}|[0-9]{1,3}))')
+COUNTRY = constr(
+    min_length=1,
+    max_length=6,
+    regex=r"^(?:[A-Z]{2,3}|[A-Z]{2}-(?:[A-Z]{1,3}|[0-9]{1,3}))",
+)
 """Country tag
 
 Notes
 -----
 Supports ISO3166-1 and ISO3316-2
 """
-COUNTRY_FIELD = Field(description="Country code of the selected country, supports ISO3166-1 and ISO3316-2")
+COUNTRY_FIELD = Field(
+    description="Country code of the selected country, supports ISO3166-1 and ISO3316-2"
+)
 
 LAT = confloat(ge=-90, le=90)
 LON = confloat(ge=-180, le=180)

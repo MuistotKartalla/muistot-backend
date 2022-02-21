@@ -1,18 +1,19 @@
 from fastapi import APIRouter, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
+from headers import *
 
 from ..logic import *
-from ...core.database import dba, Depends, Database
-from ...core.errors import Error
-from headers import *
+from ...database import dba, Depends, Database
+from ...errors import Error
 
 router = APIRouter()
 
 
 def lang(request: Request):
     from headers import ACCEPT_LANGUAGE
-    _lang = request.headers.get(ACCEPT_LANGUAGE, 'fi')
-    return 'en-register' if 'fi' not in _lang else 'fi-register'
+
+    _lang = request.headers.get(ACCEPT_LANGUAGE, "fi")
+    return "en-register" if "fi" not in _lang else "fi-register"
 
 
 @router.post(
@@ -20,11 +21,10 @@ def lang(request: Request):
     tags=["Auth"],
     response_class=Response,
     status_code=200,
-
 )
 async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)):
     if login.username is not None and login.email is not None:
-        raise HTTPException(status_code=400, detail='Email or Username required')
+        raise HTTPException(status_code=400, detail="Email or Username required")
     if login.username is not None:
         return await login_username(login, db, r.state.manager)
     elif login.email is not None:
@@ -36,27 +36,30 @@ async def default_login(r: Request, login: LoginQuery, db: Database = Depends(db
 @router.post(
     "/register",
     responses={
-        '409': {
-            'model': Error,
-            "description": "User already exists or email/username is in use"
+        "409": {
+            "model": Error,
+            "description": "User already exists or email/username is in use",
         }
     },
     tags=["Auth"],
     response_class=Response,
-    status_code=201
+    status_code=201,
 )
-async def default_register(request: Request, query: RegisterQuery, db: Database = Depends(dba)):
+async def default_register(
+        request: Request, query: RegisterQuery, db: Database = Depends(dba)
+):
     import urllib.parse as url
+
     if AUTHORIZATION in request:
         return JSONResponse(status_code=409, content="Already signed-in")
     resp = await register_user(query, db)
     if resp.status_code == 201:
         await send_email(
             query.username,
-            lambda user, token: router.url_path_for('register_confirm')
+            lambda user, token: router.url_path_for("register_confirm")
                                 + f"?{url.urlencode(dict(user=user, token=token))}",
             db,
-            lang=f'{lang(request)}-register'
+            lang=f"{lang(request)}-register",
         )
     return resp
 
@@ -67,18 +70,14 @@ async def default_register(request: Request, query: RegisterQuery, db: Database 
     response_class=Response,
     status_code=204,
     responses={
-        404: {
-            "description": "Failed to find verifier"
-        },
-        403: {
-            "description": "Invalid Auth token detected"
-        },
-        204: {
-            "description": "Successful verification"
-        }
-    }
+        404: {"description": "Failed to find verifier"},
+        403: {"description": "Invalid Auth token detected"},
+        204: {"description": "Successful verification"},
+    },
 )
-async def register_confirm(_: Request, user: str, token: str, db: Database = Depends(dba)):
+async def register_confirm(
+        _: Request, user: str, token: str, db: Database = Depends(dba)
+):
     if len(token) != 200:
         raise HTTPException(status_code=404)
     await db.execute(
@@ -88,14 +87,14 @@ async def register_confirm(_: Request, user: str, token: str, db: Database = Dep
         SET verified = 1
         WHERE u.username = :user AND uev.verifier = :token
         """,
-        values=dict(user=user, token=token)
+        values=dict(user=user, token=token),
     )
     if (await db.fetch_val("SELECT ROW_COUNT()")) == 1:
         await db.execute(
             """
             DELETE FROM user_email_verifiers WHERE user_id = (SELECT id FROM users WHERE username = :user)
             """,
-            values=dict(user=user)
+            values=dict(user=user),
         )
         return Response(status_code=204)
     else:

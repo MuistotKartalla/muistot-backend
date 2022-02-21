@@ -1,12 +1,12 @@
-ROOT = ''
-PROJECTS = ROOT + '/projects'
-PROJECT = PROJECTS + '/{}'
-SITES = PROJECT + '/sites'
-SITE = SITES + '/{}'
-MEMORIES = SITE + '/memories'
-MEMORY = MEMORIES + '/{}'
-COMMENTS = MEMORY + '/comments'
-COMMENT = COMMENTS + '/{}'
+ROOT = ""
+PROJECTS = ROOT + "/projects"
+PROJECT = PROJECTS + "/{}"
+SITES = PROJECT + "/sites"
+SITE = SITES + "/{}"
+MEMORIES = SITE + "/memories"
+MEMORY = MEMORIES + "/{}"
+COMMENTS = MEMORY + "/comments"
+COMMENT = COMMENTS + "/{}"
 
-REGISTER = ROOT + '/register'
-LOGIN = ROOT + '/login'
+REGISTER = ROOT + "/register"
+LOGIN = ROOT + "/login"

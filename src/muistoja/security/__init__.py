@@ -1,4 +1,5 @@
 from . import scopes
 from .auth import *
-from .sessions import SessionManager
 from .user import User
+
+__all__ = ["User", "scopes", "require_auth"]

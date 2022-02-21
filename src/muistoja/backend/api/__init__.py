@@ -19,7 +19,4 @@ router.include_router(admin_router)
 router.include_router(me_router)
 api_paths = router
 
-__all__ = [
-    'common_paths',
-    'api_paths'
-]
+__all__ = ["common_paths", "api_paths"]

@@ -1,5 +1,3 @@
-from pydantic import ValidationError
-
 from .base import *
 from .memory import MemoryRepo
 
@@ -7,8 +5,7 @@ from .memory import MemoryRepo
 class SiteRepo(BaseRepo):
     project: PID
 
-    __select = (
-        """
+    __select = """
         SELECT
             s.name                                      AS id,
             COALESCE(si.name, def_si.name, s.name)      AS name,
@@ -28,10 +25,11 @@ class SiteRepo(BaseRepo):
                 JOIN languages l ON si.lang_id = l.id
                     AND l.lang = :lang
                 ON s.id = si.site_id 
-            LEFT JOIN site_information def_si 
-                JOIN languages def_l ON def_si.lang_id = def_l.id
-                ON s.id = def_si.site_id
+                
+            JOIN site_information def_si ON s.id = def_si.site_id
                     AND def_si.lang_id = p.default_language_id 
+            JOIN languages def_l ON def_si.lang_id = def_l.id
+                
             LEFT JOIN memories m ON s.id = m.site_id
                 AND m.published
             LEFT JOIN images i ON i.id = s.image_id
@@ -41,12 +39,11 @@ class SiteRepo(BaseRepo):
         GROUP BY s.id
         %s
         """
-    )
 
-    _select = (__select % ('', ''))
+    _select = __select % ("", "")
     _select_dist = __select % (
         ",\nST_DISTANCE_SPHERE(s.location, POINT(:lon, :lat)) AS distance",
-        " ORDER BY distance LIMIT {:d}"
+        " ORDER BY distance LIMIT {:d}",
     )
 
     async def _exists(self, site: SID) -> Status:
@@ -65,7 +62,7 @@ class SiteRepo(BaseRepo):
                          ON p.id = pa.project_id
                 WHERE p.name = :project
                 """,
-                values=dict(site=site, project=self.project, user=self.identity)
+                values=dict(site=site, project=self.project, user=self.identity),
             )
         else:
             m = await self.db.fetch_one(
@@ -77,10 +74,12 @@ class SiteRepo(BaseRepo):
                     AND s.name = :site
                 WHERE p.name = :project
                 """,
-                values=dict(site=site, project=self.project)
+                values=dict(site=site, project=self.project),
             )
         if m is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
 
         s = Status.resolve(m[1])
 
@@ -89,7 +88,9 @@ class SiteRepo(BaseRepo):
                 return Status.ADMIN
 
         if m[0] == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Project not found')
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            )
 
         return s
 
@@ -115,19 +116,12 @@ class SiteRepo(BaseRepo):
                 WHERE l.lang = :lang
                 RETURNING lang_id
                 """,
-                values=dict(
-                    site=site,
-                    **model.dict(),
-                    user=self.identity
-                )
+                values=dict(site=site, **model.dict(), user=self.identity),
             )
 
     @staticmethod
     def construct_site(m) -> Site:
-        try:
-            return Site(location=Point(**m), info=SiteInfo(**m), **m)
-        except ValidationError:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Missing localization')
+        return Site(location=Point(**m), info=SiteInfo(**m), **m)
 
     @check_parents
     async def all(
@@ -136,47 +130,65 @@ class SiteRepo(BaseRepo):
             lat: Optional[float] = None,
             lon: Optional[float] = None,
             *,
-            _status: Status
+            _status: Status,
     ) -> List[Site]:
         values = dict(lang=self.lang, project=self.project, user=self.identity)
         if _status == Status.ADMIN:
-            where = 'WHERE TRUE'
+            where = "WHERE TRUE"
         elif self.has_identity:
-            where = 'WHERE (s.published OR um.username = :user)'
+            where = "WHERE (s.published OR um.username = :user)"
         else:
-            where = 'WHERE s.published'
+            where = "WHERE s.published"
         if n is not None and lat is not None and lon is not None:
             if n < 0:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='negative n')
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="negative n"
+                )
             values.update(lon=lon, lat=lat)
-            out = [self.construct_site(m) async for m in self.db.iterate(
-                self._select_dist.format(where, n),
-                values=values
-            ) if m is not None]
+            out = [
+                self.construct_site(m)
+                async for m in self.db.iterate(
+                    self._select_dist.format(where, n), values=values
+                )
+                if m is not None
+            ]
         else:
-            out = [self.construct_site(m) async for m in self.db.iterate(
-                self._select.format(where),
-                values=values
-            ) if m is not None]
+            out = [
+                self.construct_site(m)
+                async for m in self.db.iterate(
+                    self._select.format(where), values=values
+                )
+                if m is not None
+            ]
         return out
 
     @check_published_or_admin
-    async def one(self, site: SID, include_memories: bool = False, *, _status: Status) -> Site:
-        values = dict(lang=self.lang, project=self.project, site=site, user=self.identity)
+    async def one(
+            self, site: SID, include_memories: bool = False, *, _status: Status
+    ) -> Site:
+        values = dict(
+            lang=self.lang, project=self.project, site=site, user=self.identity
+        )
         if _status == Status.ADMIN:
-            where = 'WHERE TRUE'
+            where = "WHERE TRUE"
         elif self.has_identity:
-            where = (
-                'WHERE (s.published OR um.username = :user)'
-            )
+            where = "WHERE (s.published OR um.username = :user)"
         else:
-            where = 'WHERE s.published'
-        out = self.construct_site(await self.db.fetch_one(
-            self._select.format(where + " AND s.name = :site"),
-            values=values
-        ))
+            where = "WHERE s.published"
+
+        m = await self.db.fetch_one(self._select.format(where + " AND s.name = :site"), values=values)
+        if m is None:
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                detail='Site missing default localization'
+            )
+        out = self.construct_site(m)
         if include_memories:
-            out.memories = await MemoryRepo(self.db, self.project, out.id)._configure(self).all(include_comments=False)
+            out.memories = (
+                await MemoryRepo(self.db, self.project, out.id)
+                    ._configure(self)
+                    .all(include_comments=False)
+            )
         return out
 
     @check_not_exists
@@ -205,8 +217,8 @@ class SiteRepo(BaseRepo):
                 lon=model.location.lon,
                 lat=model.location.lat,
                 project=self.project,
-                user=self.identity
-            )
+                user=self.identity,
+            ),
         )
         _id, name = ret
         await self._handle_info(name, model.info)
@@ -215,43 +227,45 @@ class SiteRepo(BaseRepo):
     @check_admin
     async def modify(self, site: SID, model: ModifiedSite) -> bool:
         data = model.dict(exclude_unset=True)
-        if 'image' in data:
+        if "image" in data:
             image_id = await self.files.handle(model.image)
         else:
             image_id = None
-        if 'location' in data:
-            modified = await self.db.fetch_val(
-                f"""
+        if "location" in data:
+            modified = (
+                    await self.db.fetch_val(
+                        f"""
                 UPDATE sites 
                 SET location=POINT(:lon, :lat), {'' if image_id is None else 'image_id=:image'},
                     modifier_id = (SELECT id FROM users WHERE username = :user)
                 WHERE name = :site
                 """,
-                values=dict(
-                    site=site,
-                    lon=model.location.lon,
-                    lat=model.location.lat,
-                    **(dict() if image_id is None else dict(image=image_id)),
-                    user=self.identity
-                )
-            ) == 1
+                        values=dict(
+                            site=site,
+                            lon=model.location.lon,
+                            lat=model.location.lat,
+                            **(dict() if image_id is None else dict(image=image_id)),
+                            user=self.identity,
+                        ),
+                    )
+                    == 1
+            )
         elif image_id is not None:
-            modified = await self.db.fetch_val(
-                f"""
+            modified = (
+                    await self.db.fetch_val(
+                        f"""
                 UPDATE sites s
                     LEFT JOIN users u ON u.username = :user
                 SET s.image_id = :image, s.modifier_id = u.id
                 WHERE s.name = :site
                 """,
-                values=dict(
-                    site=site,
-                    image=image_id,
-                    user=self.identity
-                )
-            ) == 1
+                        values=dict(site=site, image=image_id, user=self.identity),
+                    )
+                    == 1
+            )
         else:
             modified = True
-        if 'info' in data:
+        if "info" in data:
             modified = self._handle_info(site, model.info)
         return modified
 
@@ -261,7 +275,7 @@ class SiteRepo(BaseRepo):
             """
             DELETE FROM sites WHERE name = :id
             """,
-            values=dict(id=site)
+            values=dict(id=site),
         )
 
     @check_admin

@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 from ._default import router as default_login
 from ._email_only import router as email_login
-from ...core.config import Config
-from ...core.logging import log
+from ...config import Config
+from ...logging import log
 
 
 def register_oauth_providers(app, **kwargs):
@@ -20,10 +20,10 @@ def register_oauth_providers(app, **kwargs):
     for oauth_provider in Config.security.oauth:
         try:
             oauth_module = import_module(f".{oauth_provider}")
-            app.include_router(getattr(oauth_module, 'router'), **kwargs)
-            log.info(f'Loaded: {oauth_provider}')
+            app.include_router(getattr(oauth_module, "router"), **kwargs)
+            log.info(f"Loaded: {oauth_provider}")
         except Exception as e:
             log.warning(f"Failed to load OAuth provider: {oauth_provider}", exc_info=e)
 
 
-__all__ = ['default_login', 'register_oauth_providers', 'email_login']
+__all__ = ["default_login", "register_oauth_providers", "email_login"]

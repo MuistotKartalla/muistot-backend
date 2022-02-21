@@ -6,9 +6,9 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import common_paths, api_paths
-from ..core.config import Config
-from ..core.errors import register_error_handlers, modify_openapi
-from ..core.security import register_auth
+from ..config import Config
+from ..errors import register_error_handlers, modify_openapi
+from ..sessions import add_session_manager
 
 description = textwrap.dedent(
     """
@@ -73,34 +73,13 @@ description = textwrap.dedent(
 )
 
 tags = [
-    {
-        "name": "Common",
-        "description": "Common unauthenticated endpoints"
-    },
-    {
-        "name": "Projects",
-        "description": "For viewing, creating, and managing Projects"
-    },
-    {
-        "name": "Sites",
-        "description": "Site related operations"
-    },
-    {
-        "name": "Memories",
-        "description": "User created memories"
-    },
-    {
-        "name": "Comments",
-        "description": "User comments"
-    },
-    {
-        "name": "Admin",
-        "description": "Administrative utilities"
-    },
-    {
-        "name": "Me",
-        "description": "Authenticated user specific endpoints"
-    }
+    {"name": "Common", "description": "Common unauthenticated endpoints"},
+    {"name": "Projects", "description": "For viewing, creating, and managing Projects"},
+    {"name": "Sites", "description": "Site related operations"},
+    {"name": "Memories", "description": "User created memories"},
+    {"name": "Comments", "description": "User comments"},
+    {"name": "Admin", "description": "Administrative utilities"},
+    {"name": "Me", "description": "Authenticated user specific endpoints"},
 ]
 
 app = FastAPI(
@@ -110,7 +89,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url=None,
     default_response_class=JSONResponse,
-    openapi_tags=tags
+    openapi_tags=tags,
 )
 
 # ERROR HANDLERS
@@ -134,33 +113,33 @@ app.include_router(api_paths)
 
 
 # This is a hack
-register_auth(app)
+add_session_manager(app)
 
 if not Config.testing:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_methods=set()
-    )
+    app.add_middleware(CORSMiddleware, allow_methods=set())
     app.add_middleware(HTTPSRedirectMiddleware)
 else:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['*'],
+        allow_origins=["*"],
         allow_methods={"GET", "POST", "PATCH", "PUT", "DELETE"},
-        allow_headers=['*'],
-        expose_headers=['*']
+        allow_headers=["*"],
+        expose_headers=["*"],
     )
 
 
-    @app.middleware('http')
+    @app.middleware("http")
     async def timed(r, cn):
-        from ..core.logging import log
+        from ..logging import log
         from time import time_ns
+
         start = time_ns()
         try:
             return await cn(r)
         finally:
-            log.info(f'{r.method} request to {r.url} took {(time_ns() - start) / 1E6:.3f} millis')
+            log.info(
+                f"{r.method} request to {r.url} took {(time_ns() - start) / 1E6:.3f} millis"
+            )
 
 
 # END MIDDLEWARE
@@ -171,7 +150,8 @@ async def start_database():
     """
     Handle startup and database url parsing
     """
-    from ..core import database
+    from .. import database
+
     await database.start()
 
 
@@ -180,7 +160,8 @@ async def stop_database():
     """
     Handle shutdown and database resource release
     """
-    from ..core import database
+    from .. import database
+
     await database.close()
 
 

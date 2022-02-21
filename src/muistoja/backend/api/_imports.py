@@ -13,11 +13,12 @@ from ..models import *
 # noinspection PyUnresolvedReferences
 from ..repos import *
 # noinspection PyUnresolvedReferences
-from ...core.security import require_auth, scopes
+from ...security import require_auth, scopes
 
 
 def _database():
-    from ...core.database import dba, Depends
+    from ...database import dba, Depends
+
     return Depends(dba)
 
 

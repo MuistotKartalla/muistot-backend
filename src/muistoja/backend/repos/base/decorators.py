@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 
 from .base import BaseRepo
 from .publishing import Status
-from ....core.logging import log
+from ....logging import log
 
 
 def not_implemented(f):
@@ -14,20 +14,19 @@ def not_implemented(f):
 
     Should only be used on Repo instance methods
     """
-    log.warning(f'Function not implemented {repr(f)}')
+    log.warning(f"Function not implemented {repr(f)}")
 
     @functools.wraps(f)
     async def decorator(*_, **__):
         raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail='Not Implemented'
+            status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not Implemented"
         )
 
     return decorator
 
 
 def _name(o):
-    return type(o).__name__.removesuffix('Repo')
+    return type(o).__name__.removesuffix("Repo")
 
 
 def _check_kwargs(f) -> Optional[str]:
@@ -44,9 +43,10 @@ def _check_kwargs(f) -> Optional[str]:
 async def _exists(*args) -> Status:
     if len(args) >= 2:
         from pydantic import BaseModel
+
         self, arg = args[0:2]
         if isinstance(arg, BaseModel):
-            if hasattr(arg, 'id'):
+            if hasattr(arg, "id"):
                 arg = arg.id
             else:
                 arg = None
@@ -59,16 +59,20 @@ async def _exists(*args) -> Status:
 
 def _mapper_common(self, s):
     if s == Status.DOES_NOT_EXIST:
-        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{_name(self)} not found')
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"{_name(self)} not found"
+        )
     else:
-        return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f'Not enough privileges ({s})')
+        return HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Not enough privileges ({s})"
+        )
 
 
 def check(
         allowed_types: Set[Status],
         error_mapper: Optional[Callable[[BaseRepo, Status], HTTPException]],
         *,
-        invert: bool = False
+        invert: bool = False,
 ):
     """
     General check function
@@ -118,8 +122,10 @@ def check_exists(f):
     """
     return check(
         {Status.DOES_NOT_EXIST},
-        lambda self, s: HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'{_name(self)} not found'),
-        invert=True
+        lambda self, s: HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"{_name(self)} not found"
+        ),
+        invert=True,
     )(f)
 
 
@@ -129,7 +135,9 @@ def check_not_exists(f):
     """
     return check(
         {Status.DOES_NOT_EXIST},
-        lambda self, s: HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'{_name(self)} exists')
+        lambda self, s: HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"{_name(self)} exists"
+        ),
     )(f)
 
 
@@ -137,11 +145,7 @@ def check_parents(f):
     """
     Checks just parents
     """
-    return check(
-        set(),
-        None,
-        invert=True
-    )(f)
+    return check(set(), None, invert=True)(f)
 
 
 def check_admin(f):
@@ -149,10 +153,7 @@ def check_admin(f):
     Check user is admin
     """
 
-    return check(
-        {Status.ADMIN, Status.OWN_AND_ADMIN},
-        _mapper_common
-    )(f)
+    return check({Status.ADMIN, Status.OWN_AND_ADMIN}, _mapper_common)(f)
 
 
 def check_own(f):
@@ -160,10 +161,7 @@ def check_own(f):
     Check user is admin
     """
 
-    return check(
-        {Status.OWN, Status.OWN_AND_ADMIN},
-        _mapper_common
-    )(f)
+    return check({Status.OWN, Status.OWN_AND_ADMIN}, _mapper_common)(f)
 
 
 def check_published_or_admin(f):
@@ -174,7 +172,7 @@ def check_published_or_admin(f):
     """
     return check(
         {Status.PUBLISHED, Status.OWN, Status.ADMIN, Status.OWN_AND_ADMIN},
-        _mapper_common
+        _mapper_common,
     )(f)
 
 
@@ -184,30 +182,24 @@ def check_own_or_admin(f):
 
     Admins will bypass this
     """
-    return check(
-        {Status.OWN, Status.ADMIN, Status.OWN_AND_ADMIN},
-        _mapper_common
-    )(f)
+    return check({Status.OWN, Status.ADMIN, Status.OWN_AND_ADMIN}, _mapper_common)(f)
 
 
 def check_super(f):
     """
     Only Super will bypass
     """
-    return check(
-        set(),
-        _mapper_common
-    )(f)
+    return check(set(), _mapper_common)(f)
 
 
 __all__ = [
-    'check_exists',
-    'check_not_exists',
-    'check_super',
-    'check_admin',
-    'check_own_or_admin',
-    'check_published_or_admin',
-    'check_parents',
-    'check_own',
-    'not_implemented',
+    "check_exists",
+    "check_not_exists",
+    "check_super",
+    "check_admin",
+    "check_own_or_admin",
+    "check_published_or_admin",
+    "check_parents",
+    "check_own",
+    "not_implemented",
 ]

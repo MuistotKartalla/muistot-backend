@@ -1,12 +1,9 @@
-from pydantic import ValidationError
-
 from .base import *
 from .site import SiteRepo
 
 
 class ProjectRepo(BaseRepo):
-    _select = (
-        """
+    _select = """
         SELECT
 
             p.id AS project_id,
@@ -29,10 +26,11 @@ class ProjectRepo(BaseRepo):
                     AND l.lang = :lang
                 ON p.id = pi.project_id
 
-            LEFT JOIN project_information def_pi 
-                JOIN languages def_l ON def_pi.lang_id = def_l.id
+            JOIN project_information def_pi
                 ON p.id = def_pi.project_id
                     AND def_pi.lang_id = p.default_language_id
+            JOIN languages def_l ON def_pi.lang_id = def_l.id
+                
 
             LEFT JOIN images i ON p.image_id = i.id
             LEFT JOIN project_contact pc ON p.id = pc.project_id
@@ -42,7 +40,6 @@ class ProjectRepo(BaseRepo):
         WHERE IFNULL(p.starts > CURDATE(), TRUE) AND p.published
         GROUP BY p.id
         """
-    )
 
     async def _exists(self, project: PID) -> Status:
         if self.has_identity:
@@ -57,7 +54,7 @@ class ProjectRepo(BaseRepo):
                          ON p.id = pa.project_id
                 WHERE p.name = :project
                 """,
-                values=dict(project=project, user=self.identity)
+                values=dict(project=project, user=self.identity),
             )
             if m is None:
                 return Status.DOES_NOT_EXIST
@@ -69,24 +66,31 @@ class ProjectRepo(BaseRepo):
             else:
                 return s
         else:
-            return Status.resolve(await self.db.fetch_val(
-                'SELECT published FROM projects WHERE name = :project',
-                values=dict(project=project)
-            ))
+            return Status.resolve(
+                await self.db.fetch_val(
+                    "SELECT published FROM projects WHERE name = :project",
+                    values=dict(project=project),
+                )
+            )
 
     async def _get_admins(self, project_id: int):
-        out = [admin[0] for admin in await self.db.fetch_all(
-            """
+        out = [
+            admin[0]
+            for admin in await self.db.fetch_all(
+                """
             SELECT u.username
             FROM project_admins pa
                 JOIN users u ON pa.user_id = u.id
             WHERE project_id = :pid
             """,
-            values=dict(pid=project_id)
-        )]
-        return out if len(out) > 0 else None
+                values=dict(pid=project_id),
+            )
+        ]
+        return out if len(out) > 0 else list()
 
-    async def _handle_localization(self, project: PID, localized_data: ProjectInfo) -> int:
+    async def _handle_localization(
+            self, project: PID, localized_data: ProjectInfo
+    ) -> int:
         return await self.db.fetch_val(
             """
             REPLACE INTO project_information (
@@ -111,10 +115,12 @@ class ProjectRepo(BaseRepo):
             RETURNING lang_id
             """,
             values=dict(
-                **localized_data.dict(include={'name', 'abstract', 'description', 'lang'}),
+                **localized_data.dict(
+                    include={"name", "abstract", "description", "lang"}
+                ),
                 user=self.identity,
-                project=project
-            )
+                project=project,
+            ),
         )
 
     async def _handle_contact(self, project: PID, contact: Optional[ProjectContact]):
@@ -139,17 +145,13 @@ class ProjectRepo(BaseRepo):
                 JOIN users u ON u.username = :user
             WHERE p.name = :project
             """,
-            values=dict(
-                **contact.dict(),
-                user=self.identity,
-                project=project
-            )
+            values=dict(**contact.dict(), user=self.identity, project=project),
         )
 
     async def _handle_admins(self, project: PID, admins: List[str]):
         await self.db.execute(
             "DELETE FROM project_admins WHERE project_id = (SELECT id FROM projects WHERE name = :project)",
-            values=dict(project=project)
+            values=dict(project=project),
         )
         await self.db.execute(
             f"""
@@ -160,46 +162,43 @@ class ProjectRepo(BaseRepo):
             WHERE u.username IN ({",".join(f":admin_{i}" for i in range(0, len(admins)))})
             """,
             values=dict(
-                project=project,
-                **{
-                    f"admin_{i}": v for i, v in enumerate(admins)
-                }
-            )
+                project=project, **{f"admin_{i}": v for i, v in enumerate(admins)}
+            ),
         )
 
     async def construct_project(self, m) -> Project:
-        try:
-            if m is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail='Project not found'
-                )
-            pi = ProjectInfo(**m)
-            if not m[8] is None:
-                pc = ProjectContact(**m)
-            else:
-                pc = None
-            return Project(
-                **m,
-                info=pi,
-                contact=pc,
-                admins=await self._get_admins(m[0])
+        if m is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
-        except ValidationError:
-            raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail='Missing localization')
+        pi = ProjectInfo(**m)
+        if not m[8] is None:
+            pc = ProjectContact(**m)
+        else:
+            pc = None
+        return Project(**m, info=pi, contact=pc, admins=await self._get_admins(m[0]))
 
     async def all(self) -> List[Project]:
-        return [await self.construct_project(m) for m in await self.db.fetch_all(
-            self._select,
-            values=dict(lang=self.lang)
-        ) if m is not None]
+        return [
+            await self.construct_project(m)
+            for m in await self.db.fetch_all(self._select, values=dict(lang=self.lang))
+            if m is not None
+        ]
 
     @check_published_or_admin
     async def one(self, project: PID, include_sites: bool = False) -> Project:
-        out = await self.construct_project(await self.db.fetch_one(
+        m = await self.db.fetch_one(
             self._select + " AND p.name = :project",
             values=dict(lang=self.lang, project=project)
-        ))
+        )
+        if m is None:
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                detail='Project missing default localization'
+            )
+        out = await self.construct_project(
+
+        )
         if include_sites:
             out.sites = await SiteRepo(self.db, project)._configure(self).all()
         return out
@@ -207,11 +206,19 @@ class ProjectRepo(BaseRepo):
     @check_not_exists
     async def create(self, model: NewProject) -> PID:
         if not self.is_superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Not enough privileges')
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges"
+            )
         check_id(model.id)
         check_language(model.info.lang)
-        if model.starts is not None and model.ends is not None and model.starts <= model.ends:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='End before start')
+        if (
+                model.starts is not None
+                and model.ends is not None
+                and model.starts <= model.ends
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="End before start"
+            )
         if model.image is not None:
             image_id = self.files.handle(model.image)
         else:
@@ -241,12 +248,12 @@ class ProjectRepo(BaseRepo):
             WHERE u.username = :user
             """,
             values=dict(
-                **model.dict(include={'id', 'starts', 'ends', 'admin_posting'}),
+                **model.dict(include={"id", "starts", "ends", "admin_posting"}),
                 image_id=image_id,
                 user=self.identity,
                 lang=model.info.lang,
-                published=self.auto_publish
-            )
+                published=self.auto_publish,
+            ),
         )
         if model.contact is not None:
             await self._handle_contact(model.id, model.contact)
@@ -263,13 +270,15 @@ class ProjectRepo(BaseRepo):
             return False
         else:
             values = {}
-            if 'image' in data:
-                values['image_id'] = self.files.handle(model.image)
-            if 'contact' in data:
+            if "image" in data:
+                values["image_id"] = self.files.handle(model.image)
+            if "contact" in data:
                 await self._handle_contact(project, model.contact)
-            if 'info' in data:
-                values["default_language_id"] = await self._handle_localization(project, model.info)
-            for k in {'starts', 'ends'}:
+            if "info" in data:
+                values["default_language_id"] = await self._handle_localization(
+                    project, model.info
+                )
+            for k in {"starts", "ends"}:
                 if k in data:
                     values[k] = data[k]
             if len(values) > 0:
@@ -281,13 +290,10 @@ class ProjectRepo(BaseRepo):
                         p.modifier_id = u.id
                     WHERE p.name = :project
                     """,
-                    values=dict(**values, project=project, user=self.identity)
+                    values=dict(**values, project=project, user=self.identity),
                 )
             else:
                 modified = False
-            if model.admins is not None:
-                await self._handle_admins(project, model.admins)
-                modified = True
             return modified
 
     @check_super
@@ -296,7 +302,7 @@ class ProjectRepo(BaseRepo):
             """
             DELETE FROM projects WHERE name = :project
             """,
-            values=dict(project=project)
+            values=dict(project=project),
         )
 
     @check_admin
@@ -309,11 +315,13 @@ class ProjectRepo(BaseRepo):
 
     @check_admin
     async def add_admin(self, project: PID, user: UID):
-        if (await self.db.fetch_val(
+        if await self.db.fetch_val(
                 "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
-                values=dict(user=user)
-        )):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+                values=dict(user=user),
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
         await self.db.execute(
             """
             INSERT IGNORE INTO project_admins (project_id, user_id)
@@ -322,5 +330,24 @@ class ProjectRepo(BaseRepo):
                 JOIN projects p ON p.name = :project 
             WHERE u.username = :user
             """,
-            values=dict(project=project, user=user)
+            values=dict(project=project, user=user),
+        )
+
+    @check_admin
+    async def delete_admin(self, project: PID, user: UID):
+        if await self.db.fetch_val(
+                "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
+                values=dict(user=user),
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        await self.db.execute(
+            """
+            DELETE pa FROM project_admins pa
+                JOIN users u ON u.id = pa.user_id
+                JOIN projects p ON  p.id = pa.project_id
+            WHERE u.username = :user AND p.name = :project
+            """,
+            values=dict(project=project, user=user),
         )

@@ -13,7 +13,4 @@ def test_projects(client: TestClient):
 
 def test_lang(client: TestClient):
     resp = client.get("/languages?q=fi")
-    assert resp.json() == {
-        'id': 'fin',
-        'name': 'Finnish'
-    }
+    assert resp.json() == {"id": "fin", "name": "Finnish"}

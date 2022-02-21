@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Optional
 
-from ...core.config import Config
+from ...config import Config
 
 
 @dataclass
@@ -13,6 +13,7 @@ class Result:
 
     The reason is optional and meant to give a user readable message on failure.
     """
+
     success: bool
     reason: Optional[str] = None
 
@@ -50,9 +51,12 @@ instance: Optional[Mailer] = None
 
 def _derive_default() -> Mailer:
     import importlib
+
     mailer_config = Config.mailer.config
     mailer_impl = Config.mailer.name
-    return getattr(importlib.import_module(f'.{mailer_impl}', __name__), 'get')(**mailer_config)
+    return getattr(importlib.import_module(f".{mailer_impl}", __name__), "get")(
+        **mailer_config
+    )
 
 
 def get_mailer() -> Mailer:
@@ -68,8 +72,4 @@ def get_mailer() -> Mailer:
         return instance
 
 
-__all__ = [
-    'get_mailer',
-    'Mailer',
-    'Result'
-]
+__all__ = ["get_mailer", "Mailer", "Result"]

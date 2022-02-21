@@ -6,7 +6,7 @@ router = make_router(tags=["Projects"])
 
 
 @router.get(
-    '/projects',
+    "/projects",
     response_model=Projects,
     description=dedent(
         """
@@ -25,7 +25,7 @@ async def get_projects(r: Request, db: Database = DEFAULT_DB) -> Projects:
 
 
 @router.get(
-    '/projects/{project}',
+    "/projects/{project}",
     response_model=Project,
     description=dedent(
         """
@@ -35,13 +35,15 @@ async def get_projects(r: Request, db: Database = DEFAULT_DB) -> Projects:
         An error message will be returned if the project is not published or active.
         """
     ),
-    responses=dict(chain(filter(lambda e: e[0] != 404, rex.get(Project).items()), [(404, d("Resource found"))])),
+    responses=dict(
+        chain(
+            filter(lambda e: e[0] != 404, rex.get(Project).items()),
+            [(404, d("Resource found"))],
+        )
+    ),
 )
 async def get_project(
-        r: Request,
-        project: PID,
-        db: Database = DEFAULT_DB,
-        include_sites: bool = False
+        r: Request, project: PID, db: Database = DEFAULT_DB, include_sites: bool = False
 ) -> Project:
     repo = ProjectRepo(db)
     repo.configure(r)
@@ -49,7 +51,7 @@ async def get_project(
 
 
 @router.post(
-    '/projects',
+    "/projects",
     description=dedent(
         """
         This endpoint is used for Project creation.
@@ -64,15 +66,17 @@ async def get_project(
     responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def new_project(r: Request, model: NewProject, db: Database = DEFAULT_DB):
+async def new_project(
+        r: Request, model: NewProject = sample(NewProject), db: Database = DEFAULT_DB
+):
     repo = ProjectRepo(db)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for('get_project', project=new_id))
+    return created(router.url_path_for("get_project", project=new_id))
 
 
 @router.patch(
-    '/projects/{project}',
+    "/projects/{project}",
     description=dedent(
         """
         This is used for patching core Project attributes.
@@ -82,18 +86,30 @@ async def new_project(r: Request, model: NewProject, db: Database = DEFAULT_DB):
         """
     ),
     response_class=Response,
-    responses=dict(chain(filter(lambda e: e[0] != 404, rex.modify().items()), [(404, d("Resource found"))])),
+    responses=dict(
+        chain(
+            filter(lambda e: e[0] != 404, rex.modify().items()),
+            [(404, d("Resource found"))],
+        )
+    ),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def modify_project(r: Request, project: PID, model: ModifiedProject, db: Database = DEFAULT_DB):
+async def modify_project(
+        r: Request,
+        project: PID,
+        model: ModifiedProject = sample(ModifiedProject),
+        db: Database = DEFAULT_DB,
+):
     repo = ProjectRepo(db)
     repo.configure(r)
     changed = await repo.modify(project, model)
-    return modified(lambda: router.url_path_for('get_project', project=project), changed)
+    return modified(
+        lambda: router.url_path_for("get_project", project=project), changed
+    )
 
 
 @router.delete(
-    '/projects/{project}',
+    "/projects/{project}",
     description=dedent(
         """
         Soft Deletes a project by hiding it from regular users.
@@ -102,29 +118,80 @@ async def modify_project(r: Request, project: PID, model: ModifiedProject, db: D
         """
     ),
     response_class=Response,
-    responses=dict(filter(lambda e: e[0] != 404, rex.delete().items()))
+    responses=dict(filter(lambda e: e[0] != 404, rex.delete().items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_project(r: Request, project: PID, db: Database = DEFAULT_DB):
     repo = ProjectRepo(db)
     repo.configure(r)
     await repo.toggle_publish(project, False)
-    return deleted(router.url_path_for('get_projects'))
+    return deleted(router.url_path_for("get_projects"))
 
 
 @router.post(
-    '/projects/{project}/admins',
+    "/projects/{project}/admins",
     description=dedent(
         """
         This endpoint is used for adding admins to a project.
         """
     ),
     response_class=Response,
-    responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
+    responses=rex.create(False),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def add_project_admin(r: Request, project: PID, username: UID, db: Database = DEFAULT_DB):
+async def add_project_admin(
+        r: Request, project: PID, username: UID, db: Database = DEFAULT_DB
+):
     repo = ProjectRepo(db)
     repo.configure(r)
     await repo.add_admin(project, username)
-    return Response(status_code=200, headers=dict(location=router.url_path_for('get_project', project=project)))
+    return Response(
+        status_code=200,
+        headers=dict(location=router.url_path_for("get_project", project=project)),
+    )
+
+
+@router.delete(
+    "/projects/{project}/admins",
+    description=dedent(
+        """
+        This endpoint is used for deleting admins from a project.
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def delete_project_admin(
+        r: Request, project: PID, username: UID, db: Database = DEFAULT_DB
+):
+    repo = ProjectRepo(db)
+    repo.configure(r)
+    await repo.delete_admin(project, username)
+    return Response(
+        status_code=204,
+        headers=dict(location=router.url_path_for("get_project", project=project)),
+    )
+
+
+@router.put(
+    "/projects/{project}/localize",
+    description=dedent(
+        """
+        This endpoint is used for localizing a project.
+        """
+    ),
+    response_class=Response,
+    responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def localize_project(
+        r: Request, project: PID, info: ProjectInfo, db: Database = DEFAULT_DB
+):
+    repo = ProjectRepo(db)
+    repo.configure(r)
+    await repo.localize(project, info)
+    return Response(
+        status_code=201,
+        headers=dict(location=router.url_path_for("get_project", project=project)),
+    )
