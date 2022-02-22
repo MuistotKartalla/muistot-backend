@@ -1,13 +1,12 @@
 import inspect
 import re
 from abc import ABC, abstractmethod
-from typing import List, Any, NoReturn, Union
+from typing import List, Any, NoReturn, Union, Optional, Dict
 
 from databases import Database
 from fastapi import Request, HTTPException, status
 
 from .files import Files
-from .publishing import Status
 from .utils import extract_language
 from ....config import Config
 from ....logging import log
@@ -44,11 +43,12 @@ class BaseRepo(ABC):
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
+        self._kwargs = dict(**kwargs)
         self._user: Union[User] = User()
         self.lang = "fi"
         self.auto_publish = Config.security.auto_publish
 
-    def configure(self, r: Request):
+    def configure(self, r: Request) -> "BaseRepo":
         """
         Adds configuration data from the Request to this repo
 
@@ -66,7 +66,7 @@ class BaseRepo(ABC):
             )
         return self
 
-    def _configure(self, repo: "BaseRepo"):
+    def _configure(self, repo: "BaseRepo") -> "BaseRepo":
         self._user = repo._user
         self.lang = repo.lang
         return self
@@ -113,15 +113,6 @@ class BaseRepo(ABC):
         """
         pass
 
-    @abstractmethod
-    async def _exists(self, arg) -> Status:
-        """
-        Check whether a single Repo resource exists.
-
-        Should check if prerequisites exist too.
-        """
-        pass
-
     async def _set_published(self, published: bool, **values) -> NoReturn:
         """
         Changes published status for a Repo
@@ -144,43 +135,38 @@ class BaseRepo(ABC):
         )
 
     @property
-    def identity(self):
+    def identity(self) -> Optional[str]:
         return self._user.identity if self._user.is_authenticated else None
 
     @property
-    def has_identity(self):
+    def authenticated(self) -> bool:
         return self.identity is not None
 
     @property
-    def is_admin(self):
+    def admin(self):
         return self._user.is_authenticated and (
             self._user.is_admin_in(self.project)
             if hasattr(self, "project")
-            else self.is_superuser
+            else self.superuser
         )
 
     @property
-    def is_superuser(self):
+    def superuser(self) -> bool:
         return self._user.is_superuser
 
     @property
-    def files(self):
+    def files(self) -> Files:
         return Files(self.db, self._user)
 
-    def _saoh(self, m, s: Status, idx_admin: int, idx_own: int):
-        """
-        Helper for admin, self checks
-        """
-        if self.has_identity and s != Status.DOES_NOT_EXIST:
-            admin = m[idx_admin] == 0
-            own = m[idx_own] == self.identity
+    @property
+    def identifiers(self) -> Dict[str, Any]:
+        return dict(**self._kwargs)
 
-            if admin and own:
-                return Status.OWN_AND_ADMIN
-            elif admin:
-                return Status.ADMIN
-            elif own:
-                return Status.OWN
+    @property
+    def user(self) -> User:
+        return self._user
 
 
-__all__ = ["BaseRepo"]
+__all__ = [
+    "BaseRepo",
+]

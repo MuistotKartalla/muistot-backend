@@ -1,6 +1,6 @@
 import pytest
 from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
-from muistoja.backend.repos.base.utils import extract_language, url_safe
+from muistoja.backend.repos.base.utils import extract_language
 from starlette.authentication import UnauthenticatedUser
 
 
@@ -10,20 +10,6 @@ class MockRequest:
         self.headers = {}
         self.method = "POST"
         self.user = UnauthenticatedUser()
-
-
-@pytest.mark.parametrize(
-    "test_input", ["hello", "hello_world", "hello-world", "0_9", "1_09_hi-all"]
-)
-def test_good(test_input: str):
-    assert url_safe(test_input)
-
-
-@pytest.mark.parametrize(
-    "test_input", [None, "", " ", "hello world", "a/b", "d+e", "0+1", "a a a"]
-)
-def test_bad(test_input: str):
-    assert not url_safe(test_input)
 
 
 @pytest.mark.parametrize(

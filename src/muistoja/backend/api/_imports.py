@@ -17,7 +17,8 @@ from ...security import require_auth, scopes
 
 
 def _database():
-    from ...database import dba, Depends
+    from ...database import dba
+    from fastapi import Depends
 
     return Depends(dba)
 

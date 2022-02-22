@@ -1,7 +1,7 @@
 from pydantic import constr, conint, confloat, Field
 
-IMAGE_TXT = "Image file name to be fetched from the image endpoint"
-IMAGE_NEW = "Image data in base64"
+IMAGE_TXT = "Image file name to be fetched from the image endpoint."
+IMAGE_NEW = "Image data in base64."
 IMAGE = constr(strict=True, strip_whitespace=True, min_length=1)
 
 __ID_REGEX = r"^[a-zA-Z0-9-_#]+$"

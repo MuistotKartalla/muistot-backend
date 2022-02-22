@@ -150,9 +150,8 @@ async def start_database():
     """
     Handle startup and database url parsing
     """
-    from .. import database
-
-    await database.start()
+    from ..database import connect
+    await connect()
 
 
 @app.on_event("shutdown")
@@ -160,9 +159,8 @@ async def stop_database():
     """
     Handle shutdown and database resource release
     """
-    from .. import database
-
-    await database.close()
+    from ..database import disconnect
+    await disconnect()
 
 
 # LOGINS

@@ -10,6 +10,26 @@ from ....config import Config
 ALLOWED_CHARS = re.compile(r"^[a-zA-Z0-9_:-]+$")
 
 
+def not_implemented(f):
+    """
+    Marks function as not used and generates a warning on startup
+
+    Should only be used on Repo instance methods
+    """
+    from ....logging import log
+    from functools import wraps
+
+    log.warning(f"Function not implemented {repr(f)}")
+
+    @wraps(f)
+    async def decorator(*_, **__):
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not Implemented"
+        )
+
+    return decorator
+
+
 def get_languages() -> Set[str]:
     return set(Config.localization.supported)
 
@@ -23,8 +43,7 @@ def _validate_lang(lang: str) -> Optional[str]:
 
 
 def extract_language(r: Request) -> str:
-    """
-    Extract language from request.
+    """Extract language from request.
 
     Default if it is not specified or not allowed
     """
@@ -48,23 +67,8 @@ def extract_language(r: Request) -> str:
         return Config.localization.default
 
 
-def url_safe(name: str) -> bool:
-    return name is not None and ALLOWED_CHARS.fullmatch(name) is not None
-
-
-def check_id(_id: str):
-    """
-    Check that an id is safe for URLs.
-    """
-    if not url_safe(_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Bad identifier"
-        )
-
-
 def check_language(lang: str):
-    """
-    Check that language is available in config.
+    """Check that language is available in config.
     """
     if lang not in get_languages():
         raise HTTPException(
@@ -75,7 +79,6 @@ def check_language(lang: str):
 __all__ = [
     "get_languages",
     "extract_language",
-    "url_safe",
-    "check_id",
     "check_language",
+    "not_implemented"
 ]

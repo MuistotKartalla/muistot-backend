@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Request, HTTPException, Response
+from fastapi import APIRouter, Request, HTTPException, Response, Depends
 from fastapi.responses import JSONResponse
 from headers import *
 
 from ..logic import *
-from ...database import dba, Depends, Database
+from ...database import dba, Database
 from ...errors import Error
 
 router = APIRouter()

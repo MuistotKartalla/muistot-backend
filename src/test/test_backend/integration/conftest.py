@@ -5,7 +5,7 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from muistoja.backend import main
-from muistoja.database._default_db import make_url_from_database_config
+from muistoja.config import config_to_url
 from muistoja.security.auth import User
 from muistoja.security.password import hash_password
 from muistoja.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
@@ -18,10 +18,7 @@ from utils import authenticate as auth
 @pytest.fixture
 async def db():
     from muistoja.config import Config
-
-    db_instance = databases.Database(
-        make_url_from_database_config(Config.db["default"]), force_rollback=False
-    )
+    db_instance = databases.Database(config_to_url(Config.db["default"]))
     while True:
         try:
             await db_instance.connect()

@@ -1,4 +1,5 @@
 from .base import *
+from .exists import check
 from .site import SiteRepo
 
 
@@ -41,38 +42,6 @@ class ProjectRepo(BaseRepo):
         GROUP BY p.id
         """
 
-    async def _exists(self, project: PID) -> Status:
-        if self.has_identity:
-            m = await self.db.fetch_one(
-                """
-                SELECT p.published,
-                       ISNULL(pa.user_id)
-                FROM projects p
-                    LEFT JOIN project_admins pa
-                            JOIN users u2 ON pa.user_id = u2.id
-                                AND u2.username = :user
-                         ON p.id = pa.project_id
-                WHERE p.name = :project
-                """,
-                values=dict(project=project, user=self.identity),
-            )
-            if m is None:
-                return Status.DOES_NOT_EXIST
-
-            s = Status.resolve(m[0])
-
-            if m[1] == 0 and s != Status.DOES_NOT_EXIST:
-                return Status.ADMIN
-            else:
-                return s
-        else:
-            return Status.resolve(
-                await self.db.fetch_val(
-                    "SELECT published FROM projects WHERE name = :project",
-                    values=dict(project=project),
-                )
-            )
-
     async def _get_admins(self, project_id: int):
         out = [
             admin[0]
@@ -88,10 +57,8 @@ class ProjectRepo(BaseRepo):
         ]
         return out if len(out) > 0 else list()
 
-    async def _handle_localization(
-            self, project: PID, localized_data: ProjectInfo
-    ) -> int:
-        return await self.db.fetch_val(
+    async def _handle_localization(self, project: PID, localized_data: ProjectInfo) -> int:
+        changed = await self.db.fetch_val(
             """
             REPLACE INTO project_information (
                 project_id, 
@@ -122,6 +89,17 @@ class ProjectRepo(BaseRepo):
                 project=project,
             ),
         )
+        if localized_data.default:
+            changed = await self.db.fetch_val(
+                """
+                UPDATE projects p 
+                    JOIN languages l ON l.lang = :lang 
+                SET p.default_language_id = l.id
+                WHERE p.name = :project
+                """,
+                values=dict(lang=localized_data.lang, project=project)
+            ) or changed
+        return changed
 
     async def _handle_contact(self, project: PID, contact: Optional[ProjectContact]):
         if contact is None:
@@ -185,7 +163,7 @@ class ProjectRepo(BaseRepo):
             if m is not None
         ]
 
-    @check_published_or_admin
+    @check.published_or_admin
     async def one(self, project: PID, include_sites: bool = False) -> Project:
         m = await self.db.fetch_one(
             self._select + " AND p.name = :project",
@@ -196,20 +174,17 @@ class ProjectRepo(BaseRepo):
                 status_code=status.HTTP_406_NOT_ACCEPTABLE,
                 detail='Project missing default localization'
             )
-        out = await self.construct_project(
-
-        )
+        out = await self.construct_project(m)
         if include_sites:
             out.sites = await SiteRepo(self.db, project)._configure(self).all()
         return out
 
-    @check_not_exists
+    @check.not_exists
     async def create(self, model: NewProject) -> PID:
-        if not self.is_superuser:
+        if not self.superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges"
             )
-        check_id(model.id)
         check_language(model.info.lang)
         if (
                 model.starts is not None
@@ -263,7 +238,7 @@ class ProjectRepo(BaseRepo):
             await self._handle_admins(model.id, model.admins)
         return model.id
 
-    @check_admin
+    @check.admin
     async def modify(self, project: PID, model: ModifiedProject) -> bool:
         data = model.dict(exclude_unset=True)
         if len(data) == 0:
@@ -274,10 +249,6 @@ class ProjectRepo(BaseRepo):
                 values["image_id"] = self.files.handle(model.image)
             if "contact" in data:
                 await self._handle_contact(project, model.contact)
-            if "info" in data:
-                values["default_language_id"] = await self._handle_localization(
-                    project, model.info
-                )
             for k in {"starts", "ends"}:
                 if k in data:
                     values[k] = data[k]
@@ -296,7 +267,7 @@ class ProjectRepo(BaseRepo):
                 modified = False
             return modified
 
-    @check_super
+    @check.zuper
     async def delete(self, project: PID):
         await self.db.execute(
             """
@@ -305,15 +276,15 @@ class ProjectRepo(BaseRepo):
             values=dict(project=project),
         )
 
-    @check_admin
+    @check.admin
     async def toggle_publish(self, project: PID, publish: bool):
         await self._set_published(publish, name=project)
 
-    @check_admin
+    @check.admin
     async def localize(self, project: PID, localized_data: ProjectInfo):
         await self._handle_localization(project, localized_data)
 
-    @check_admin
+    @check.admin
     async def add_admin(self, project: PID, user: UID):
         if await self.db.fetch_val(
                 "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
@@ -333,7 +304,7 @@ class ProjectRepo(BaseRepo):
             values=dict(project=project, user=user),
         )
 
-    @check_admin
+    @check.admin
     async def delete_admin(self, project: PID, user: UID):
         if await self.db.fetch_val(
                 "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",

@@ -47,6 +47,33 @@ class NewSite(BaseModel):
     location: Point = Field(description="Location of this site")
     image: Optional[IMAGE] = Field(description=IMAGE_NEW)
 
+    class Config:
+        __examples__ = {
+            "basic": {
+                "summary": "Basic",
+                "value": {
+                    "id": "my-awesome-site#1",
+                    "info": {
+                        "lang": "fin",
+                        "name": "My Awesome Site!",
+                        "description": "Longer info on this place"
+                    },
+                    "location": {
+                        "lat": 60.75,
+                        "lon": 24.56
+                    }
+                },
+                "description": (
+                    "__The language of the initial site info needs to match the project default.__"
+                    "Even though the _info_ has a ISO639-3 language, it will be correctly converted to ISO639-1. "
+                    "Many times the sites will not have images themselves, rather only the memories contain images. "
+                    "This however varies per project. The capability is added here for future use. "
+                    "The image needs to be a valid base64 string. "
+                    "Coordinates are always in decimal degrees."
+                )
+            },
+        }
+
 
 class Site(NewSite):
     """
@@ -55,20 +82,28 @@ class Site(NewSite):
 
     image: Optional[IMAGE] = Field(description=IMAGE_TXT)
     memories_count: int = Field(ge=0, description="Total amount of published memories")
-    waiting_approval: Optional[bool] = Field(
-        description="If present, will tell approval status"
-    )
-    memories: Optional[List[Memory]] = Field(
-        description="List of memories fo this site"
-    )
+    waiting_approval: Optional[bool] = Field(description="If present, will tell approval status")
+    memories: Optional[List[Memory]] = Field(description="List of memories fo this site")
 
     class Config:
         __examples__ = {
             "basic": {
                 "summary": "Basic",
                 "value": {
-
-                }
+                    "memories_count": 10,
+                    "image": "1dc15d85-8433-11ec-8f55-0242ac140005",
+                    **NewSite.Config.__examples__["basic"]
+                },
+                "description": "Images are again strings that can be used to query the image endpoint."
+            },
+            "own": {
+                "summary": "User's Own",
+                "value": {
+                    "memories_count": 10,
+                    "waiting_approval": True,
+                    **NewSite.Config.__examples__["basic"]
+                },
+                "description": "Users are able to see their own sites even if they are not published."
             }
         }
 
@@ -78,36 +113,34 @@ class ModifiedSite(BaseModel):
     Modifies a site
     """
 
-    info: Optional[SiteInfo] = Field(
-        description="Any modified locale data, doesn't affect default locale"
-    )
     location: Optional[Point] = Field(description="If position was modified")
     image: Optional[IMAGE] = Field(description=IMAGE_NEW)
+
+    @validator("location")
+    def validate_location(cls, value: Optional[Point]):
+        assert value is not None, 'Null location is not permitted'
+        return value
 
     class Config:
         __examples__ = {
             "location": {
                 "summary": "Change Location",
                 "value": {
-
-                }
+                    "location": {
+                        "lat": 70.32,
+                        "lon": 34.1
+                    }
+                },
+                "description": "The location can be present or absent, but not `null`."
             },
             "image": {
                 "summary": "Change Location",
                 "value": {
-
-                }
-            },
-            "info": {
-                "summary": "Change locale",
-                "value": {
-
-                }
-            },
-            "delete": {
-                "summary": "Delete value",
-                "value": {
-
-                }
+                    "image": None
+                },
+                "description": (
+                    "This explicitly deletes the image from this site."
+                    " An image could also be added or changed by having the value be a valid base64 encoded image."
+                )
             }
         }

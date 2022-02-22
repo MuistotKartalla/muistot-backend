@@ -1,5 +1,6 @@
 from .base import *
 from .comment import CommentRepo
+from .exists import Status, check
 
 
 class MemoryRepo(BaseRepo):
@@ -73,77 +74,6 @@ class MemoryRepo(BaseRepo):
         GROUP BY m.id
         """
 
-    async def _exists(self, memory: MID) -> Status:
-        if self.has_identity:
-            m = await self.db.fetch_one(
-                """
-                SELECT p.published, 
-                       s.published,
-                       m.published,
-                       u.username,
-                       ISNULL(pa.user_id)
-                FROM projects p
-                         LEFT JOIN sites s ON p.id = s.project_id
-                    AND s.name = :site
-                         LEFT JOIN memories m
-                            JOIN users u ON m.user_id = u.id
-                         ON s.id = m.site_id
-                    AND m.id = :memory
-                         LEFT JOIN project_admins pa
-                            JOIN users u2 ON pa.user_id = u2.id
-                                AND u2.username = :user
-                         ON p.id = pa.project_id
-                WHERE p.name = :project
-                """,
-                values=dict(
-                    memory=memory,
-                    site=self.site,
-                    project=self.project,
-                    user=self.identity,
-                ),
-            )
-        else:
-            m = await self.db.fetch_one(
-                """
-                SELECT p.published, 
-                       s.published,
-                       m.published
-                FROM projects p
-                         LEFT JOIN sites s ON p.id = s.project_id
-                    AND s.name = :site
-                         LEFT JOIN memories m ON s.id = m.site_id
-                    AND m.id = :memory
-                WHERE p.name = :project
-                """,
-                values=dict(memory=memory, site=self.site, project=self.project),
-            )
-
-        if m is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-            )
-        elif m[1] is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
-            )
-
-        s = Status.resolve(m[2])
-
-        _s = self._saoh(m, s, 4, 3)
-        if _s is not None:
-            return _s
-
-        if m[0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-            )
-        elif m[1] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Site not found"
-            )
-
-        return s
-
     def __init__(self, db: Database, project: PID, site: SID):
         super().__init__(db, project=project, site=site)
 
@@ -151,14 +81,12 @@ class MemoryRepo(BaseRepo):
     def construct_memory(m) -> Memory:
         return Memory(**m)
 
-    @check_parents
-    async def all(
-            self, include_comments: bool = False, *, _status: Status
-    ) -> List[Memory]:
+    @check.parents
+    async def all(self, include_comments: bool = False, *, _status: Status) -> List[Memory]:
         values = dict(site=self.site, project=self.project)
-        if _status == Status.ADMIN:
+        if _status.admin:
             sql = self._select_for_admin
-        elif self.has_identity:
+        elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)
         else:
@@ -175,14 +103,12 @@ class MemoryRepo(BaseRepo):
                 ).all()
         return out
 
-    @check_published_or_admin
-    async def one(
-            self, memory: MID, include_comments: bool = False, *, _status: Status
-    ) -> Memory:
+    @check.published_or_admin
+    async def one(self, memory: MID, include_comments: bool = False, *, _status: Status) -> Memory:
         values = dict(memory=memory, site=self.site, project=self.project)
-        if _status == Status.ADMIN:
+        if _status.admin:
             sql = self._select_for_admin
-        elif self.has_identity:
+        elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)
         else:
@@ -200,7 +126,7 @@ class MemoryRepo(BaseRepo):
             )
         return out
 
-    @check_parents
+    @check.parents
     async def create(self, model: NewMemory) -> MID:
         if model.image is not None:
             image_id = await self.files.handle(model.image)
@@ -225,7 +151,7 @@ class MemoryRepo(BaseRepo):
             ),
         )
 
-    @check_own
+    @check.own
     async def modify(self, memory: MID, model: ModifiedMemory) -> bool:
         data = model.dict(exclude_unset=True)
         if "image" in data:
@@ -241,7 +167,7 @@ class MemoryRepo(BaseRepo):
             )
             return await self.db.fetch_val("SELECT ROW_COUNT()") > 0
 
-    @check_own
+    @check.own
     async def delete(self, memory: MID):
         await self.db.execute(
             """
@@ -250,7 +176,7 @@ class MemoryRepo(BaseRepo):
             values=dict(id=memory),
         )
 
-    @check_admin
+    @check.admin
     async def hard_delete(self, memory: MID):
         await self.db.execute(
             """
@@ -259,11 +185,11 @@ class MemoryRepo(BaseRepo):
             values=dict(id=memory),
         )
 
-    @check_admin
+    @check.admin
     async def toggle_publish(self, memory: MID, published: bool):
         await self._set_published(published, id=memory)
 
-    @check_parents
+    @check.parents
     async def by_user(self, user: str) -> List[UserMemory]:
         if (
                 await self.db.fetch_val(

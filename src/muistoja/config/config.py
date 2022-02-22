@@ -58,6 +58,3 @@ class BaseConfig(BaseModel):
     security: Optional[Security]
     files: Optional[FileStore]
     mailer: Optional[Mailer]
-
-
-__all__ = ["BaseConfig"]

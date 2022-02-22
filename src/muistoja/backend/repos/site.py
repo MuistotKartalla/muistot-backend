@@ -1,4 +1,5 @@
 from .base import *
+from .exists import Status, check
 from .memory import MemoryRepo
 
 
@@ -46,54 +47,6 @@ class SiteRepo(BaseRepo):
         " ORDER BY distance LIMIT {:d}",
     )
 
-    async def _exists(self, site: SID) -> Status:
-        if self.has_identity:
-            m = await self.db.fetch_one(
-                """
-                SELECT p.published,
-                       s.published,
-                       ISNULL(pa.user_id)
-                FROM projects p
-                        LEFT JOIN sites s ON p.id = s.project_id
-                    AND s.name = :site
-                        LEFT JOIN project_admins pa
-                            JOIN users u2 ON pa.user_id = u2.id
-                                AND u2.username = :user
-                         ON p.id = pa.project_id
-                WHERE p.name = :project
-                """,
-                values=dict(site=site, project=self.project, user=self.identity),
-            )
-        else:
-            m = await self.db.fetch_one(
-                """
-                SELECT p.published,
-                       s.published
-                FROM projects p
-                         LEFT JOIN sites s ON p.id = s.project_id
-                    AND s.name = :site
-                WHERE p.name = :project
-                """,
-                values=dict(site=site, project=self.project),
-            )
-        if m is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-            )
-
-        s = Status.resolve(m[1])
-
-        if self.has_identity and s != Status.DOES_NOT_EXIST:
-            if m[2] == 0:
-                return Status.ADMIN
-
-        if m[0] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-            )
-
-        return s
-
     def __init__(self, db: Database, project: PID):
         super().__init__(db, project=project)
 
@@ -123,7 +76,7 @@ class SiteRepo(BaseRepo):
     def construct_site(m) -> Site:
         return Site(location=Point(**m), info=SiteInfo(**m), **m)
 
-    @check_parents
+    @check.parents
     async def all(
             self,
             n: Optional[int] = None,
@@ -133,9 +86,9 @@ class SiteRepo(BaseRepo):
             _status: Status,
     ) -> List[Site]:
         values = dict(lang=self.lang, project=self.project, user=self.identity)
-        if _status == Status.ADMIN:
+        if _status.admin:
             where = "WHERE TRUE"
-        elif self.has_identity:
+        elif self.authenticated:
             where = "WHERE (s.published OR um.username = :user)"
         else:
             where = "WHERE s.published"
@@ -162,16 +115,16 @@ class SiteRepo(BaseRepo):
             ]
         return out
 
-    @check_published_or_admin
+    @check.published_or_admin
     async def one(
             self, site: SID, include_memories: bool = False, *, _status: Status
     ) -> Site:
         values = dict(
             lang=self.lang, project=self.project, site=site, user=self.identity
         )
-        if _status == Status.ADMIN:
+        if _status.admin:
             where = "WHERE TRUE"
-        elif self.has_identity:
+        elif self.authenticated:
             where = "WHERE (s.published OR um.username = :user)"
         else:
             where = "WHERE s.published"
@@ -191,9 +144,8 @@ class SiteRepo(BaseRepo):
             )
         return out
 
-    @check_not_exists
+    @check.not_exists
     async def create(self, model: NewSite) -> SID:
-        check_id(model.id)
         check_language(model.info.lang)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
@@ -224,7 +176,7 @@ class SiteRepo(BaseRepo):
         await self._handle_info(name, model.info)
         return name
 
-    @check_admin
+    @check.admin
     async def modify(self, site: SID, model: ModifiedSite) -> bool:
         data = model.dict(exclude_unset=True)
         if "image" in data:
@@ -265,11 +217,9 @@ class SiteRepo(BaseRepo):
             )
         else:
             modified = True
-        if "info" in data:
-            modified = self._handle_info(site, model.info)
         return modified
 
-    @check_admin
+    @check.admin
     async def delete(self, site: SID):
         await self.db.execute(
             """
@@ -278,10 +228,10 @@ class SiteRepo(BaseRepo):
             values=dict(id=site),
         )
 
-    @check_admin
+    @check.admin
     async def toggle_publish(self, site: SID, published: bool):
         await self._set_published(published, name=site)
 
-    @check_admin
+    @check.admin
     async def localize(self, site: SID, localized_data: SiteInfo):
         await self._handle_info(site, localized_data)

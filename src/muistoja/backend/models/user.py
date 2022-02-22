@@ -27,6 +27,7 @@ class UserComment(Comment):
                     "memory": 1,
                     **Comment.Config.__examples__["own"],
                 },
+                "description": "It is possible to query comments per user."
             }
         }
 
@@ -48,6 +49,7 @@ class UserMemory(Memory):
                     "site": "sample-site",
                     **Memory.Config.__examples__["own"],
                 },
+                "description": "It is possible to query submitted sites per user."
             }
         }
 
@@ -72,7 +74,7 @@ class UserData(_UserBase):
     class Config:
         __examples__ = {
             "simple": {
-                "summary": "simple",
+                "summary": "Simplest return type",
                 "value": {
                     "username": "user",
                     "email": "email@example.com",
@@ -90,6 +92,7 @@ class UserData(_UserBase):
                     "birth_date": "2001-01-05",
                     "modified_at": "2022-01-15",
                 },
+                "description": "The region format can be both v.1 or v.2 of ISO3166."
             },
             "country": {
                 "summary": "ISO3166-01",
@@ -103,6 +106,7 @@ class UserData(_UserBase):
                     "birth_date": "2001-01-05",
                     "modified_at": "2022-01-15",
                 },
+                "description": "The region format can be both v.1 or v.2 of ISO3166."
             },
             "partial": {
                 "summary": "Partial",
@@ -113,6 +117,8 @@ class UserData(_UserBase):
                     "city": "My Imaginary City",
                     "modified_at": "2022-02-15",
                 },
+                "description": "Any amount or combination of values can be returned. "
+                               "Unset or null values are always absent."
             },
         }
 
@@ -129,25 +135,24 @@ class PatchUser(_UserBase):
         __examples__ = {
             "username": {
                 "summary": "Change username",
-                "value": {"username": "updated"},
+                "value": {
+                    "username": "updated"
+                },
             },
-            "email": {"summary": "Change email", "value": {"email": "new@example.com"}},
+            "email": {
+                "summary": "Change email",
+                "value": {
+                    "email": "new@example.com"
+                },
+            },
             "both": {
                 "summary": "Change username and email",
-                "value": {"username": "updated", "email": "new@example.com"},
-            },
-            "full": {
-                "summary": "Change everything",
                 "value": {
-                    "username": "user",
-                    "email": "user@example.com",
-                    "first_name": "My",
-                    "last_name": "User",
-                    "country": "AZ",
-                    "city": "Example",
-                    "birth_date": "1900-08-30",
-                    "modified_at": "2022-01-15",
+                    "username": "updated",
+                    "email": "new@example.com"
                 },
+                "description": "It is possible to change both the username and email at once. "
+                               "Both are checked for conflicts"
             },
             "partial": {
                 "summary": "Change partial",
@@ -155,14 +160,17 @@ class PatchUser(_UserBase):
                     "username": "user",
                     "email": "email@example.com",
                     "country": "SE",
-                    "city": "My Imaginary City",
+                    "birth_date": "2011-12-02",
                 },
+                "description": "Any amount of values can be added to the cahnge request."
             },
             "delete": {
                 "summary": "Remove value",
                 "value": {
                     "country": None,
                     "city": None,
-                }
+                },
+                "description": "Explicit _null_s delete existing values. "
+                               "Leaving values empty does not change them."
             },
         }
