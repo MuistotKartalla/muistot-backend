@@ -18,7 +18,10 @@ router = make_router(tags=["Projects"])
     ),
     responses=dict(filter(lambda e: e[0] != 404, rex.gets(Projects).items())),
 )
-async def get_projects(r: Request, db: Database = DEFAULT_DB) -> Projects:
+async def get_projects(
+        r: Request,
+        db: Database = DEFAULT_DB
+) -> Projects:
     repo = ProjectRepo(db)
     repo.configure(r)
     return Projects(items=await repo.all())
@@ -43,7 +46,10 @@ async def get_projects(r: Request, db: Database = DEFAULT_DB) -> Projects:
     ),
 )
 async def get_project(
-        r: Request, project: PID, db: Database = DEFAULT_DB, include_sites: bool = False
+        r: Request,
+        project: PID,
+        db: Database = DEFAULT_DB,
+        include_sites: bool = False
 ) -> Project:
     repo = ProjectRepo(db)
     repo.configure(r)
@@ -67,7 +73,9 @@ async def get_project(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def new_project(
-        r: Request, model: NewProject = sample(NewProject), db: Database = DEFAULT_DB
+        r: Request,
+        model: NewProject = sample(NewProject),
+        db: Database = DEFAULT_DB
 ):
     repo = ProjectRepo(db)
     repo.configure(r)
@@ -121,7 +129,11 @@ async def modify_project(
     responses=dict(filter(lambda e: e[0] != 404, rex.delete().items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def delete_project(r: Request, project: PID, db: Database = DEFAULT_DB):
+async def delete_project(
+        r: Request,
+        project: PID,
+        db: Database = DEFAULT_DB
+):
     repo = ProjectRepo(db)
     repo.configure(r)
     await repo.toggle_publish(project, False)
@@ -140,7 +152,10 @@ async def delete_project(r: Request, project: PID, db: Database = DEFAULT_DB):
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def add_project_admin(
-        r: Request, project: PID, username: UID, db: Database = DEFAULT_DB
+        r: Request,
+        project: PID,
+        username: UID,
+        db: Database = DEFAULT_DB
 ):
     repo = ProjectRepo(db)
     repo.configure(r)
@@ -163,7 +178,10 @@ async def add_project_admin(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_project_admin(
-        r: Request, project: PID, username: UID, db: Database = DEFAULT_DB
+        r: Request,
+        project: PID,
+        username: UID,
+        db: Database = DEFAULT_DB
 ):
     repo = ProjectRepo(db)
     repo.configure(r)
@@ -186,7 +204,10 @@ async def delete_project_admin(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def localize_project(
-        r: Request, project: PID, info: ProjectInfo, db: Database = DEFAULT_DB
+        r: Request,
+        project: PID,
+        info: ProjectInfo,
+        db: Database = DEFAULT_DB
 ):
     repo = ProjectRepo(db)
     repo.configure(r)
