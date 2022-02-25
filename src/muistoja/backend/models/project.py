@@ -16,7 +16,6 @@ class ProjectInfo(BaseModel):
     name: NAME = Field(description="Display name")
     abstract: Optional[TEXT] = Field(description="Short Description of the project")
     description: Optional[LONG_TEXT] = Field(description="Longer version of the description")
-    default: Optional[bool] = Field(description="If project defaults should change")
 
     @validator("lang")
     def validate_lang(cls, lang):
@@ -78,11 +77,6 @@ class NewProject(BaseModel):
     admins: Optional[List[UID]] = Field(unique_items=True, description="Admins for the project.")
     contact: Optional[ProjectContact] = Field(description="Project contact details if any are available.")
     admin_posting: bool = Field(default=False, description="True if only admins can post")
-
-    @validator("info")
-    def validate_info(cls, value):
-        assert value.default, "New project has to provide a valid default info"
-        return value
 
     class Config:
         __examples__ = {
