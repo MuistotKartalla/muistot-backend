@@ -1,3 +1,4 @@
+import os
 import textwrap
 
 from fastapi import FastAPI
@@ -90,6 +91,7 @@ app = FastAPI(
     redoc_url=None,
     default_response_class=JSONResponse,
     openapi_tags=tags,
+    root_path=os.getenv("PROXY_ROOT", "")
 )
 
 # ERROR HANDLERS
