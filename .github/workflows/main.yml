@@ -3,6 +3,8 @@ name: Deploy
 on:
   release:
     types: [ published ]
+  push:
+    branches: [ master ]
   workflow_dispatch:
 
 # Job
