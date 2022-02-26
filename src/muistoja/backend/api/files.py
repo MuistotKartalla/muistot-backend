@@ -56,7 +56,7 @@ router = make_router(tags=["Files"])
         },
     },
 )
-async def get_image(image: str = Path(..., regex=Files.PATH)):
+async def get_image(image: str = Path(..., regex=Files.PATH.pattern)):
     image = Files.Images.get(image)
     if not image.exists:
         return Response(
