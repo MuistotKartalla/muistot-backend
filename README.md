@@ -15,6 +15,12 @@ The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [U
 
 ---
 
+## Information
+
+![[]](.github/images/api-structure.png)
+
+Here is the general structure of the api and a description of actions available for each resource.
+
 ## Setup
 
 - Backend on `5600`
@@ -73,21 +79,12 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 Build the test image
 
 ```shell
-docker build -t 'image_name' -f testserver.Dockerfile .
+docker build -t 'image_name' -f server.Dockerfile .
 ```
 
 This isn't needed for anything as `docker-compose` takes care of things.
 
 ---
-
-## Database Migration
-
-[migration.sql](./database/migration.sql) should migrate the old db data to the new one.
-
-1. Connect to the MariaDB `root:test` and dump the database into the server.
-2. Then run the `migration.sql`
-
-You might need to change the database name if your dump is a bit different.
 
 #### TODO
 
@@ -98,46 +95,3 @@ The old dump didn't include users or comments so migrating them is yet untested
 - Test permissions
 - Test site fetch params
 - Not so happy tests
-
-## DEV Notes
-
-#### 13.01.2022
-
-Added new column to memories, please migrate existing data:
-
-```mariadb
-ALTER TABLE memories
-    ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE
-```
-
-#### 20.01
-
-Added superusers. Migrate please.
-
-```mariadb
-CREATE TABLE IF NOT EXISTS superusers
-(
-    user_id INTEGER NOT NULL,
-    PRIMARY KEY pk_superusers (user_id),
-    CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id)
-) COMMENT 'Global SuperUsers';
-```
-
-#### 2.2.
-
-Modified projects posting column and added clarification to superusers constraint. Also, changes birthdate to `DATE`.
-
-```mariadb
-ALTER TABLE projects
-    DROP COLUMN IF EXISTS anonymous_posting;
-ALTER TABLE projects
-    ADD COLUMN IF NOT EXISTS admin_posting BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE superusers
-    DROP CONSTRAINT fk_superusers;
-ALTER TABLE superusers
-    ADD CONSTRAINT FOREIGN KEY IF NOT EXISTS fk_superusers (user_id) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE;
-ALTER TABLE user_personal_data
-    DROP COLUMN IF EXISTS birth_date;
-ALTER TABLE user_personal_data
-    ADD COLUMN IF NOT EXISTS birth_date DATE NULL DEFAULT NULL;
-```

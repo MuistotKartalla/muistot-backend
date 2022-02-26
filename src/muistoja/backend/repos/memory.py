@@ -119,11 +119,8 @@ class MemoryRepo(BaseRepo):
         )
 
         if include_comments:
-            out.comments = (
-                await CommentRepo(self.db, self.project, self.site, out.id)
-                    ._configure(self)
-                    .all()
-            )
+            out.comments = await CommentRepo(self.db, self.project, self.site, out.id).from_repo(self).all()
+
         return out
 
     @check.parents

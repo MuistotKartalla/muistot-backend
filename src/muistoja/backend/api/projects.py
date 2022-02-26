@@ -200,7 +200,7 @@ async def delete_project_admin(
         """
     ),
     response_class=Response,
-    responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
+    responses=dict(filter(lambda e: e[0] != 404, rex.modify().items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def localize_project(
@@ -213,6 +213,6 @@ async def localize_project(
     repo.configure(r)
     await repo.localize(project, info)
     return Response(
-        status_code=201,
+        status_code=204,
         headers=dict(location=router.url_path_for("get_project", project=project)),
     )

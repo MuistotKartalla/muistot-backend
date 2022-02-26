@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS images
     PRIMARY KEY pk_images (id),
     INDEX idx_images_uploader (uploader_id),
     CONSTRAINT FOREIGN KEY fk_images_uploader (uploader_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE SET NULL
 ) COMMENT 'Unified storage for image files';
 
 ALTER TABLE users
@@ -223,6 +225,7 @@ CREATE TABLE IF NOT EXISTS site_information
 
     modifier_id INTEGER      NULL COMMENT 'fk',
     modified_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_si (site_id, lang_id),
 

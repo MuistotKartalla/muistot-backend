@@ -1,6 +1,6 @@
 from threading import Lock
 
-from aiomysql import OperationalError as ConnectionError
+from aiomysql import OperationalError as DBConnectionError
 
 from .connection import DatabaseConnection
 from ..logging import log
@@ -19,12 +19,17 @@ def get_database(config_name: str) -> DatabaseConnection:
         return db
 
 
+def manual(db: DatabaseConnection):
+    from contextlib import asynccontextmanager
+    return asynccontextmanager(db.__call__())
+
+
 async def connect():
     with LOCK:
         for k, db in STORE.items():
             try:
                 await db.disconnect()
-            except ConnectionError as e:
+            except DBConnectionError as e:
                 log.info(f"Failed to disconnect database: {k}", exc_info=e)
 
 
@@ -33,7 +38,7 @@ async def disconnect():
         for k, db in STORE.items():
             try:
                 await db.disconnect()
-            except ConnectionError as e:
+            except DBConnectionError as e:
                 log.info(f"Failed to disconnect database: {k}", exc_info=e)
 
 

@@ -14,10 +14,12 @@ from .comment import CommentRepo
 from .memory import MemoryRepo
 from .project import ProjectRepo
 from .site import SiteRepo
+from .base import Files
 
 __all__ = [
     "CommentRepo",
     "MemoryRepo",
     "ProjectRepo",
     "SiteRepo",
+    "Files"
 ]

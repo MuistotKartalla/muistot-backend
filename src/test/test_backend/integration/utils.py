@@ -123,7 +123,6 @@ def create_project_info(lang: str) -> ProjectInfo:
         abstract=genword(length=100),
         lang=lang,
         description=genword(length=1500),
-        default=True,
     )
 
 

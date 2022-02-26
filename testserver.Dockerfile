@@ -9,7 +9,7 @@ RUN pip install -r requirements.txt
 
 FROM python:3.9-alpine
 WORKDIR /code
-RUN apk add --no-cache --update libmagic hiredis
+RUN apk add --no-cache --update libmagic hiredis && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 CMD ["uvicorn", "muistoja.backend.main:app", "--reload", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]

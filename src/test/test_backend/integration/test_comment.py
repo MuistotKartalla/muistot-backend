@@ -35,8 +35,7 @@ async def test_create(client, setup, credentials, auth, db, comment):
     assert c.comment == comment
 
 
-@pytest.mark.anyio
-async def test_fetch_all(client, setup, credentials, auth, db):
+def test_fetch_all(client, setup, credentials, auth, db):
     comments = set()
     for i in range(0, 10):
         comment = genword(length=1000)

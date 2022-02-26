@@ -10,7 +10,7 @@ RUN pip install gunicorn
 
 FROM python:3.9-alpine
 WORKDIR /code
-RUN apk add --no-cache --update libmagic hiredis
+RUN apk add --no-cache --update libmagic hiredis && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 COPY src .
 COPY wordlist.txt /root/wordlist.txt

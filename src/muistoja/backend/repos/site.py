@@ -70,6 +70,75 @@ class SiteRepo(BaseRepo):
                 RETURNING lang_id
                 """,
                 values=dict(site=site, **model.dict(), user=self.identity),
+            ) == 1
+
+    async def _handle_image(self, site: SID, data) -> bool:
+        if "image" in data:
+            image_data = data["image"]
+            if image_data is None:
+                return (
+                           await self.db.fetch_val(
+                               f"""
+                                UPDATE sites s
+                                    LEFT JOIN users u ON u.username = :user
+                                SET s.image_id = NULL, s.modifier_id = u.id
+                                WHERE s.name = :site
+                                """,
+                               values=dict(site=site, user=self.identity),
+                           )
+                       ) == 1
+            else:
+                image_id = await self.files.handle(image_data)
+                return (
+                           await self.db.fetch_val(
+                               f"""
+                                UPDATE sites s
+                                    LEFT JOIN users u ON u.username = :user
+                                SET s.image_id = :image, s.modifier_id = u.id
+                                WHERE s.name = :site
+                                """,
+                               values=dict(site=site, image=image_id, user=self.identity),
+                           )
+                       ) == 1
+        else:
+            return False
+
+    async def _handle_location(self, site: SID, model: Point):
+        if model is not None:
+            return (
+                       await self.db.fetch_val(
+                           f"""
+                            UPDATE sites 
+                            SET location=POINT(:lon, :lat),
+                                modifier_id = (SELECT id FROM users WHERE username = :user)
+                            WHERE name = :site
+                            """,
+                           values=dict(
+                               site=site,
+                               lon=model.lon,
+                               lat=model.lat,
+                               user=self.identity,
+                           ),
+                       )
+                   ) == 1
+        else:
+            return False
+
+    async def _check_lang(self, model: NewSite):
+        check_language(model.info.lang)
+        project_default = await self.db.fetch_val(
+            """
+            SELECT l.lang
+            FROM projects p 
+                JOIN languages l on p.default_language_id = l.id
+            WHERE p.name = :project
+            """,
+            values=dict(project=self.project)
+        )
+        if model.info.lang != project_default:
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                detail=f"Sites should be created in project default locale ({project_default})"
             )
 
     @staticmethod
@@ -137,16 +206,12 @@ class SiteRepo(BaseRepo):
             )
         out = self.construct_site(m)
         if include_memories:
-            out.memories = (
-                await MemoryRepo(self.db, self.project, out.id)
-                    ._configure(self)
-                    .all(include_comments=False)
-            )
+            out.memories = await MemoryRepo(self.db, self.project, out.id).from_repo(self).all(include_comments=False)
         return out
 
     @check.not_exists
     async def create(self, model: NewSite) -> SID:
-        check_language(model.info.lang)
+        await self._check_lang(model)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
             """
@@ -179,45 +244,13 @@ class SiteRepo(BaseRepo):
     @check.admin
     async def modify(self, site: SID, model: ModifiedSite) -> bool:
         data = model.dict(exclude_unset=True)
-        if "image" in data:
-            image_id = await self.files.handle(model.image)
-        else:
-            image_id = None
+        modified = False
+        modified |= await self._handle_image(site, data)
         if "location" in data:
-            modified = (
-                    await self.db.fetch_val(
-                        f"""
-                UPDATE sites 
-                SET location=POINT(:lon, :lat), {'' if image_id is None else 'image_id=:image'},
-                    modifier_id = (SELECT id FROM users WHERE username = :user)
-                WHERE name = :site
-                """,
-                        values=dict(
-                            site=site,
-                            lon=model.location.lon,
-                            lat=model.location.lat,
-                            **(dict() if image_id is None else dict(image=image_id)),
-                            user=self.identity,
-                        ),
-                    )
-                    == 1
-            )
-        elif image_id is not None:
-            modified = (
-                    await self.db.fetch_val(
-                        f"""
-                UPDATE sites s
-                    LEFT JOIN users u ON u.username = :user
-                SET s.image_id = :image, s.modifier_id = u.id
-                WHERE s.name = :site
-                """,
-                        values=dict(site=site, image=image_id, user=self.identity),
-                    )
-                    == 1
-            )
-        else:
-            modified = True
-        return modified
+            modified |= await self._handle_location(site, model.location)
+        if "info" in data:
+            modified |= await self._handle_info(site, model.info)
+        return bool(modified)
 
     @check.admin
     async def delete(self, site: SID):

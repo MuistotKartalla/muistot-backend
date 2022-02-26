@@ -124,7 +124,11 @@ async def modify_memory(
 )
 @require_auth(scopes.AUTHENTICATED)
 async def delete_memory(
-        r: Request, project: PID, site: SID, memory: MID, db: Database = DEFAULT_DB
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        db: Database = DEFAULT_DB
 ):
     repo = MemoryRepo(db, project, site)
     repo.configure(r)

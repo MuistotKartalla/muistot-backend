@@ -16,7 +16,7 @@ from utils import authenticate as auth
 
 
 @pytest.fixture
-async def db():
+async def db(anyio_backend):
     from muistoja.config import Config
     db_instance = databases.Database(config_to_url(Config.db["default"]))
     while True:
@@ -51,7 +51,7 @@ def _credentials():
 
 
 @pytest.fixture(autouse=True)
-async def delete_user(db: databases.Database, credentials):
+async def delete_user(db: databases.Database, credentials, anyio_backend):
     username, email, password = credentials
     yield
     await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
@@ -65,7 +65,7 @@ async def delete_user(db: databases.Database, credentials):
 
 
 @pytest.fixture(name="login")
-async def create_user(db: databases.Database, credentials):
+async def create_user(db: databases.Database, credentials, anyio_backend):
     username, email, password = credentials
     await db.execute(
         "INSERT INTO users (email, username, password_hash, verified) "
@@ -78,7 +78,7 @@ async def create_user(db: databases.Database, credentials):
 
 
 @pytest.fixture(name="superuser")
-async def super_user(login):
+async def super_user(login, anyio_backend):
     await db.execute(
         "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
         values=dict(user=login[0]),
@@ -104,3 +104,9 @@ def mock_request(login):
 @pytest.fixture(name="auth")
 def auth_fixture(client, login):
     return auth(client, login)
+
+
+@pytest.fixture
+def image():
+    import image
+    yield image.DATA

@@ -14,7 +14,11 @@ router = make_router(tags=["Comments"])
     responses=rex.gets(Comments),
 )
 async def get_comments(
-        r: Request, project: PID, site: SID, memory: MID, db: Database = DEFAULT_DB
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        db: Database = DEFAULT_DB
 ) -> Comments:
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)

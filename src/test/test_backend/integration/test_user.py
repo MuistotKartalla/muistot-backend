@@ -2,13 +2,12 @@ from typing import Dict
 
 import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
 from headers import AUTHORIZATION
 
 from urls import *
 
 
-def do_login(client: TestClient, data: Dict, username: str):
+def do_login(client, data: Dict):
     resp = client.post(LOGIN, json=data)
     assert resp.status_code == 200, resp.json()
     header = resp.headers[AUTHORIZATION]
@@ -16,22 +15,19 @@ def do_login(client: TestClient, data: Dict, username: str):
     assert alg == "bearer"
 
 
-@pytest.mark.anyio
-async def test_user_login_username(client: TestClient, login):
+def test_user_login_username(client, login):
     username, email, password = login
     data = {"username": username, "password": password}
-    do_login(client, data, username)
+    do_login(client, data)
 
 
-@pytest.mark.anyio
-async def test_user_login_email(client: TestClient, login):
+def test_user_login_email(client, login):
     username, email, password = login
     data = {"email": email, "password": password}
-    do_login(client, data, username)
+    do_login(client, data)
 
 
-@pytest.mark.anyio
-async def test_user_create(client: TestClient, credentials):
+def test_user_create(client, credentials):
     username, email, password = credentials
 
     resp = client.post(
@@ -41,9 +37,8 @@ async def test_user_create(client: TestClient, credentials):
     assert resp.status_code == 201, resp.json()
 
 
-@pytest.mark.anyio
-async def test_user_create_and_login_unverified(client: TestClient, credentials):
-    await test_user_create(client, credentials)
+def test_user_create_and_login_unverified(client, credentials):
+    test_user_create(client, credentials)
     username, email, password = credentials
     data = {"username": username, "password": password}
     resp = client.post(LOGIN, json=data)
@@ -51,7 +46,7 @@ async def test_user_create_and_login_unverified(client: TestClient, credentials)
 
 
 @pytest.mark.anyio
-async def test_user_un_publish_project_and_delete(client: TestClient, login, db):
+async def test_user_un_publish_project_and_delete(client, login, db):
     username, email, password = login
     try:
         # LOGIN

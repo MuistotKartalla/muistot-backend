@@ -35,7 +35,7 @@ class BaseRepo(ABC):
         funcs = mro[0].__dict__
         for name in ["_check_exists", "_check_not_exists"]:
             assert name not in funcs
-        for name in [f"construct_{resource}", "_exists"]:
+        for name in [f"construct_{resource}"]:
             if name not in funcs:
                 log.warning(f"No {name} declared in repo {cls.__name__}")
 
@@ -66,7 +66,7 @@ class BaseRepo(ABC):
             )
         return self
 
-    def _configure(self, repo: "BaseRepo") -> "BaseRepo":
+    def from_repo(self, repo: "BaseRepo") -> "BaseRepo":
         self._user = repo._user
         self.lang = repo.lang
         return self

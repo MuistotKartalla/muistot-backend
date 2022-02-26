@@ -122,8 +122,40 @@ async def modify_site(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def delete_site(r: Request, project: PID, site: SID, db: Database = DEFAULT_DB):
+async def delete_site(
+        r: Request,
+        project: PID,
+        site: SID,
+        db: Database = DEFAULT_DB
+):
     repo = SiteRepo(db, project)
     repo.configure(r)
     await repo.toggle_publish(site, False)
     deleted(router.url_path_for("get_sites", project=project))
+
+
+@router.put(
+    "/projects/{project}/sites/{site}/localize",
+    description=dedent(
+        """
+        This endpoint is used for localizing a site.
+        """
+    ),
+    response_class=Response,
+    responses=dict(filter(lambda e: e[0] != 404, rex.modify().items())),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def localize_site(
+        r: Request,
+        project: PID,
+        site: SID,
+        info: SiteInfo,
+        db: Database = DEFAULT_DB
+):
+    repo = SiteRepo(db, project)
+    repo.configure(r)
+    await repo.localize(site, info)
+    return Response(
+        status_code=204,
+        headers=dict(location=router.url_path_for("get_site", project=project, site=site)),
+    )

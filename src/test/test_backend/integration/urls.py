@@ -10,3 +10,5 @@ COMMENT = COMMENTS + "/{}"
 
 REGISTER = ROOT + "/register"
 LOGIN = ROOT + "/login"
+
+IMAGE = "/images/{}"

@@ -1,4 +1,3 @@
-import os
 from textwrap import dedent
 
 from fastapi import Path, status
@@ -6,19 +5,9 @@ from fastapi.responses import FileResponse, Response
 from headers import LOCATION
 
 from .utils import make_router
-from ..repos.base.files import get_mime
-from ...config import Config
+from ..repos import Files
 
 router = make_router(tags=["Files"])
-DEFAULT = "placeholder.jpg"
-SYSTEM_IMAGES = {DEFAULT, "favicon.ico"}
-
-
-def path(image: str):
-    if Config.files.location.endswith("/"):
-        return f"{Config.files.location}{image}"
-    else:
-        return f"{Config.files.location}/{image}"
 
 
 @router.get(
@@ -56,7 +45,7 @@ def path(image: str):
                             "errors": [
                                 {
                                     "loc": ["path", "image"],
-                                    "msg": 'string does not match regex "^[a-zA-Z0-9-]+(?:\\.\\w+)?"',
+                                    "msg": "string does not match regex ...",
                                     "type": "value_error.str.regex",
                                 }
                             ],
@@ -67,12 +56,12 @@ def path(image: str):
         },
     },
 )
-async def get_image(image: str = Path(..., regex=r"^[a-zA-Z0-9-]+(?:\.\w+)?")):
-    file = path(image)
-    if not os.path.exists(file):
+async def get_image(image: str = Path(..., regex=Files.PATH)):
+    image = Files.Images.get(image)
+    if not image.exists:
         return Response(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={LOCATION: router.url_path_for("get_image", image=DEFAULT)},
+            headers={LOCATION: router.url_path_for("get_image", image=Files.Images.DEFAULT)},
         )
     else:
-        return FileResponse(path=file, media_type=get_mime(file))
+        return FileResponse(path=image.path, media_type=image.mime)

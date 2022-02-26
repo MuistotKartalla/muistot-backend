@@ -72,7 +72,7 @@ def check_language(lang: str):
     """
     if lang not in get_languages():
         raise HTTPException(
-            status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Bad language"
+            status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Language not supported"
         )
 
 

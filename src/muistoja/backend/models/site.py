@@ -115,6 +115,7 @@ class ModifiedSite(BaseModel):
 
     location: Optional[Point] = Field(description="If position was modified")
     image: Optional[IMAGE] = Field(description=IMAGE_NEW)
+    info: Optional[SiteInfo] = Field(description="Any new or modified localization")
 
     @validator("location")
     def validate_location(cls, value: Optional[Point]):
@@ -134,7 +135,7 @@ class ModifiedSite(BaseModel):
                 "description": "The location can be present or absent, but not `null`."
             },
             "image": {
-                "summary": "Change Location",
+                "summary": "Delete Image",
                 "value": {
                     "image": None
                 },
@@ -142,5 +143,18 @@ class ModifiedSite(BaseModel):
                     "This explicitly deletes the image from this site."
                     " An image could also be added or changed by having the value be a valid base64 encoded image."
                 )
+            },
+            "localize": {
+                "summary": "Localize a site",
+                "description": (
+                    "This will change or create a new localization entry for this site."
+                ),
+                "value": {
+                    "info": {
+                        "lang": "en",
+                        "name": "Awesome Site",
+                        "description": "Awesome english translation"
+                    }
+                }
             }
         }

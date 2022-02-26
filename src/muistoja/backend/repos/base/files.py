@@ -1,5 +1,8 @@
 import base64
+import binascii
 import re
+from collections import namedtuple
+from functools import lru_cache
 from typing import Any, Tuple, Optional
 
 from fastapi import HTTPException, status
@@ -9,25 +12,24 @@ from ....database import Database
 from ....logging import log
 
 PREFIX = re.compile(r"^data:image/[a-z]+;base64,")
-MIME_PREFIX = re.compile(f"^.+?/")
+MIME_PREFIX = re.compile(r"^.+?/")
+
+
+def is_allowed(file_type: str):
+    return file_type in Config.files.allowed_filetypes
 
 
 def check_file(compressed_data: str) -> Tuple[Optional[bytes], Optional[str]]:
     file_type = "None"
     try:
         import magic
-
-        compressed_data = (
-                re.sub(PREFIX, "", compressed_data[:100], count=1) + compressed_data[100:]
-        )
+        compressed_data = re.sub(PREFIX, "", compressed_data[:100], count=1) + compressed_data[100:]
         raw_data = base64.b64decode(compressed_data, validate=True)
         file_type: str = magic.Magic(mime=True).from_buffer(raw_data)
-        if file_type in Config.files.allowed_filetypes:
+        if is_allowed(file_type):
             return raw_data, re.sub(MIME_PREFIX, "", file_type)
-        else:
-            log.info(
-                f"Failed file validation\n{file_type}\n{[hex(b) for b in raw_data[:12]]}"
-            )
+    except (binascii.Error, IndexError):
+        pass
     except Exception as e:
         log.exception(
             f"Exception in file validation\n{file_type}\n{compressed_data[:40]}",
@@ -36,19 +38,11 @@ def check_file(compressed_data: str) -> Tuple[Optional[bytes], Optional[str]]:
     return None, None
 
 
-def get_mime(file: str):
-    """
-    raises FileNotFoundError
-    """
-    import magic
-
-    return magic.Magic(mime=True).from_file(file)
-
-
 class Files:
     """
     Interfacing with files in base64 strings
     """
+    PATH = re.compile(r"^[\w-]{1,36}(?:\.[a-zA-Z0-9]{1,10})?$")
 
     def __init__(self, db: Database, user: Any):
         self.db = db
@@ -97,5 +91,39 @@ class Files:
                 f.write(data)
             return image_id
 
+    @staticmethod
+    def get_mime(file: str):
+        """
+        raises FileNotFoundError
+        """
+        import magic
 
-__all__ = ["Files", "get_mime"]
+        return magic.Magic(mime=True).from_file(file)
+
+    @staticmethod
+    def path(image: str):
+        if not Files.PATH.match(image):
+            raise ValueError("Bad Path")
+        if Config.files.location.endswith("/"):
+            return f"{Config.files.location}{image}"
+        else:
+            return f"{Config.files.location}/{image}"
+
+    Image = namedtuple("Image", ("exists", "path", "mime"))
+
+    class Images:
+        DEFAULT = "placeholder.jpg"
+        SYSTEM_IMAGES = {DEFAULT, "favicon.ico"}
+
+        @staticmethod
+        @lru_cache(maxsize=64)
+        def get(item: str) -> 'Files.Image':
+            import os
+            path = Files.path(item)
+            if item in Files.Images.SYSTEM_IMAGES or os.path.exists(path):
+                return Files.Image(exists=True, path=path, mime=Files.get_mime(path))
+            else:
+                return Files.Image(exists=False, path=None, mime=None)
+
+
+__all__ = ["Files"]

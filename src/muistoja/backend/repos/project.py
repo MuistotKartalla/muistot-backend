@@ -89,16 +89,6 @@ class ProjectRepo(BaseRepo):
                 project=project,
             ),
         )
-        if localized_data.default:
-            changed = await self.db.fetch_val(
-                """
-                UPDATE projects p 
-                    JOIN languages l ON l.lang = :lang 
-                SET p.default_language_id = l.id
-                WHERE p.name = :project
-                """,
-                values=dict(lang=localized_data.lang, project=project)
-            ) or changed
         return changed
 
     async def _handle_contact(self, project: PID, contact: Optional[ProjectContact]):
@@ -127,22 +117,23 @@ class ProjectRepo(BaseRepo):
         )
 
     async def _handle_admins(self, project: PID, admins: List[str]):
-        await self.db.execute(
-            "DELETE FROM project_admins WHERE project_id = (SELECT id FROM projects WHERE name = :project)",
-            values=dict(project=project),
-        )
-        await self.db.execute(
-            f"""
-            REPLACE INTO project_admins (project_id, user_id)
-            SELECT p.id, u.id
-            FROM users u
-                JOIN projects p ON p.name = :project
-            WHERE u.username IN ({",".join(f":admin_{i}" for i in range(0, len(admins)))})
-            """,
-            values=dict(
-                project=project, **{f"admin_{i}": v for i, v in enumerate(admins)}
-            ),
-        )
+        if admins is not None and len(admins) > 0:
+            await self.db.execute(
+                "DELETE FROM project_admins WHERE project_id = (SELECT id FROM projects WHERE name = :project)",
+                values=dict(project=project),
+            )
+            await self.db.execute(
+                f"""
+                REPLACE INTO project_admins (project_id, user_id)
+                SELECT p.id, u.id
+                FROM users u
+                    JOIN projects p ON p.name = :project
+                WHERE u.username IN ({",".join(f":admin_{i}" for i in range(0, len(admins)))})
+                """,
+                values=dict(
+                    project=project, **{f"admin_{i}": v for i, v in enumerate(admins)}
+                ),
+            )
 
     async def construct_project(self, m) -> Project:
         if m is None:
@@ -176,7 +167,7 @@ class ProjectRepo(BaseRepo):
             )
         out = await self.construct_project(m)
         if include_sites:
-            out.sites = await SiteRepo(self.db, project)._configure(self).all()
+            out.sites = await SiteRepo(self.db, project).from_repo(self).all()
         return out
 
     @check.not_exists
@@ -195,7 +186,7 @@ class ProjectRepo(BaseRepo):
                 status_code=status.HTTP_400_BAD_REQUEST, detail="End before start"
             )
         if model.image is not None:
-            image_id = self.files.handle(model.image)
+            image_id = await self.files.handle(model.image)
         else:
             image_id = None
         await self.db.execute(
@@ -246,14 +237,14 @@ class ProjectRepo(BaseRepo):
         else:
             values = {}
             if "image" in data:
-                values["image_id"] = self.files.handle(model.image)
+                values["image_id"] = await self.files.handle(model.image)
             if "contact" in data:
                 await self._handle_contact(project, model.contact)
             for k in {"starts", "ends"}:
                 if k in data:
                     values[k] = data[k]
             if len(values) > 0:
-                modified = await self.db.fetch_val(
+                await self.db.fetch_val(
                     f"""
                     UPDATE projects p
                         LEFT JOIN users u ON u.username = :user
@@ -263,6 +254,7 @@ class ProjectRepo(BaseRepo):
                     """,
                     values=dict(**values, project=project, user=self.identity),
                 )
+                modified = True
             else:
                 modified = False
             return modified
