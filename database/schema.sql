@@ -39,13 +39,14 @@ VALUES ('google'),
 CREATE TABLE IF NOT EXISTS users
 (
     id            INTEGER      NOT NULL AUTO_INCREMENT,
-    email         VARCHAR(255) NULL DEFAULT NULL,
+    email         VARCHAR(255) NULL     DEFAULT NULL,
     username      VARCHAR(255) NOT NULL,
     password_hash BINARY(60) COMMENT 'BCrypt',
 
     # important
-    verified      BOOLEAN           DEFAULT FALSE,
-    created_at    DATETIME          DEFAULT CURRENT_TIMESTAMP,
+    verified      BOOLEAN               DEFAULT FALSE,
+    modified_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at    DATETIME              DEFAULT CURRENT_TIMESTAMP,
 
     # basic data
     image_id      INTEGER      NULL COMMENT 'fk',
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS projects
     published           BOOLEAN      NOT NULL DEFAULT FALSE,
     modifier_id         INTEGER      NULL COMMENT 'fk',
     modified_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_projects (id),
     UNIQUE INDEX idx_project_name (name),
@@ -136,6 +138,7 @@ CREATE TABLE IF NOT EXISTS project_information
 
     modifier_id INTEGER      NULL COMMENT 'fk',
     modified_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_pi (project_id, lang_id),
 
@@ -159,6 +162,7 @@ CREATE TABLE IF NOT EXISTS project_contact
 
     modifier_id         INTEGER      NULL COMMENT 'fk',
     modified_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_pl (project_id),
 
@@ -172,8 +176,9 @@ CREATE TABLE IF NOT EXISTS project_contact
 
 CREATE TABLE IF NOT EXISTS project_admins
 (
-    project_id INTEGER NOT NULL COMMENT 'fk',
-    user_id    INTEGER NOT NULL COMMENT 'fk',
+    project_id INTEGER  NOT NULL COMMENT 'fk',
+    user_id    INTEGER  NOT NULL COMMENT 'fk',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_pa (project_id, user_id),
 
@@ -195,8 +200,9 @@ CREATE TABLE IF NOT EXISTS sites
     published   BOOLEAN      NOT NULL DEFAULT FALSE,
     modifier_id INTEGER      NULL COMMENT 'fk',
     modified_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    location    POINT        NOT NULL COMMENT 'Coordinates',
+    location    GEOMETRY     NOT NULL COMMENT 'Coordinates',
 
     PRIMARY KEY pk_sites (id),
     UNIQUE INDEX idx_sites_name (name),
@@ -252,6 +258,7 @@ CREATE TABLE IF NOT EXISTS memories
     deleted     BOOLEAN  NOT NULL DEFAULT FALSE,
     published   BOOLEAN  NOT NULL DEFAULT FALSE,
     modified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_comments (id),
     INDEX idx_comments_per_user (published, user_id),
@@ -277,6 +284,7 @@ CREATE TABLE IF NOT EXISTS comments
 
     published   BOOLEAN  NOT NULL DEFAULT FALSE,
     modified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY pk_comments (id),
     INDEX idx_comments_per_user (published, user_id),
@@ -335,7 +343,8 @@ MORE
 */
 CREATE TABLE IF NOT EXISTS superusers
 (
-    user_id INTEGER NOT NULL,
+    user_id    INTEGER  NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY pk_superusers (user_id),
     CONSTRAINT FOREIGN KEY fk_superusers (user_id) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE CASCADE
 ) COMMENT 'Global SuperUsers';
@@ -406,6 +415,17 @@ CREATE TABLE IF NOT EXISTS audit_comments
     CONSTRAINT FOREIGN KEY fg_ac_user (user_id) REFERENCES users (id)
 );
 
+CREATE TABLE IF NOT EXISTS audit_memories
+(
+    memory_id INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+
+    PRIMARY KEY pk_am (memory_id, user_id),
+
+    CONSTRAINT FOREIGN KEY fg_am_comment (memory_id) REFERENCES memories (id),
+    CONSTRAINT FOREIGN KEY fg_am_user (user_id) REFERENCES users (id)
+);
+
 DELIMITER $$
 
 DROP PROCEDURE IF EXISTS comments_audit_log;
@@ -415,12 +435,39 @@ BEGIN
            c.id                        AS comment_id,
            c.comment                   AS comment_story,
            cu.username                 AS comment_user,
-           CONCAT_WS(',', ru.username) AS reporting_users
+           CONCAT_WS(',', ru.username) AS reporting_users,
+           m.id                        AS memory_id,
+           s.name                      AS site,
+           p.name                      AS project
     FROM audit_comments ac
              JOIN comments c ON ac.comment_id = c.id
+             JOIN memories m on c.memory_id = m.id
+             JOIN sites s on m.site_id = s.id
+             JOIN projects p on s.project_id = p.id
              JOIN users cu ON c.user_id = cu.id
              JOIN users ru ON ac.user_id = ru.id
     GROUP BY ac.comment_id
+    ORDER BY report_count DESC;
+END $$
+
+DROP PROCEDURE IF EXISTS memories_audit_log;
+CREATE PROCEDURE memories_audit_log()
+BEGIN
+    SELECT COUNT(*)                    AS report_count,
+           m.id                        AS memory_id,
+           m.title                     AS memory_title,
+           m.story                     AS memory_story,
+           mu.username                 AS memory_user,
+           CONCAT_WS(',', ru.username) AS reporting_users,
+           s.name                      AS site,
+           p.name                      AS project
+    FROM audit_memories am
+             JOIN memories m on am.memory_id = m.id
+             JOIN sites s on m.site_id = s.id
+             JOIN projects p on s.project_id = p.id
+             JOIN users mu ON am.user_id = mu.id
+             JOIN users ru ON am.user_id = ru.id
+    GROUP BY am.memory_id
     ORDER BY report_count DESC;
 END $$
 
@@ -436,6 +483,15 @@ BEGIN
         ) ac ON ac.comment_id = c.id
     SET c.published = 0
     WHERE ac.report_count > 10;
+    UPDATE memories m
+        JOIN (
+            SELECT am.memory_id,
+                   COUNT(*) AS report_count
+            FROM audit_memories am
+            GROUP BY am.memory_id
+        ) am ON am.memory_id = m.id
+    SET m.published = 0
+    WHERE am.report_count > 10;
 END $$
 
 CREATE EVENT report_watchdog
