@@ -41,7 +41,7 @@ def modify():
     return {
         404: PARENTS_SELF,
         204: SUCCESS,
-        304: d("The resource was not modified"),
+        # 304: d("The resource was not modified"),
         422: URL_FAILURE_CREATE_MODIFY,
         401: UNAUTHENTICATED,
         403: UNAUTHORIZED,

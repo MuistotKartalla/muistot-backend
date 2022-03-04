@@ -1,5 +1,5 @@
 import functools
-from typing import Callable, Optional, List, Any, Type
+from typing import Callable, Optional, Any, Type
 
 from fastapi import HTTPException, status
 
@@ -19,7 +19,7 @@ def _check_status_kwarg(f) -> Optional[str]:
     from inspect import signature
     kwrd = None
     for k, v in signature(f).parameters.items():
-        if v.kind == v.KEYWORD_ONLY and v.annotation == Status:
+        if (v.kind == v.POSITIONAL_OR_KEYWORD or v.kind == v.KEYWORD_ONLY) and v.annotation == Status:
             kwrd = v.name
     return kwrd
 
@@ -55,7 +55,9 @@ async def _actual_exists(repo: BaseRepo, arg: Any) -> Status:
     service = _import_service(repo)
     kwargs = repo.identifiers
     kwargs[_name(repo).lower()] = arg
-    return await service(user=repo.user, db=repo.db, **kwargs).exists()
+
+    out = await service(user=repo.user, db=repo.db, **kwargs).exists()
+    return out | Status.SUPER if repo.superuser else out
 
 
 async def _exists(*args) -> Status:
@@ -74,7 +76,7 @@ async def _exists(*args) -> Status:
 def _mapper_common(self, _status):
     """Maps most common errors
     """
-    if _status == Status.DOES_NOT_EXIST:
+    if Status.DOES_NOT_EXIST in _status or Status.NOT_PUBLISHED in _status:
         return HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"{_name(self)} not found"
         )
@@ -85,8 +87,9 @@ def _mapper_common(self, _status):
 
 
 def check(
-        allowed_types: List[Status],
-        error_mapper: Optional[Callable[[BaseRepo, Status], HTTPException]],
+        *allowed_types: Status,
+        error_mapper: Callable[[BaseRepo, Status], HTTPException] = _mapper_common,
+        force_exists: bool = True
 ):
     """Generalized check
 
@@ -96,6 +99,8 @@ def check(
         Types to be checked for. If any match the result is returned.
     error_mapper
         Mapper for errors.
+    force_exists
+        IF the resource does not need to exist set this to False
 
     Returns
     -------
@@ -109,20 +114,13 @@ def check(
         async def actual_decorator(*args, **kwargs):
             status_ = await _exists(*args)
 
-            if Status.DOES_NOT_EXIST not in status_ and args[0].superuser:
-                if inject_argument is None:
-                    return await f(*args, **kwargs)
-                else:
-                    return await f(*args, **{**kwargs, inject_argument: status_})
+            if inject_argument is not None:
+                kwargs = {**kwargs, inject_argument: status_}
 
-            if any(map(lambda at: at in status_, allowed_types)):
-                if inject_argument is None:
-                    return await f(*args, **kwargs)
-                else:
-                    return await f(*args, **{**kwargs, inject_argument: status_})
+            if (not force_exists or Status.EXISTS in status_) and any(map(status_.__contains__, allowed_types)):
+                return await f(*args, **kwargs)
             else:
-                if error_mapper is not None:
-                    raise error_mapper(args[0], status_)
+                raise error_mapper(args[0], status_)
 
         return actual_decorator
 
@@ -153,8 +151,8 @@ def exists(f):
     This way the method will only handle existing resources.
     """
     return check(
-        [Status.EXISTS],
-        lambda self, s: HTTPException(
+        Status.EXISTS,
+        error_mapper=lambda self, s: HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"{_name(self)} not found"
         )
     )(f)
@@ -171,10 +169,11 @@ def not_exists(f):
         More documentation.
     """
     return check(
-        [Status.DOES_NOT_EXIST],
-        lambda self, s: HTTPException(
+        Status.DOES_NOT_EXIST,
+        error_mapper=lambda self, s: HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=f"{_name(self)} exists"
         ),
+        force_exists=False
     )(f)
 
 
@@ -186,7 +185,7 @@ def parents(f):
     exists:
         More documentation.
     """
-    return check([Status.DOES_NOT_EXIST, Status.EXISTS], None)(f)
+    return check(Status.DOES_NOT_EXIST, Status.EXISTS, force_exists=False)(f)
 
 
 def admin(f):
@@ -197,7 +196,7 @@ def admin(f):
     exists:
         More documentation.
     """
-    return check([Status.ADMIN], _mapper_common)(f)
+    return check(Status.ADMIN, Status.SUPER)(f)
 
 
 def own(f):
@@ -208,7 +207,7 @@ def own(f):
     exists:
         More documentation.
     """
-    return check([Status.OWN], _mapper_common)(f)
+    return check(Status.OWN)(f)
 
 
 def published_or_admin(f):
@@ -221,10 +220,7 @@ def published_or_admin(f):
     exists:
         More documentation.
     """
-    return check(
-        [Status.PUBLISHED, Status.OWN, Status.ADMIN],
-        _mapper_common,
-    )(f)
+    return check(Status.PUBLISHED, Status.OWN, Status.ADMIN, Status.SUPER)(f)
 
 
 def own_or_admin(f):
@@ -235,7 +231,7 @@ def own_or_admin(f):
     exists:
         More documentation.
     """
-    return check([Status.OWN, Status.ADMIN], _mapper_common)(f)
+    return check(Status.OWN, Status.ADMIN, Status.SUPER)(f)
 
 
 def zuper(f):
@@ -246,7 +242,7 @@ def zuper(f):
     exists:
         More documentation.
     """
-    return check([Status.SUPER], _mapper_common)(f)
+    return check(Status.SUPER, force_exists=True)(f)
 
 
 __all__ = [

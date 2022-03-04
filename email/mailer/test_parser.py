@@ -1,5 +1,6 @@
 import pytest
-from muistoja.mailer.parse import *
+
+from .parse import *
 
 
 @pytest.mark.parametrize(

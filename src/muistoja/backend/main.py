@@ -118,7 +118,7 @@ app.include_router(api_paths)
 # This is a hack
 add_session_manager(app)
 
-if not Config.testing:
+if not Config.testing:  # pragma: no cover
     app.add_middleware(CORSMiddleware, allow_methods=set())
     app.add_middleware(HTTPSRedirectMiddleware)
 else:

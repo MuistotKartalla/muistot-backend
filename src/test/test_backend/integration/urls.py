@@ -1,4 +1,5 @@
 ROOT = ""
+
 PROJECTS = ROOT + "/projects"
 PROJECT = PROJECTS + "/{}"
 SITES = PROJECT + "/sites"
@@ -12,3 +13,8 @@ REGISTER = ROOT + "/register"
 LOGIN = ROOT + "/login"
 
 IMAGE = "/images/{}"
+ADMINS = PROJECT + "/admins"
+PROJECT_LOCALIZE = PROJECT + "/localize"
+
+PUBLISH = "/admin/publish"
+ENTRY = "/"

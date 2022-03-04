@@ -1,106 +1,253 @@
 import pytest
+from fastapi import status
 from headers import LOCATION
 
 from utils import *
 
 
 @pytest.fixture(name="setup")
-async def setup(mock_request, db, login):
-    pid = await create_project(db, mock_request, admins=[login[0]])
-    sid = await create_site(pid, db, mock_request)
+async def setup(repo_config, db, login):
+    pid = await create_project(db, repo_config, admins=[login[0]])
+    sid = await create_site(pid, db, repo_config)
     yield Setup(pid, sid)
     await db.execute("DELETE FROM projects WHERE name = :project", dict(project=pid))
 
 
-@pytest.mark.anyio
-@pytest.mark.parametrize("n", [1, 7, 1000])
-async def test_comment_count(client, db, setup, n, mock_request):
-    mid = await create_memory(setup.project, setup.site, db, mock_request)
-    setup.memory = mid
-    cids = []
-
-    for i in range(0, n):
-        cids.append(
-            str(await create_comment(setup.project, setup.site, mid, db, mock_request))
-        )
-
-    await db.execute(
-        f"UPDATE comments SET published = 0 WHERE id IN ({','.join(cids)})"
-    )
-    r = client.get(f"{setup.url}")
-    assert r.status_code == 200, await db.fetch_all(
-        "SELECT id, published FROM memories"
-    )
-    r = r.json()
-    assert Memory(**r).comments_count == 0
-
-    await db.execute(
-        f"UPDATE comments SET published = 1 WHERE id IN ({','.join(cids)})"
-    )
-    r = client.get(f"{setup.url}").json()
-    assert Memory(**r).comments_count == n, setup.url
+@pytest.fixture
+def admin(client, login):
+    yield authenticate(client, login[0], login[2])
 
 
-@pytest.mark.anyio
+#        ___           ___           ___           ___           ___
+#       /\  \         /\  \         /\  \         /\  \         /\  \
+#      /::\  \        \:\  \       /::\  \       /::\  \        \:\  \
+#     /:/\ \  \        \:\  \     /:/\:\  \     /:/\:\  \        \:\  \
+#    _\:\~\ \  \       /::\  \   /::\~\:\  \   /::\~\:\  \       /::\  \
+#   /\ \:\ \ \__\     /:/\:\__\ /:/\:\ \:\__\ /:/\:\ \:\__\     /:/\:\__\
+#   \:\ \:\ \/__/    /:/  \/__/ \/__\:\/:/  / \/_|::\/:/  /    /:/  \/__/
+#    \:\ \:\__\     /:/  /           \::/  /     |:|::/  /    /:/  /
+#     \:\/:/  /     \/__/            /:/  /      |:|\/__/     \/__/
+#      \::/  /                      /:/  /       |:|  |
+#       \/__/                       \/__/         \|__|
+
 @pytest.mark.parametrize(
     "title,story",
     [(genword(length=10), genword(length=10)), (genword(length=10), None)],
 )
-async def test_create_and_publish(
-        client, db, setup, auth, login, title: str, story: str
-):
-    new_memory = NewMemory(title=title, story=story).dict()
-    r = client.post(f"{setup.url}/memories", json=new_memory, headers={})
-    assert r.status_code == 401, "Created memory without auth"
+def test_create_and_publish(client, setup, auth, title: str, story: str, auto_publish, username):
+    """Create test
+    """
+    # Create
+    m = NewMemory(title=title, story=story).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
 
-    r = client.post(f"{setup.url}/memories", json=new_memory, headers=auth)
-    assert r.status_code == 201, "Failed to make new memory"
-    memory_url = r.headers[LOCATION]
+    # Get published
+    r = client.get(r.headers[LOCATION])
+    check_code(status.HTTP_200_OK, r)
 
-    _id = memory_url.removesuffix("/").split("/")[-1]
-    # un-publish
-    await db.execute(
-        "UPDATE memories SET published = 0 WHERE id = :id", values=dict(id=_id)
-    )
-    assert (
-               await db.fetch_val(
-                   "SELECT published FROM memories WHERE id = :id", values=dict(id=_id)
-               )
-           ) == 0
-
-    print("Fetching unpublished")
-    r = client.get(memory_url, headers=auth)
-    assert (
-            r.status_code == 200
-    ), f"{repr(r.json())} - {memory_url} - {await db.fetch_all('SELECT * FROM memories')}"
-    memory = Memory(**r.json())
-    assert (
-            memory.waiting_approval == 1
-    ), f"Couldn't fetch unpublished - {await db.fetch_all('SELECT * FROM memories')}"
-
-    await db.execute(
-        f"UPDATE memories SET published = 1 WHERE id = :id", values=dict(id=memory.id)
-    )
-
-    memory = Memory(**client.get(memory_url).json())
-
-    assert memory.comments_count == 0
-    assert memory.comments is None
-    assert memory.user == login[0], "Wrong user"
-    assert memory.title == title
-    assert memory.story == story
-    assert memory.waiting_approval is None, "Fetched published status unauthenticated"
+    # Check props
+    m = to(Memory, r)
+    assert m.comments_count == 0
+    assert m.comments is None
+    assert m.user == username, "Wrong user"
+    assert m.title == title
+    assert m.story == story
+    assert m.waiting_approval is None, "Fetched published status unauthenticated"
 
 
-@pytest.mark.anyio
-async def test_modify(client, db, setup, auth, login):
-    memory = NewMemory(title=genword(length=100), story=genword(length=100)).dict()
-    r = client.post(f"{setup.url}/memories", json=memory, headers=auth)
+def test_create_no_auth(client, setup):
+    """Only users can create
+    """
+    m = NewMemory(title="comment", story="no-auth").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers={})
+    check_code(status.HTTP_401_UNAUTHORIZED, r)
+
+
+def test_see_own_unpublished(client, auth, setup, username):
+    """See own unpublished
+    """
+    # Create
+    m = NewMemory(title="my comment").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    # Urls
+    r = client.get(r.headers[LOCATION], headers=auth)
+    check_code(status.HTTP_200_OK, r)
+
+    m = to(Memory, r)
+    assert m.waiting_approval == 1
+    assert m.user == username
+
+
+def test_unpublic_not_visible(client, auth, setup, username, auth2):
+    """Can't see unpublished
+    """
+    # Create
+    m = NewMemory(title="hidden comment").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    murl = r.headers[LOCATION]
+
+    # Not visible to user
+    r = client.get(murl, headers=auth2)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+    # Not visible to no auth
+    r = client.get(murl)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+
+def test_see_published_without_auth(client, auth, setup, username, auto_publish):
+    """Published is public
+    """
+    # Create
+    m = NewMemory(title="cool comment").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    # Check
+    r = client.get(r.headers[LOCATION])
+    check_code(status.HTTP_200_OK, r)
+    assert to(Memory, r).waiting_approval is None
+
+
+def test_modify_full(client, setup, auth, login, auto_publish):
+    """Full modify
+    """
+    m = NewMemory(title=genword(length=100), story=genword(length=100)).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
     url = r.headers[LOCATION]
 
-    for k, v in dict(title=200, story=1000).items():
-        r = client.patch(url, json={k: genword(length=v)}, headers=auth)
-        assert r.status_code == 204, r.json()
-        assert len(client.get(url, headers=auth).json()[k]) == v, await db.fetch_all(
-            "SELECT LENGTH(story) FROM memories"
-        )
+    m = dict(title="a", story="b")
+    r = client.patch(url, json=m, headers=auth)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    mm = to(Memory, client.get(url))
+    assert mm.dict(include=m.keys()) == m
+
+
+def test_modify_one(client, setup, auth, login):
+    """Modify one attr
+    """
+    title = genword(length=100)
+    story = genword(length=1000)
+
+    m = NewMemory(title=title).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    url = r.headers[LOCATION]
+
+    m = dict(story=story)
+    r = client.patch(url, json=m, headers=auth)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    r = client.get(url, headers=auth)
+    m = to(Memory, r)
+    assert m.story == story
+    assert m.title == title
+
+
+def test_delete_story(client, setup, auth, login):
+    """Explicit null should delete story
+    """
+    title = genword(length=100)
+
+    m = NewMemory(title=title, story=genword(length=100)).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    url = r.headers[LOCATION]
+
+    m = dict(story=None)
+    r = client.patch(url, json=m, headers=auth)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    r = client.get(url, headers=auth)
+    m = to(Memory, r)
+    assert m.story is None
+    assert m.title == title
+
+
+def test_admin_no_modify_but_delete(client, auth2, setup, admin, auto_publish):
+    """Only posting user can modify
+
+    Admin can delete
+    """
+    # Create
+    m = NewMemory(title="no-admin").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    url = r.headers[LOCATION]
+
+    r = client.patch(url, json=dict(title="ajdawijdijwaidwa"), headers=admin)
+    check_code(status.HTTP_403_FORBIDDEN, r)
+
+    r = client.delete(url, headers=admin)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+
+def test_super_no_modify_but_delete(client, auth2, setup, superuser, auto_publish):
+    """Only posting user can modify
+
+    Super can delete
+    """
+    # Create
+    m = NewMemory(title="no-modify").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    url = r.headers[LOCATION]
+
+    r = client.patch(url, json=dict(title="adwwdadw"), headers=superuser)
+    check_code(status.HTTP_403_FORBIDDEN, r)
+
+    r = client.delete(url, headers=superuser)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+
+def test_others_no_modify(client, auth2, setup, auth3, auto_publish):
+    """Only posting user can modify
+    """
+    # Create
+    m = NewMemory(title="no-others").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.patch(r.headers[LOCATION], json=dict(title="dwjadwdiwidjiwowadä"), headers=auth3)
+    check_code(status.HTTP_403_FORBIDDEN, r)
+
+
+def test_image(client, auth, image, setup, auto_publish):
+    """Images should work
+    """
+    # Create
+    m = NewMemory(title="has image", image=image).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.get(r.headers[LOCATION])
+    m = to(Memory, r)
+    assert m.image is not None
+
+    r = client.get(IMAGE.format(m.image))
+    check_code(status.HTTP_200_OK, r)
+
+
+def test_image_delete(client, auth, image, setup, auto_publish):
+    """Image null should delete
+    """
+    # Create
+    m = NewMemory(title="has image", image=image).dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    url = r.headers[LOCATION]
+    r = client.patch(url, json=dict(image=None), headers=auth)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    r = client.get(url)
+    check_code(status.HTTP_200_OK, r)
+
+    m = to(Memory, r)
+    assert m.image is None

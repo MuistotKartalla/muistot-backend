@@ -1,12 +1,12 @@
 from fastapi import APIRouter
 
-from .admin import router as admin_router
 from .comments import router as comment_router
 from .common import router as common_paths
 from .files import router as file_router
 from .me import router as me_router
 from .memories import router as memory_router
 from .projects import router as project_router
+from .publish import router as admin_router
 from .sites import router as site_router
 
 router = APIRouter()

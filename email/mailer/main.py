@@ -7,17 +7,15 @@ from headers import AUTHORIZATION
 from pydantic import BaseModel
 
 from .parse import parse_file
-from ..errors import modify_openapi, register_error_handlers, ApiError, ErrorResponse
-from ..logging import log
 
 
 class MailConfig(BaseModel):
-    user: str
-    password: str
-    email: str
-    url: str
-    port: int
-    token: str
+    user: str = "test"
+    password: str = "test"
+    email: str = "no-reply@example.com"
+    url: str = "maildev"
+    port: int = 25
+    token: str = "test"
 
 
 class SendEmailOrder(BaseModel):
@@ -31,9 +29,8 @@ class VerifyEmail(BaseModel):
     email: str
 
 
+CONFIG = MailConfig()
 TEMPLATES = parse_file("/opt/templates.txt")
-with open("/opt/mailer-config.json") as f:
-    CONFIG = MailConfig.parse_raw(f.read())
 
 description = """
     Mailer service for Muistojakartalla
@@ -53,8 +50,6 @@ app = FastAPI(
     openapi_tags=tags,
 )
 
-register_error_handlers(app)
-
 
 def verify_request(r: Request):
     try:
@@ -62,7 +57,6 @@ def verify_request(r: Request):
         if compare_digest(token, CONFIG.token):
             return True
         else:
-            log.warning(f"Failed attempt to send mail: {r.client}")
             return False
     except (KeyError, IndexError):
         return False
@@ -73,9 +67,7 @@ async def verify_request_middleware(r: Request, call_next):
     if verify_request(r):
         return await call_next(r)
     else:
-        return ErrorResponse(
-            ApiError(code=status.HTTP_403_FORBIDDEN, message="Forbidden")
-        )
+        return JSONResponse(status_code=status.HTTP_403_FORBIDDEN)
 
 
 @app.post("/send", status_code=status.HTTP_202_ACCEPTED)
@@ -97,6 +89,7 @@ def endpoint_send_email(model: SendEmailOrder):
             "html",
         )
     )
+
     with SMTP(cnf.url, port=cnf.port) as s:
         s.login(cnf.user, cnf.password)
         s.send_message(mail)
@@ -108,7 +101,4 @@ def endpoint_validate_email(model: VerifyEmail):
         valid = validate_email(model.email)
         return VerifyEmail(email=valid.email)
     except EmailNotValidError as e:
-        return ErrorResponse(ApiError(code=status.HTTP_400_BAD_REQUEST, message=str(e)))
-
-
-modify_openapi(app)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=dict(error=dict(message=str(e))))

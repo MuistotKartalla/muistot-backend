@@ -152,6 +152,7 @@ class MemoryRepo(BaseRepo):
     async def modify(self, memory: MID, model: ModifiedMemory) -> bool:
         data = model.dict(exclude_unset=True)
         if "image" in data:
+            data.pop("image")
             data["image_id"] = await self.files.handle(model.image)
         if len(data) > 0:
             await self.db.execute(
@@ -162,9 +163,10 @@ class MemoryRepo(BaseRepo):
                 """,
                 values=dict(**data, memory=memory),
             )
-            return await self.db.fetch_val("SELECT ROW_COUNT()") > 0
+            return True
+        return False
 
-    @check.own
+    @check.own_or_admin
     async def delete(self, memory: MID):
         await self.db.execute(
             """

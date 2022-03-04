@@ -27,6 +27,7 @@ class Status(Flag):
     OWN = auto()
     ADMIN = auto()
     SUPER = auto()
+    ADMIN_POSTING = auto()
 
     @property
     def own(self) -> bool:
@@ -39,6 +40,10 @@ class Status(Flag):
     @property
     def published(self) -> bool:
         return Status.PUBLISHED in self
+
+    @property
+    def pap(self) -> bool:
+        return Status.ADMIN_POSTING in self
 
     @staticmethod
     def start(m: Any) -> "Status":
@@ -65,6 +70,11 @@ class Status(Flag):
         """Add information if this resource is the users own creation
         """
         return self | Status.OWN if m[value] else self
+
+    def add_pap(self, m: Mapping, value: int) -> "Status":
+        """Project admin posting
+        """
+        return self | Status.ADMIN_POSTING if m[value] else self
 
 
 class Exists(ABC):

@@ -21,7 +21,7 @@ class BaseRepo(ABC):
     Throwing HTTPExceptions is a good way to propagate exceptions.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs):  # pragma: no cover
         """
         Checks Repo requirements and mistakes
         """
@@ -76,42 +76,36 @@ class BaseRepo(ABC):
         """
         Return all resources matching arguments.
         """
-        pass
 
     @abstractmethod
     async def one(self, *args) -> Any:
         """
         Return a single resource. Return a model class.
         """
-        pass
 
     @abstractmethod
     async def create(self, model) -> Any:
         """
         Create a resource. Return identifier on success.
         """
-        pass
 
     @abstractmethod
     async def modify(self, *args) -> bool:
         """
         Modify a resource. Return whether the resource changed.
         """
-        pass
 
     @abstractmethod
     async def delete(self, *args) -> NoReturn:
         """
         Delete the resource
         """
-        pass
 
     @abstractmethod
     async def toggle_publish(self, *args) -> NoReturn:
         """
         Set publish
         """
-        pass
 
     async def _set_published(self, published: bool, **values) -> NoReturn:
         """

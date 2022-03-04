@@ -48,7 +48,7 @@ class Files:
         self.db = db
         self.user = user
 
-    async def handle(self, file_data: str) -> int:
+    async def handle(self, file_data: Optional[str]) -> int:
         """
         Handle incoming image file data.
 
@@ -63,9 +63,7 @@ class Files:
         ):
             data, file_type = check_file(file_data)
             if data is None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Bad image"
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad image")
             if self.user.is_authenticated:
                 m = await self.db.fetch_one(
                     """
@@ -79,15 +77,13 @@ class Files:
                     values=dict(user=self.user.identity),
                 )
             else:
-                m = await self.db.fetch_one(
-                    "INSERT INTO images VALUE () RETURNING id, file_name"
-                )
+                m = await self.db.fetch_one("INSERT INTO images VALUE () RETURNING id, file_name")
             if m is None:
                 log.warning(f"Failure to insert file\n{self.user.identity}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
             image_id = m[0]
             file_name = m[1]
-            with open(f"{Config.files.location}{file_name}", "wb") as f:
+            with open(self.path(file_name), "wb") as f:
                 f.write(data)
             return image_id
 

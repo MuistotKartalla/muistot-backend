@@ -102,12 +102,7 @@ async def modify_memory(
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     changed = await repo.modify(memory, model)
-    return modified(
-        lambda: router.url_path_for(
-            "get_memory", project=project, site=site, memory=str(memory)
-        ),
-        changed,
-    )
+    return modified(lambda: router.url_path_for("get_memory", project=project, site=site, memory=str(memory)), changed)
 
 
 @router.delete(

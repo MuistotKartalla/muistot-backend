@@ -10,7 +10,7 @@ from ....config import Config
 ALLOWED_CHARS = re.compile(r"^[a-zA-Z0-9_:-]+$")
 
 
-def not_implemented(f):
+def not_implemented(f):  # pragma: no cover
     """
     Marks function as not used and generates a warning on startup
 

@@ -33,26 +33,21 @@ services:
     restart: on-failure
     ports:
       - "127.0.0.1:5602:8080"
-  maildev:
-    build:
-      context: .
-      dockerfile: maildev.Dockerfile
-    restart: on-failure
-    command: maildev --smtp 25 --web 80 --incoming-user muistoja --incoming-pass test
-    ports:
-      - "127.0.0.1:5603:80"
   session-storage:
     image: redis:alpine
     restart: on-failure
+  maildev:
+    build:
+      context: ./email
+      dockerfile: maildev.Dockerfile
+    restart: on-failure
+    ports:
+      - "127.0.0.1:5603:80"
   mailer:
     build:
-      context: .
+      context: ./email
       dockerfile: mailer.Dockerfile
     restart: on-failure
-    volumes:
-      - "./email/templates.txt:/opt/templates.txt:ro"
-      - "./mailer-config.json:/opt/mailer-config.json:ro"
-      - "./src/muistoja/:/code/muistoja/:ro"
 
 volumes:
   muistot-db-data:

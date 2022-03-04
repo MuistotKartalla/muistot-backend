@@ -14,6 +14,7 @@ class SiteExists(Exists):
         """
         SELECT p.published,
                s.published,
+               p.admin_posting,
                NOT ISNULL(pa.user_id)
         FROM projects p
                 LEFT JOIN sites s ON p.id = s.project_id
@@ -29,7 +30,8 @@ class SiteExists(Exists):
     _plain = (
         """
         SELECT p.published,
-               s.published
+               s.published,
+               p.admin_posting
         FROM projects p
                  LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
@@ -52,10 +54,10 @@ class SiteExists(Exists):
         if m is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-        s: Status = Status.start(m[1]).add_published(m, 1)
+        s: Status = Status.start(m[1]).add_published(m, 1).add_pap(m, 2)
 
         if self.authenticated:
-            s = s.add_admin(m, 2)
+            s = s.add_admin(m, 3)
 
         if s.admin:
             return s

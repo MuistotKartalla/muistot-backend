@@ -9,8 +9,8 @@ services:
     tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
-      - "./config.json:/test-runner/config.json:ro"
       - "./wordlist.txt:/root/wordlist.txt:ro"
+      - "./email/local.py:/code/muistoje/mailer/local.py:ro"
     depends_on:
       - db
       - maildev
@@ -24,21 +24,16 @@ services:
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     logging:
       driver: "none"
-  maildev:
-    build:
-      context: .
-      dockerfile: maildev.Dockerfile
-    restart: "no"
-    command: maildev --smtp 25 --web 80 --incoming-user muistoja --incoming-pass test
   session-storage:
     image: redis:alpine
-    restart: on-failure
+    restart: "no"
+  maildev:
+    build:
+      context: ./email
+      dockerfile: maildev.Dockerfile
+    restart: "no"
   mailer:
     build:
-      context: .
+      context: ./email
       dockerfile: mailer.Dockerfile
-    restart: on-failure
-    volumes:
-      - "./email/templates.txt:/opt/templates.txt:ro"
-      - "./mailer-config.json:/opt/mailer-config.json:ro"
-      - "./src/muistoja/:/code/muistoja/:ro"
+    restart: "no"

@@ -1,13 +1,20 @@
 import random
+from typing import TypeVar, Type
+from typing import cast
 
 from databases import Database
+from fastapi import Request
 from headers import AUTHORIZATION
 from muistoja.backend.models import *
 from muistoja.backend.repos import *
 from muistoja.config import Config
+from muistoja.security.auth import User
+from muistoja.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
 from passlib.pwd import genword
 
 from urls import *
+
+T = TypeVar('T')
 
 
 class Setup:
@@ -25,7 +32,7 @@ class Setup:
             self.project = args[0]
 
     @property
-    def url(self):
+    def _url(self):
         url = ROOT
         values = []
         if hasattr(self, "project"):
@@ -43,7 +50,7 @@ class Setup:
         return self.__repr__()
 
     def __repr__(self):
-        return self.url
+        return self._url
 
     def __iter__(self):
         return iter(
@@ -51,37 +58,23 @@ class Setup:
         )
 
 
-async def create_memory(
-        pid: PID, sid: SID, db: Database, config, **additional_properties
-) -> MID:
-    out = (
-        await MemoryRepo(db, pid, sid)
-            .configure(config)
-            .create(
-            NewMemory(
-                title=genword(length=100),
-                story=genword(length=1500),
-                **additional_properties,
-            )
+async def create_memory(pid: PID, sid: SID, db: Database, config, **additional_properties) -> MID:
+    out = await MemoryRepo(db, pid, sid).configure(config).create(
+        NewMemory(
+            title=genword(length=100),
+            story=genword(length=1500),
+            **additional_properties,
         )
     )
     assert out is not None
-    await db.execute(
-        f"UPDATE memories SET published = 1 WHERE id = :id", values=dict(id=out)
-    )
+    await db.execute("UPDATE memories SET published = 1 WHERE id = :id", values=dict(id=out))
     return out
 
 
 async def create_comment(pid: PID, sid: SID, mid: MID, db, config) -> CID:
-    out = (
-        await CommentRepo(db, pid, sid, mid)
-            .configure(config)
-            .create(NewComment(comment=genword(length=500)))
-    )
+    out = await CommentRepo(db, pid, sid, mid).configure(config).create(NewComment(comment=genword(length=500)))
     assert out is not None
-    await db.execute(
-        f"UPDATE comments SET published = 1 WHERE id = :id", values=dict(id=out)
-    )
+    await db.execute("UPDATE comments SET published = 1 WHERE id = :id", values=dict(id=out))
     return out
 
 
@@ -111,9 +104,7 @@ async def create_site(pid: PID, db, config, **additional_properties) -> SID:
         )
     )
     assert out is not None
-    await db.execute(
-        f"UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=out)
-    )
+    await db.execute("UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=out))
     return out
 
 
@@ -127,28 +118,56 @@ def create_project_info(lang: str) -> ProjectInfo:
 
 
 async def create_project(db, config, **additional_properties) -> PID:
-    out = (
-        await ProjectRepo(db)
-            .configure(config)
-            .create(
-            NewProject(
-                id=genword(length=10),
-                info=create_project_info(Config.localization.default),
-                **additional_properties,
-            )
+    out = await ProjectRepo(db).configure(config).create(
+        NewProject(
+            id=genword(length=10),
+            info=create_project_info(Config.localization.default),
+            **additional_properties,
         )
     )
     assert out is not None
-    await db.execute(
-        f"UPDATE projects SET published = 1 WHERE name = :id", values=dict(id=out)
-    )
+    assert (await db.fetch_val("SELECT COUNT(*) FROM projects WHERE name = :name", values=dict(name=out))) == 1, out
+    await db.execute("UPDATE projects SET published = 1 WHERE name = :id", values=dict(id=out))
     return out
 
 
-def authenticate(client, login):
+def mock_request(username):
+    uid = username
+
+    u = User()
+    u.username = uid
+    u.scopes.update({SUPERUSER, AUTHENTICATED, ADMIN})
+
+    class MockRequest:
+        method = "GET"
+        headers = dict()
+        user = u
+
+    return cast(Request, MockRequest())
+
+
+def authenticate(client, username, password):
     auth = client.post(
         "/login/",
-        json={"username": login[0], "password": login[2]},
+        json={"username": username, "password": password},
         allow_redirects=True,
     ).headers[AUTHORIZATION]
     return {AUTHORIZATION: auth}
+
+
+def to(model: Type[T], r) -> T:
+    try:
+        return model(**r.json())
+    except Exception as e:
+        assert False, f"Failed model creation\n - ex: {e}\n - status: {r.status_code}\n - content: {r.content}"
+
+
+def check_code(code: int, r):
+    assert r.status_code == code, f"wrong return code:\n - expected: {code}\n - returned: {r.status_code}\n{r.content}"
+
+
+def extract_id(r, _type=int):
+    """Extract entity id from response
+    """
+    from headers import LOCATION
+    return _type(r.headers[LOCATION].removesuffix("/").split("/")[-1])

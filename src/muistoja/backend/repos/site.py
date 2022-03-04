@@ -50,11 +50,15 @@ class SiteRepo(BaseRepo):
     def __init__(self, db: Database, project: PID):
         super().__init__(db, project=project)
 
+    def _check_pap(self, _status: Status):
+        if _status.pap and not self.admin:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin posting only")
+
     async def _handle_info(self, site: SID, model: SiteInfo) -> bool:
         if model is None:
             return False
         else:
-            return await self.db.fetch_val(
+            await self.db.fetch_val(
                 """
                 REPLACE INTO site_information (site_id, lang_id, name, abstract, description, modifier_id)
                 SELECT s.id,
@@ -67,60 +71,56 @@ class SiteRepo(BaseRepo):
                     JOIN sites s ON s.name = :site
                     LEFT JOIN users u ON u.username = :user
                 WHERE l.lang = :lang
-                RETURNING lang_id
                 """,
                 values=dict(site=site, **model.dict(), user=self.identity),
-            ) == 1
+            )
+            return True
 
     async def _handle_image(self, site: SID, data) -> bool:
         if "image" in data:
             image_data = data["image"]
             if image_data is None:
-                return (
-                           await self.db.fetch_val(
-                               f"""
-                                UPDATE sites s
-                                    LEFT JOIN users u ON u.username = :user
-                                SET s.image_id = NULL, s.modifier_id = u.id
-                                WHERE s.name = :site
-                                """,
-                               values=dict(site=site, user=self.identity),
-                           )
-                       ) == 1
+                await self.db.execute(
+                    f"""
+                    UPDATE sites s
+                        LEFT JOIN users u ON u.username = :user
+                    SET s.image_id = NULL, s.modifier_id = u.id
+                    WHERE s.name = :site
+                    """,
+                    values=dict(site=site, user=self.identity),
+                )
             else:
                 image_id = await self.files.handle(image_data)
-                return (
-                           await self.db.fetch_val(
-                               f"""
-                                UPDATE sites s
-                                    LEFT JOIN users u ON u.username = :user
-                                SET s.image_id = :image, s.modifier_id = u.id
-                                WHERE s.name = :site
-                                """,
-                               values=dict(site=site, image=image_id, user=self.identity),
-                           )
-                       ) == 1
+                await self.db.execute(
+                    f"""
+                    UPDATE sites s
+                        LEFT JOIN users u ON u.username = :user
+                    SET s.image_id = :image, s.modifier_id = u.id
+                    WHERE s.name = :site
+                    """,
+                    values=dict(site=site, image=image_id, user=self.identity),
+                )
+            return True
         else:
             return False
 
     async def _handle_location(self, site: SID, model: Point):
         if model is not None:
-            return (
-                       await self.db.fetch_val(
-                           f"""
-                            UPDATE sites 
-                            SET location=POINT(:lon, :lat),
-                                modifier_id = (SELECT id FROM users WHERE username = :user)
-                            WHERE name = :site
-                            """,
-                           values=dict(
-                               site=site,
-                               lon=model.lon,
-                               lat=model.lat,
-                               user=self.identity,
-                           ),
-                       )
-                   ) == 1
+            await self.db.execute(
+                f"""
+                UPDATE sites 
+                SET location=POINT(:lon, :lat),
+                    modifier_id = (SELECT id FROM users WHERE username = :user)
+                WHERE name = :site
+                """,
+                values=dict(
+                    site=site,
+                    lon=model.lon,
+                    lat=model.lat,
+                    user=self.identity,
+                ),
+            )
+            return True
         else:
             return False
 
@@ -185,9 +185,7 @@ class SiteRepo(BaseRepo):
         return out
 
     @check.published_or_admin
-    async def one(
-            self, site: SID, include_memories: bool = False, *, _status: Status
-    ) -> Site:
+    async def one(self, site: SID, include_memories: bool = False, *, _status: Status) -> Site:
         values = dict(
             lang=self.lang, project=self.project, site=site, user=self.identity
         )
@@ -210,7 +208,8 @@ class SiteRepo(BaseRepo):
         return out
 
     @check.not_exists
-    async def create(self, model: NewSite) -> SID:
+    async def create(self, model: NewSite, _status: Status) -> SID:
+        self._check_pap(_status)
         await self._check_lang(model)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
@@ -241,8 +240,9 @@ class SiteRepo(BaseRepo):
         await self._handle_info(name, model.info)
         return name
 
-    @check.admin
-    async def modify(self, site: SID, model: ModifiedSite) -> bool:
+    @check.exists
+    async def modify(self, site: SID, model: ModifiedSite, _status: Status) -> bool:
+        self._check_pap(_status)
         data = model.dict(exclude_unset=True)
         modified = False
         modified |= await self._handle_image(site, data)

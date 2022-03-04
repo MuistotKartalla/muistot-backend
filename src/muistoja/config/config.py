@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 
 class Database(BaseModel):
-    host: str
-    port: int
-    database: str
-    user: str
-    password: str
-    use_ssl: bool
-    rollback: bool
+    host: str = "db"
+    port: int = 3306
+    database: str = "muistot"
+    user: str = "root"
+    password: str = "test"
+    use_ssl: bool = False
+    rollback: bool = False
     driver: str = "mysql"
 
 
@@ -19,42 +19,38 @@ class Mailer(BaseModel):
     config: Any
 
 
-class JWT(BaseModel):
-    secret: str
-    lifetime: int = 24 * 60 * 60 * 14
-    algorithm: str = "HS256"
-    reissue_threshold: int = 24 * 60 * 60
-
-
 class Security(BaseModel):
-    jwt: JWT
     bcrypt_cost: int = 12
     auto_publish: bool = False
+    oauth: Dict[str, Dict] = Field(default_factory=dict)
 
     session_redis: str = "redis://session-storage?db=0"
     session_lifetime: int = 60 * 16
-    session_token_bytes: int = 64
-
-    oauth: Dict[str, Dict] = Field(default_factory=lambda: dict())
+    session_token_bytes: int = 32  # Reasonable default
 
 
 class FileStore(BaseModel):
-    location: str = Field(regex="^.*/$")
-    allow_anonymous: bool
-    allowed_filetypes: Set[str]
+    location: str = Field(regex="^.*/$", default="/opt/files")
+    allow_anonymous: bool = Field(default=False)
+    allowed_filetypes: Set[str] = Field(default_factory=lambda: {
+        "image/jpg",
+        "image/jpeg",
+        "image/png"
+    })
 
 
 class Localization(BaseModel):
-    default: str
-    supported: Set[str]
+    default: str = "fi"
+    supported: Set[str] = Field(default_factory=lambda: {
+        "fi", "en", "se"
+    })
 
 
 class BaseConfig(BaseModel):
-    domain: Optional[str] = None
-    testing: Optional[bool] = True
-    db: Optional[Dict[str, Database]]
+    testing: bool = Field(default=True)
+    localization: Localization = Field(default_factory=Localization)
+    security: Security = Field(default_factory=Security)
+    files: FileStore = Field(default_factory=FileStore)
 
-    localization: Optional[Localization]
-    security: Optional[Security]
-    files: Optional[FileStore]
-    mailer: Optional[Mailer]
+    db: Optional[Dict[str, Database]] = Field(default_factory=lambda: dict(default=Database()))
+    mailer: Optional[Mailer] = Field(default=None)

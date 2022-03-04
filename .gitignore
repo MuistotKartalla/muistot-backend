@@ -15,11 +15,6 @@ __pycache__
 .coverage
 htmlcov
 
-# For custom
-config-*.json
-!config.json
-config.json.bak
-
 # image storage
 images/*
 !images/placeholder.jpg

@@ -104,9 +104,7 @@ async def modify_site(
     repo = SiteRepo(db, project)
     repo.configure(r)
     changed = await repo.modify(site, model)
-    return modified(
-        lambda: router.url_path_for("get_site", project=project, site=site), changed
-    )
+    return modified(lambda: router.url_path_for("get_site", project=project, site=site), changed)
 
 
 @router.delete(
@@ -131,7 +129,7 @@ async def delete_site(
     repo = SiteRepo(db, project)
     repo.configure(r)
     await repo.toggle_publish(site, False)
-    deleted(router.url_path_for("get_sites", project=project))
+    return deleted(router.url_path_for("get_sites", project=project))
 
 
 @router.put(

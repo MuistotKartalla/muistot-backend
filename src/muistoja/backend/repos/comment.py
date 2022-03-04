@@ -130,18 +130,15 @@ class CommentRepo(BaseRepo):
             """,
             values=dict(id=comment, comment=model.comment),
         )
-        return await self.db.fetch_val("SELECT ROW_COUNT()") != 0
+        return True
 
     @check.own_or_admin
     async def delete(self, comment: CID):
         await self.db.fetch_val(
             """
-            DELETE c FROM comments c
-            JOIN users u ON c.user_id = u.id
-                AND u.username = :user
-            WHERE c.id = :cid 
+            DELETE FROM comments WHERE id = :id
             """,
-            values=dict(user=self.identity, cid=comment),
+            values=dict(id=comment),
         )
 
     @check.admin

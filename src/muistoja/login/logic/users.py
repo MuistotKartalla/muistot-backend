@@ -1,3 +1,4 @@
+from secrets import compare_digest, token_urlsafe
 from typing import Optional, Tuple, Callable
 
 import headers
@@ -6,8 +7,8 @@ from fastapi import status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from ..mailer import get_mailer
 from ...database import Database
+from ...mailer import get_mailer
 from ...security.password import check_password, hash_password
 from ...sessions import SessionManager, Session
 
@@ -163,8 +164,6 @@ async def register_user(user: RegisterQuery, db: Database) -> Response:
 
 
 async def create_email_verifier(user: str, db: Database) -> Tuple[str, str]:
-    from secrets import token_urlsafe
-
     token = token_urlsafe(150)
     await db.execute(
         """
@@ -190,8 +189,6 @@ async def send_email(
         db: Database,
         lang: str = "fi-register",
 ):
-    from ..mailer import get_mailer
-
     email, token = await create_email_verifier(user, db)
     mailer = get_mailer()
     await mailer.send_email(email, user=user, url=url_generator(user, token), lang=lang)
@@ -200,8 +197,6 @@ async def send_email(
 async def handle_login_token(
         user: str, token: str, db: Database, sm: SessionManager
 ) -> Response:
-    from secrets import compare_digest
-
     db_token = await db.fetch_val(
         """
         SELECT uev.verifier

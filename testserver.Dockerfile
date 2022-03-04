@@ -6,6 +6,8 @@ RUN apk add --no-cache --update python3-dev libffi-dev gcc musl-dev make g++ \
 ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+COPY ./email ./email
+RUN pip install ./email
 
 FROM python:3.9-alpine
 WORKDIR /code

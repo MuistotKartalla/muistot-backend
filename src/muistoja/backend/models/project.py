@@ -115,7 +115,7 @@ class Project(NewProject):
     """
 
     image: Optional[IMAGE] = Field(description=IMAGE_TXT)
-    site_count: conint(ge=0) = Field(description="Number of sites this project has")
+    sites_count: conint(ge=0) = Field(description="Number of sites this project has")
     sites: Optional[List[Site]] = Field(description="List of Sites (Optional)")
 
     class Config:

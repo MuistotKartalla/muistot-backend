@@ -111,9 +111,7 @@ async def modify_project(
     repo = ProjectRepo(db)
     repo.configure(r)
     changed = await repo.modify(project, model)
-    return modified(
-        lambda: router.url_path_for("get_project", project=project), changed
-    )
+    return modified(lambda: router.url_path_for("get_project", project=project), changed)
 
 
 @router.delete(
@@ -161,7 +159,7 @@ async def add_project_admin(
     repo.configure(r)
     await repo.add_admin(project, username)
     return Response(
-        status_code=200,
+        status_code=201,
         headers=dict(location=router.url_path_for("get_project", project=project)),
     )
 

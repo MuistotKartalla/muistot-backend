@@ -1,7 +1,9 @@
+"""
+This is for testing
+"""
 import httpx
-
-from . import Mailer, Result
-from ...logging import log
+from muistoja.logging import log
+from muistoja.mailer import Mailer, Result
 
 
 class DefaultMailer(Mailer):
@@ -41,10 +43,3 @@ class DefaultMailer(Mailer):
                 return Result(success=False, reason=r.json()["error"]["message"])
             else:
                 return Result(success=False)
-
-
-def get(**kwargs) -> Mailer:
-    return DefaultMailer(**kwargs)
-
-
-__all__ = ["get"]
