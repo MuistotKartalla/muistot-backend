@@ -5,7 +5,7 @@ RUN apk add --no-cache --update python3-dev libffi-dev gcc musl-dev make g++ lib
     && python -m venv /test-runner/venv
 RUN mkdir -p /opt/files
 ENV PATH="/test-runner/venv/bin:$PATH"
-COPY requirements*.txt .
+COPY requirements*.txt ./
 RUN pip install -r requirements-dev.txt
 COPY ./src/ ./src/
 RUN pip install -e ./src
