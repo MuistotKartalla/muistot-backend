@@ -50,7 +50,7 @@ class LogMailer(Mailer):
     async def send_email(self, email: str, **data) -> Result:
         from ..logging import log
         import pprint
-        log.info(f"Email:\n - email: {email}\n - data:\n{pprint.pprint(data, indent=2, width=200)}")
+        log.info(f"Email:\n - email: {email}\n - data:\n{pprint.pformat(data, indent=2, width=200)}")
         return Result(success=True)
 
     async def verify_email(self, email: str) -> Result:
