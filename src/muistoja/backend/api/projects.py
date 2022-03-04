@@ -80,7 +80,7 @@ async def new_project(
     repo = ProjectRepo(db)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for("get_project", project=new_id))
+    return created(r.url_for("get_project", project=new_id))
 
 
 @router.patch(
@@ -111,7 +111,7 @@ async def modify_project(
     repo = ProjectRepo(db)
     repo.configure(r)
     changed = await repo.modify(project, model)
-    return modified(lambda: router.url_path_for("get_project", project=project), changed)
+    return modified(lambda: r.url_for("get_project", project=project), changed)
 
 
 @router.delete(
@@ -135,7 +135,7 @@ async def delete_project(
     repo = ProjectRepo(db)
     repo.configure(r)
     await repo.toggle_publish(project, False)
-    return deleted(router.url_path_for("get_projects"))
+    return deleted(r.url_for("get_projects"))
 
 
 @router.post(
@@ -160,7 +160,7 @@ async def add_project_admin(
     await repo.add_admin(project, username)
     return Response(
         status_code=201,
-        headers=dict(location=router.url_path_for("get_project", project=project)),
+        headers=dict(location=r.url_for("get_project", project=project)),
     )
 
 
@@ -186,7 +186,7 @@ async def delete_project_admin(
     await repo.delete_admin(project, username)
     return Response(
         status_code=204,
-        headers=dict(location=router.url_path_for("get_project", project=project)),
+        headers=dict(location=r.url_for("get_project", project=project)),
     )
 
 
@@ -212,5 +212,5 @@ async def localize_project(
     await repo.localize(project, info)
     return Response(
         status_code=204,
-        headers=dict(location=router.url_path_for("get_project", project=project)),
+        headers=dict(location=r.url_for("get_project", project=project)),
     )

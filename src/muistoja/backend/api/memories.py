@@ -74,7 +74,7 @@ async def new_memory(
     repo.configure(r)
     new_id = await repo.create(model)
     return created(
-        router.url_path_for(
+        r.url_for(
             "get_memory", project=project, site=site, memory=str(new_id)
         )
     )
@@ -102,7 +102,7 @@ async def modify_memory(
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     changed = await repo.modify(memory, model)
-    return modified(lambda: router.url_path_for("get_memory", project=project, site=site, memory=str(memory)), changed)
+    return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)
 
 
 @router.delete(
@@ -128,4 +128,4 @@ async def delete_memory(
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
     await repo.delete(memory)
-    return deleted(router.url_path_for("get_memories", project=project, site=site))
+    return deleted(r.url_for("get_memories", project=project, site=site))

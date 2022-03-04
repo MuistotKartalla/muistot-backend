@@ -77,7 +77,7 @@ async def new_site(
     repo = SiteRepo(db, project)
     repo.configure(r)
     new_id = await repo.create(model)
-    return created(router.url_path_for("get_site", project=project, site=new_id))
+    return created(r.url_for("get_site", project=project, site=new_id))
 
 
 @router.patch(
@@ -104,7 +104,7 @@ async def modify_site(
     repo = SiteRepo(db, project)
     repo.configure(r)
     changed = await repo.modify(site, model)
-    return modified(lambda: router.url_path_for("get_site", project=project, site=site), changed)
+    return modified(lambda: r.url_for("get_site", project=project, site=site), changed)
 
 
 @router.delete(
@@ -129,7 +129,7 @@ async def delete_site(
     repo = SiteRepo(db, project)
     repo.configure(r)
     await repo.toggle_publish(site, False)
-    return deleted(router.url_path_for("get_sites", project=project))
+    return deleted(r.url_for("get_sites", project=project))
 
 
 @router.put(
@@ -155,5 +155,5 @@ async def localize_site(
     await repo.localize(site, info)
     return Response(
         status_code=204,
-        headers=dict(location=router.url_path_for("get_site", project=project, site=site)),
+        headers=dict(location=r.url_for("get_site", project=project, site=site)),
     )

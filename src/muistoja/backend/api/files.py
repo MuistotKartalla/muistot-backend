@@ -1,6 +1,6 @@
 from textwrap import dedent
 
-from fastapi import Path, status
+from fastapi import Path, status, Request
 from fastapi.responses import FileResponse, Response
 from headers import LOCATION
 
@@ -56,12 +56,12 @@ router = make_router(tags=["Files"])
         },
     },
 )
-async def get_image(image: str = Path(..., regex=Files.PATH.pattern)):
+async def get_image(r: Request, image: str = Path(..., regex=Files.PATH.pattern)):
     image = Files.Images.get(image)
     if not image.exists:
         return Response(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={LOCATION: router.url_path_for("get_image", image=Files.Images.DEFAULT)},
+            headers={LOCATION: r.url_for("get_image", image=Files.Images.DEFAULT)},
         )
     else:
         return FileResponse(path=image.path, media_type=image.mime)

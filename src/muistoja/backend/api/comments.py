@@ -71,7 +71,7 @@ async def new_comment(
     repo.configure(r)
     new_id = await repo.create(model)
     return created(
-        router.url_path_for(
+        r.url_for(
             "get_comment",
             project=project,
             site=site,
@@ -107,7 +107,7 @@ async def modify_comment(
     repo.configure(r)
     changed = await repo.modify(comment, model)
     return modified(
-        lambda: router.url_path_for(
+        lambda: r.url_for(
             "get_comment",
             project=project,
             site=site,
@@ -143,7 +143,7 @@ async def delete_comment(
     repo.configure(r)
     await repo.delete(comment)
     return deleted(
-        router.url_path_for(
+        r.url_for(
             "get_comments",
             project=project,
             site=site,
