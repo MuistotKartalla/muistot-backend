@@ -2,7 +2,6 @@ import urllib.parse as url
 from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Response, status, Depends
-from fastapi.responses import JSONResponse
 from headers import ACCEPT_LANGUAGE
 from passlib import pwd
 
@@ -77,7 +76,7 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
     if await check_can_send(email, db):
         await send_email(
             username,
-            lambda user, token: f"email-login:{url.urlencode(dict(user=user, token=token))}",
+            lambda user, token: f"#email-login:{url.urlencode(dict(user=user, token=token))}",
             db,
             lang=lang(request),
         )
@@ -89,5 +88,5 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
 @router.post("/login/email-only/exchange")
 async def exchange_code(
         r: Request, user: str, token: str, db: Database = Depends(dba)
-) -> JSONResponse:
-    return await handle_login_token(user, token, db, r.state.manager)
+) -> Response:
+    return await handle_login_token(url.unquote(user), token, db, r.state.manager)
