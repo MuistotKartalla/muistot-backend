@@ -32,7 +32,7 @@ class SessionManagerMiddleware(AuthenticationBackend):
                 raise AuthenticationError("Wrong Scheme")
             try:
                 session = self.manager.get_session(credentials)
-                user = User(username=session.user, token=credentials)
+                user = User.from_cache(username=session.user, token=credentials)
                 session_data = session.data
                 if "projects" in session_data:
                     user.admin_projects = set(session_data["projects"])
@@ -46,7 +46,7 @@ class SessionManagerMiddleware(AuthenticationBackend):
                     e.args[0] if len(e.args) > 0 else "Invalid Token"
                 )
         else:
-            user = User()
+            user = User.null()
             creds = AuthCredentials()
         request.state.manager = self.manager
         return creds, user

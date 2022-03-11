@@ -77,7 +77,7 @@ async def email_only_login(request: Request, email: str, db: Database = Depends(
     if await check_can_send(email, db):
         await send_email(
             username,
-            lambda user, token: f'{router.url_path_for("exchange_code")}?{url.urlencode(dict(user=user, token=token))}',
+            lambda user, token: f"email-login:{url.urlencode(dict(user=user, token=token))}",
             db,
             lang=lang(request),
         )

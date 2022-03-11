@@ -57,9 +57,9 @@ description = textwrap.dedent(
     
     #### Auth Errors
     
-    If the session is expired a `403` code is returned. Similarly, if the session token is invalid an error is returned. 
-    If an unauthenticated user is trying to access privileged endpoints a `401`is returned. 
-    If the application is receiving `403` responses on `GET`requests to unprivileged endpoints, the only cause is the 
+    If the session is expired a `401` code is returned. Similarly, if the session token is invalid an error is returned. 
+    If an unauthenticated user is trying to access privileged endpoints a `401` is returned. 
+    If the application is receiving `401` responses on `GET`requests to unprivileged endpoints, the cause is that 
     auth token is invalid or expired and should be discarded. 
     
     Images

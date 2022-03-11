@@ -1,6 +1,7 @@
 import pytest
+from fastapi import HTTPException, status
 from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
-from muistoja.backend.repos.base.utils import extract_language
+from muistoja.backend.repos.base.utils import extract_language, check_language, not_implemented
 from starlette.authentication import UnauthenticatedUser
 
 
@@ -55,3 +56,20 @@ def test_trow_language(lang: str):
 
     with pytest.raises(ValueError):
         extract_language(r)
+
+
+def test_bad_language():
+    with pytest.raises(HTTPException):
+        check_language("ggg")
+
+
+@pytest.mark.anyio
+async def test_not_implemented():
+    @not_implemented
+    def mock():
+        pass
+
+    with pytest.raises(HTTPException) as e:
+        await mock()
+
+    assert e.value.status_code == status.HTTP_501_NOT_IMPLEMENTED

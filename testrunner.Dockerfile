@@ -8,5 +8,5 @@ ENV PATH="/test-runner/venv/bin:$PATH"
 COPY requirements*.txt ./
 RUN pip install -r requirements-dev.txt
 COPY ./src/ ./src/
-RUN pip install -e ./src
-CMD pytest --cov=muistoja --cov-report term --cov-report html && echo 'Tests Done'
+RUN pip install ./src
+CMD pytest --cov=muistoja --cov-report term --cov-report html -x && echo 'Tests Done'

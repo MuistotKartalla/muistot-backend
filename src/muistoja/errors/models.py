@@ -18,6 +18,7 @@ class ApiError(Exception):
 
 class ErrorResponse(JSONResponse):
     def __init__(self, error: ApiError):
+        from headers import WWW_AUTHENTICATE
         super(ErrorResponse, self).__init__(
             status_code=error.code,
             content=Error(
@@ -27,6 +28,9 @@ class ErrorResponse(JSONResponse):
                     details=(error.details if len(error.details) > 0 else None),
                 )
             ).dict(exclude_none=True),
+            headers={
+                WWW_AUTHENTICATE: "Bearer"
+            } if error.code == 401 else None
         )
 
 

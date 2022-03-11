@@ -14,7 +14,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    package_dir={"": "."},
-    packages=["muistoja"],
+    packages=setuptools.find_packages(include=["muistoja", "muistoja.*"]),
     python_requires=">=3.9",
 )

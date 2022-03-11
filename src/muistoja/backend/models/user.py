@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 
 from ._fields import *
 from .comment import Comment
@@ -60,6 +60,22 @@ class _UserBase(BaseModel):
     country: Optional[COUNTRY] = COUNTRY_FIELD
     city: Optional[str]
     birth_date: Optional[date]
+
+    @validator("country")
+    def validate_country(cls, value):
+        if value is not None:
+            import pycountry
+            try:
+                if "-" not in value:
+                    c = pycountry.countries.lookup(value).alpha_2
+                else:
+                    c = pycountry.subdivisions.lookup(value).code
+                if c.alpha_2 is not None:
+                    return c.alpha_2
+            except LookupError:
+                assert False, "Country lookup failed"
+        else:
+            return None
 
 
 class UserData(_UserBase):
@@ -128,41 +144,15 @@ class PatchUser(_UserBase):
     Model for partial User Data update
     """
 
-    username: Optional[UID]
-    email: Optional[EmailStr]
-
     class Config:
         __examples__ = {
-            "username": {
-                "summary": "Change username",
-                "value": {
-                    "username": "updated"
-                },
-            },
-            "email": {
-                "summary": "Change email",
-                "value": {
-                    "email": "new@example.com"
-                },
-            },
-            "both": {
-                "summary": "Change username and email",
-                "value": {
-                    "username": "updated",
-                    "email": "new@example.com"
-                },
-                "description": "It is possible to change both the username and email at once. "
-                               "Both are checked for conflicts"
-            },
             "partial": {
                 "summary": "Change partial",
                 "value": {
-                    "username": "user",
-                    "email": "email@example.com",
                     "country": "SE",
                     "birth_date": "2011-12-02",
                 },
-                "description": "Any amount of values can be added to the cahnge request."
+                "description": "Any amount of values can be added to the change request."
             },
             "delete": {
                 "summary": "Remove value",

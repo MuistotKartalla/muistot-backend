@@ -202,3 +202,12 @@ def test_pap_modify(client, setup, pap, admin, auth2, superuser):
     site.location = Point(lat=30, lon=30)
     r = client.patch(loc, json=site.dict(), headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
+
+
+def test_bad_language(setup, client, admin):
+    r = client.post(SITES.format(*setup), json=NewSite(
+        id=genword(25),
+        info=SiteInfo.construct(lang="az", name=genword(length=50)),
+        location=Point(lon=10, lat=10)
+    ).dict())
+    check_code(status.HTTP_406_NOT_ACCEPTABLE, r)

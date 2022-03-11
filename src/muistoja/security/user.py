@@ -16,14 +16,13 @@ class User(BaseModel, BaseUser):
     scopes: Set[str] = Field(default_factory=lambda: set())
     admin_projects: Set[str] = Field(default_factory=lambda: set())
 
-    def __init__(self, username: Optional[str] = None, token: Optional[str] = None):
-        if username is not None:
-            super(User, self).__init__(
-                username=username, scopes={AUTHENTICATED}, token=token
-            )
-            self.token = token
-        else:
-            super(User, self).__init__()
+    @classmethod
+    def from_cache(cls, *, username: str, token: str) -> 'User':
+        return User.construct(username=username, token=token, scopes={AUTHENTICATED})
+
+    @classmethod
+    def null(cls) -> 'User':
+        return User.construct()
 
     @property
     def is_superuser(self) -> bool:
@@ -31,7 +30,10 @@ class User(BaseModel, BaseUser):
 
     @property
     def identity(self) -> str:
-        return self.username or "! not authenticated !"
+        if self.is_authenticated:
+            return self.username
+        else:
+            raise ValueError()
 
     @property
     def display_name(self) -> str:

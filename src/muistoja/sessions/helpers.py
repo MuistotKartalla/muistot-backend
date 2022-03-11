@@ -23,9 +23,7 @@ session_manager = SessionManager(
 def on_error(_: Request, exc: AuthenticationError):
     """Customizes the authentication errors"""
     message = exc.args[0] if len(exc.args) >= 1 else "Error in auth"
-    return ErrorResponse(
-        error=ApiError(code=status.HTTP_401_UNAUTHORIZED, message=message)
-    )
+    return ErrorResponse(error=ApiError(code=status.HTTP_401_UNAUTHORIZED, message=message))
 
 
 def add_session_manager(app: FastAPI):

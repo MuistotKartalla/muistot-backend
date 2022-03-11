@@ -21,7 +21,7 @@ class BaseRepo(ABC):
     Throwing HTTPExceptions is a good way to propagate exceptions.
     """
 
-    def __init_subclass__(cls, **kwargs):  # pragma: no cover
+    def __init_subclass__(cls, **kwargs):
         """
         Checks Repo requirements and mistakes
         """
@@ -44,7 +44,7 @@ class BaseRepo(ABC):
         for k, v in kwargs.items():
             setattr(self, k, v)
         self._kwargs = dict(**kwargs)
-        self._user: Union[User] = User()
+        self._user: Union[User] = User.null()
         self.lang = "fi"
         self.auto_publish = Config.security.auto_publish
 

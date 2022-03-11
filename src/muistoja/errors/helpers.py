@@ -9,20 +9,15 @@ from .models import *
 
 
 def modify_openapi(app: FastAPI):
-    try:
-        from pydantic.schema import schema
+    from pydantic.schema import schema
 
-        openapi = app.openapi()
-        openapi["components"]["schemas"].update(
-            schema([HTTPValidationError], ref_prefix="#/components/schemas/")[
-                "definitions"
-            ]
-        )
-        app.openapi_schema = openapi
-    except Exception as e:
-        from ..logging import log
-
-        log.exception("Failed to setup OpenAPI", exc_info=e)
+    openapi = app.openapi()
+    openapi["components"]["schemas"].update(
+        schema([HTTPValidationError], ref_prefix="#/components/schemas/")[
+            "definitions"
+        ]
+    )
+    app.openapi_schema = openapi
 
 
 async def validation_error_handler(
@@ -80,7 +75,7 @@ def register_error_handlers(app: FastAPI):
         from aiomysql import DatabaseError
 
         app.exception_handler(DatabaseError)(db_error_handler)
-    except ImportError:
+    except ImportError:  # pragma: nocover
         pass
 
 

@@ -198,3 +198,13 @@ def test_unknown_locale(setup, client):
     """
     r = client.get(PROJECT.format(setup.project), headers={ACCEPT_LANGUAGE: "az"})
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
+
+
+def test_bad_language(client, superuser):
+    """Test unsupported language
+    """
+    r = client.post(PROJECTS, json=NewProject(
+        id=genword(length=10),
+        info=ProjectInfo.construct(lang="az", name="test"),
+    ).dict(), headers=superuser)
+    check_code(status.HTTP_406_NOT_ACCEPTABLE, r)

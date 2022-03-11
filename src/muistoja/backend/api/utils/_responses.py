@@ -12,14 +12,16 @@ URL_FAILURE_CREATE_MODIFY = d(
     """
     )
 )
-UNAUTHENTICATED = d("The user is not authenticated")
+UNAUTHENTICATED = d(dedent(
+    """
+    The user is not authenticated or the authentication is invalid
+    """
+))
 UNAUTHORIZED = d(
     dedent(
         """
-    The user lacks privileges or the session token is invalid
-
-    Returned error message contains more details on the error.
-    """
+        The user lacks privileges for this resource.
+        """
     )
 )
 SUCCESS = d("Successful Request")
