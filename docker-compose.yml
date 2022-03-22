@@ -28,13 +28,18 @@ services:
     volumes:
       - "muistot-db-data:/var/lib/mysql"
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
-  db-access:
-    image: adminer
-    restart: on-failure
-    ports:
-      - "127.0.0.1:5602:8080"
   session-storage:
     image: redis:alpine
+    restart: on-failure
+  username-generator:
+    build:
+      context: ./namegen
+    ports:
+      - "127.0.0.1:5604:3306"
+  mailer:
+    build:
+      context: ./email
+      dockerfile: mailer.Dockerfile
     restart: on-failure
   maildev:
     build:
@@ -43,11 +48,11 @@ services:
     restart: on-failure
     ports:
       - "127.0.0.1:5603:80"
-  mailer:
-    build:
-      context: ./email
-      dockerfile: mailer.Dockerfile
+  db-access:
+    image: adminer
     restart: on-failure
+    ports:
+      - "127.0.0.1:5602:8080"
 
 volumes:
   muistot-db-data:

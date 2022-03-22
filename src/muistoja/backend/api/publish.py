@@ -139,7 +139,11 @@ async def publish(
     if not r.user.is_admin_in(project):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Unauthorized " + r.user.identity,
+            detail=(
+                    f"Unauthorized {r.user.identity}"
+                    f"\nOrder: {project}"
+                    + ''.join(map(lambda p: f'\nProject: {p}', r.user.admin_projects))
+            ),
         )
     await db.execute(
         f"""

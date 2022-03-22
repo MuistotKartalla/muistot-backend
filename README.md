@@ -91,7 +91,5 @@ This isn't needed for anything as `docker-compose` takes care of things.
 The old dump didn't include users or comments so migrating them is yet untested
 
 - Happy path integration tests
-- Test shown counts for sites, memories, comments, etc.
-- Test permissions
-- Test site fetch params
 - Not so happy tests
+- Finish documentation examples with something sensible
