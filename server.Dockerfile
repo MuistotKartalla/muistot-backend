@@ -15,7 +15,6 @@ WORKDIR /code
 RUN apk add --no-cache --update libmagic hiredis && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 COPY src .
-COPY wordlist.txt /root/wordlist.txt
 ENV PATH="/opt/venv/bin:$PATH"
 ENV WEB_CONCURRENCY=2
 ENV PORT=5600
