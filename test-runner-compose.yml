@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: testrunner.Dockerfile
     restart: "no"
-    tty: true
+    #tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
     depends_on:
