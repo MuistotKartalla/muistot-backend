@@ -84,6 +84,7 @@ class Site(NewSite):
     memories_count: int = Field(ge=0, description="Total amount of published memories")
     waiting_approval: Optional[bool] = Field(description="If present, will tell approval status")
     memories: Optional[List[Memory]] = Field(description="List of memories fo this site")
+    own: Optional[bool] = Field(description="If this item is owned by the current user")
 
     class Config:
         __examples__ = {

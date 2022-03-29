@@ -36,7 +36,8 @@ class MemoryRepo(BaseRepo):
                IF(m.deleted, NULL, i.file_name)                 AS image,
                m.modified_at,               
                COUNT(c.id)                                      AS comments_count,
-               IF(u2.id IS NOT NULL, NOT m.published, NULL)     AS waiting_approval
+               IF(u2.id IS NOT NULL, NOT m.published, NULL)     AS waiting_approval,
+               u.username = :user                               AS own
         FROM memories m
                  JOIN sites s ON m.site_id = s.id
             AND s.name = :site
@@ -60,7 +61,8 @@ class MemoryRepo(BaseRepo):
                IF(m.deleted, NULL, i.file_name)                 AS image,
                m.modified_at,               
                COUNT(c.id)                                      AS comments_count,
-               IF(m.published, NULL, 1)                         AS waiting_approval
+               IF(m.published, NULL, 1)                         AS waiting_approval,
+               u.username = :user                               AS own
         FROM memories m
                  JOIN sites s ON m.site_id = s.id
             AND s.name = :site
@@ -86,6 +88,7 @@ class MemoryRepo(BaseRepo):
         values = dict(site=self.site, project=self.project)
         if _status.admin:
             sql = self._select_for_admin
+            values.update(user=self.identity)
         elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)
@@ -108,6 +111,7 @@ class MemoryRepo(BaseRepo):
         values = dict(memory=memory, site=self.site, project=self.project)
         if _status.admin:
             sql = self._select_for_admin
+            values.update(user=self.identity)
         elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)

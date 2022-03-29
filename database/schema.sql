@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS sites
     published   BOOLEAN      NOT NULL DEFAULT FALSE,
     modifier_id INTEGER      NULL COMMENT 'fk',
     modified_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    creator_id  INTEGER      NULL COMMENT 'fk',
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     location    GEOMETRY     NOT NULL COMMENT 'Coordinates',
@@ -217,6 +218,9 @@ CREATE TABLE IF NOT EXISTS sites
         ON UPDATE RESTRICT
         ON DELETE SET NULL,
     CONSTRAINT FOREIGN KEY fk_sites_modifier (modifier_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE SET NULL,
+    CONSTRAINT FOREIGN KEY fg_sites_creator (creator_id) REFERENCES users (id)
         ON UPDATE RESTRICT
         ON DELETE SET NULL
 ) COMMENT 'Stores project site locations';

@@ -18,7 +18,8 @@ class Memory(BaseModel):
     story: Optional[TEXT] = Field(description="Longer description of this memory")
     image: Optional[IMAGE] = Field(description=IMAGE_TXT)
     comments_count: int = Field(ge=0, description="Amount of comments on this memory")
-    modified_at: datetime = Field(description="LAst modified time")
+    modified_at: datetime = Field(description="Last modified time")
+    own: Optional[bool] = Field(description="If this item is owned by the current user")
 
     waiting_approval: Optional[bool] = Field(
         description="Tells the approval status if present"

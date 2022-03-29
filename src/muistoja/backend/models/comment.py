@@ -16,7 +16,7 @@ class Comment(BaseModel):
     user: UID = Field(description="Author's ID")
     comment: SMALL_TEXT = Field(description="Content")
     modified_at: datetime = Field(description="Last modified time")
-
+    own: Optional[bool] = Field(description="If this item is owned by the current user")
     waiting_approval: Optional[bool]
 
     class Config:

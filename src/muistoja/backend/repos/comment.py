@@ -28,7 +28,8 @@ class CommentRepo(BaseRepo):
                u.username                                         AS user,
                c.comment,
                c.modified_at,
-               IF(u2.id IS NOT NULL, NOT c.published, NULL)       AS waiting_approval
+               IF(u2.id IS NOT NULL, NOT c.published, NULL)       AS waiting_approval,
+               u.username = :user                                 AS own
         FROM comments c
                  JOIN memories m ON c.memory_id = m.id
             AND m.id = :memory
@@ -44,10 +45,11 @@ class CommentRepo(BaseRepo):
 
     _select_for_admin = """
         SELECT c.id,
-               u.username AS user,
+               u.username               AS user,
                c.comment,
                c.modified_at,
-               IF(c.published, NULL, 1)       AS waiting_approval
+               IF(c.published, NULL, 1) AS waiting_approval,
+               u.username = :user       AS own
         FROM comments c
                  JOIN memories m ON c.memory_id = m.id
             AND m.id = :memory
@@ -71,6 +73,7 @@ class CommentRepo(BaseRepo):
         values = dict(site=self.site, project=self.project, memory=self.memory)
         if _status.admin:
             sql = self._select_for_admin
+            values.update(user=self.identity)
         elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)
@@ -89,6 +92,7 @@ class CommentRepo(BaseRepo):
         )
         if _status.admin:
             sql = self._select_for_admin
+            values.update(user=self.identity)
         elif self.authenticated:
             sql = self._select_for_user
             values.update(user=self.identity)

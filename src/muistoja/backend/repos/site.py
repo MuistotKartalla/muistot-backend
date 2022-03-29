@@ -17,7 +17,8 @@ class SiteRepo(BaseRepo):
             IFNULL(l.lang, def_l.lang)                  AS lang,
             IFNULL(si.abstract, def_si.abstract)        AS abstract,
             IFNULL(si.description, def_si.description)  AS description,
-            IF(s.published, NULL, 1)                    AS waiting_approval
+            IF(s.published, NULL, 1)                    AS waiting_approval,
+            IF(uc.id IS NOT NULL, TRUE, NULL)           AS own
             %s
         FROM sites s
             JOIN projects p ON p.id = s.project_id
@@ -36,6 +37,8 @@ class SiteRepo(BaseRepo):
             LEFT JOIN images i ON i.id = s.image_id
             LEFT JOIN users um ON um.id = s.modifier_id
                 AND um.username = :user
+            LEFT JOIN users uc ON uc.id = s.creator_id
+                AND uc.username = :user
         {}
         GROUP BY s.id
         %s
