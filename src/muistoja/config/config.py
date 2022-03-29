@@ -28,6 +28,8 @@ class Security(BaseModel):
     session_lifetime: int = 60 * 16
     session_token_bytes: int = 32  # Reasonable default
 
+    namegen_url: str = "http://username-generator"
+
 
 class FileStore(BaseModel):
     location: str = Field(regex="^.*/$", default="/opt/files")

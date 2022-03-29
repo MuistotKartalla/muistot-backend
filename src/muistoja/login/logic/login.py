@@ -12,6 +12,7 @@ from .data import load_session_data
 from .models import LoginQuery, RegisterQuery, EmailStr
 from ...security.password import check_password, hash_password
 from ...sessions import SessionManager, Session
+from ...config import Config
 
 
 async def start_session(username: str, db: Database, sm: SessionManager) -> Response:
@@ -158,7 +159,7 @@ async def handle_login_token(username: str, token: str, db: Database, sm: Sessio
 
 
 async def try_create_user(email: EmailStr, db: Database):
-    async with httpx.AsyncClient(base_url="http://username-generator") as client:
+    async with httpx.AsyncClient(base_url=Config.security.namegen_url) as client:
         for _ in range(0, 5):
             try:
                 username = (await client.get("/")).json()["value"]
