@@ -7,6 +7,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 RUN pip install gunicorn
+COPY ./email ./email
+RUN pip install ./email
 
 FROM python:3.9-alpine
 WORKDIR /code

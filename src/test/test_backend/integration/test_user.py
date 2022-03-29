@@ -29,7 +29,7 @@ def test_user_login_both(client, login):
     username, email, password = login
     data = {"email": email, "username": username, "password": password}
     r = client.post(LOGIN, json=data)
-    check_code(status.HTTP_400_BAD_REQUEST, r)
+    check_code(status.HTTP_422_UNPROCESSABLE_ENTITY, r)
 
 
 @pytest.mark.anyio

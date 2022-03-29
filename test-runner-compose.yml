@@ -9,12 +9,12 @@ services:
     tty: true
     volumes:
       - "./htmlcov/:/test-runner/htmlcov/"
-      - "./wordlist.txt:/root/wordlist.txt:ro"
-      - "./email/local.py:/code/muistoje/mailer/local.py:ro"
     depends_on:
       - db
       - maildev
       - mailer
+      - session-storage
+      - username-generator
   db:
     image: mariadb:latest
     restart: "no"

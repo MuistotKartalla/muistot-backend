@@ -10,12 +10,12 @@ from pymysql.err import OperationalError
 from utils import authenticate as auth, mock_request
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def anyio_backend():
     return "asyncio"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 async def db(anyio_backend):
     from muistoja.config import Config
     db_instance = databases.Database(config_to_url(Config.db["default"]))

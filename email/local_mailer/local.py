@@ -16,8 +16,11 @@ class DefaultMailer(Mailer):
         self.reroute = reroute
 
     async def send_email(self, email: str, **data) -> Result:
-        if "url" in data:
-            data["url"] = f'{self.reroute}{data["url"]}'
+        from urllib.parse import urlencode
+        token = data.pop("token")
+        url = urlencode(dict(user=data["user"], token=token, verified=data["verified"]))
+        data["url"] = f'{self.reroute}#email-login:{url}'
+        data["lang"] = "fi"
         async with httpx.AsyncClient() as client:
             r = await client.post(
                 f"{self.host}/send",

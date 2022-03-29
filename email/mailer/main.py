@@ -21,8 +21,9 @@ class MailConfig(BaseModel):
 class SendEmailOrder(BaseModel):
     user: str
     email: str
-    lang: str
+    verified: bool
     url: str
+    lang: str
 
 
 class VerifyEmail(BaseModel):
@@ -78,7 +79,8 @@ def endpoint_send_email(model: SendEmailOrder):
 
     cnf = CONFIG
     sender = cnf.user if cnf.email is None else cnf.email
-    template = TEMPLATES[model.lang]
+
+    template = TEMPLATES[f"{model.lang}{('' if not model.verified else '-register')}"]
     mail = MIMEMultipart("alternative")
     mail["Subject"] = template.subject
     mail["From"] = template.sender.replace("[EMAIL]", sender)

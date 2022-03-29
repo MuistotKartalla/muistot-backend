@@ -1,19 +1,14 @@
+from databases import Database
 from fastapi import APIRouter, Request, HTTPException, Response, Depends
 from fastapi.responses import JSONResponse
 from headers import *
 
-from ..logic import *
-from ...database import dba, Database
-from ...errors import Error
+from ..logic.email import send_email
+from ..logic.login import login_email, login_username, register_user, confirm
+from ..logic.models import LoginQuery, RegisterQuery
+from ...database import dba
 
 router = APIRouter()
-
-
-def lang(request: Request):
-    from headers import ACCEPT_LANGUAGE
-
-    _lang = request.headers.get(ACCEPT_LANGUAGE, "fi")
-    return "en-register" if "fi" not in _lang else "fi-register"
 
 
 @router.post(
@@ -21,46 +16,37 @@ def lang(request: Request):
     tags=["Auth"],
     response_class=Response,
     status_code=200,
+    responses={
+        200: {"description": "Successful Login"},
+        400: {"description": "Bad Request"},
+    }
 )
 async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)):
-    if login.username is not None and login.email is not None:
-        raise HTTPException(status_code=400, detail="Email or Username required")
     if login.username is not None:
         return await login_username(login, db, r.state.manager)
     elif login.email is not None:
         return await login_email(login, db, r.state.manager)
     else:
-        raise HTTPException(status_code=400, detail="Email or Username required")
+        raise HTTPException(status_code=400)
 
 
 @router.post(
     "/register",
     responses={
-        "409": {
-            "model": Error,
-            "description": "User already exists or email/username is in use",
-        }
+        201: {"description": "Successful user creation"},
+        409: {"description": "User already exists or email/username is in use"},
+        403: {"description": "User is already logged in"}
     },
     tags=["Auth"],
     response_class=Response,
     status_code=201,
 )
-async def default_register(
-        request: Request, query: RegisterQuery, db: Database = Depends(dba)
-):
-    import urllib.parse as url
-
-    if AUTHORIZATION in request:
-        return JSONResponse(status_code=409, content="Already signed-in")
+async def default_register(r: Request, query: RegisterQuery, db: Database = Depends(dba)):
+    if AUTHORIZATION in r.headers:
+        return JSONResponse(status_code=403, content="Already signed-in")
     resp = await register_user(query, db)
     if resp.status_code == 201:
-        await send_email(
-            query.username,
-            lambda user, token: router.url_path_for("register_confirm")
-                                + f"?{url.urlencode(dict(user=user, token=token))}",
-            db,
-            lang=f"{lang(request)}-register",
-        )
+        await send_email(query.username, db)
     return resp
 
 
@@ -71,31 +57,8 @@ async def default_register(
     status_code=204,
     responses={
         404: {"description": "Failed to find verifier"},
-        403: {"description": "Invalid Auth token detected"},
         204: {"description": "Successful verification"},
     },
 )
-async def register_confirm(
-        _: Request, user: str, token: str, db: Database = Depends(dba)
-):
-    if len(token) != 200:
-        raise HTTPException(status_code=404)
-    await db.execute(
-        """
-        UPDATE users u 
-            JOIN user_email_verifiers uev ON uev.user_id = u.id 
-        SET verified = 1
-        WHERE u.username = :user AND uev.verifier = :token
-        """,
-        values=dict(user=user, token=token),
-    )
-    if (await db.fetch_val("SELECT ROW_COUNT()")) == 1:
-        await db.execute(
-            """
-            DELETE FROM user_email_verifiers WHERE user_id = (SELECT id FROM users WHERE username = :user)
-            """,
-            values=dict(user=user),
-        )
-        return Response(status_code=204)
-    else:
-        raise HTTPException(status_code=404)
+async def register_confirm(user: str, token: str, db: Database = Depends(dba)):
+    return await confirm(user, token, db)
