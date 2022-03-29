@@ -19,7 +19,7 @@ This is applied to project and site ID's
 __ID_TYPE_INT = conint(gt=0)
 
 UID = constr(
-    strip_whitespace=True, min_length=4, max_length=64, regex=r"^[a-zA-Z0-9-_@.: #äöå]+$"
+    strip_whitespace=True, min_length=4, max_length=64, regex=r"^[a-zA-Z0-9-_@.: #äöåÄÖÅ]+$"
 )
 """User ID used in the application
 
