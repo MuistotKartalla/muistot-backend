@@ -243,7 +243,7 @@ class SiteRepo(BaseRepo):
         await self._handle_info(name, model.info)
         return name
 
-    @check.exists
+    @check.own_or_admin
     async def modify(self, site: SID, model: ModifiedSite, _status: Status) -> bool:
         self._check_pap(_status)
         data = model.dict(exclude_unset=True)
@@ -255,7 +255,7 @@ class SiteRepo(BaseRepo):
             modified |= await self._handle_info(site, model.info)
         return bool(modified)
 
-    @check.admin
+    @check.own_or_admin
     async def delete(self, site: SID):
         await self.db.execute(
             """
@@ -268,6 +268,7 @@ class SiteRepo(BaseRepo):
     async def toggle_publish(self, site: SID, published: bool):
         await self._set_published(published, name=site)
 
-    @check.admin
-    async def localize(self, site: SID, localized_data: SiteInfo):
+    @check.exists
+    async def localize(self, site: SID, localized_data: SiteInfo, _status: Status):
+        self._check_pap(_status)
         await self._handle_info(site, localized_data)

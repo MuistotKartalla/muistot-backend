@@ -15,7 +15,8 @@ class SiteExists(Exists):
         SELECT p.published,
                s.published,
                p.admin_posting,
-               NOT ISNULL(pa.user_id)
+               NOT ISNULL(pa.user_id),
+               uc.username = :user
         FROM projects p
                 LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
@@ -23,6 +24,7 @@ class SiteExists(Exists):
                     JOIN users u2 ON pa.user_id = u2.id
                         AND u2.username = :user
                  ON p.id = pa.project_id
+                 LEFT JOIN users uc ON uc.id = s.creator_id
         WHERE p.name = :project
         """
     )
@@ -57,7 +59,7 @@ class SiteExists(Exists):
         s: Status = Status.start(m[1]).add_published(m, 1).add_pap(m, 2)
 
         if self.authenticated:
-            s = s.add_admin(m, 3)
+            s = s.add_admin(m, 3).add_own(m, 4)
 
         if s.admin:
             return s
