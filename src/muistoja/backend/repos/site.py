@@ -217,12 +217,13 @@ class SiteRepo(BaseRepo):
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
             """
-            INSERT INTO sites (project_id, name, image_id, published, location, modifier_id)
+            INSERT INTO sites (project_id, name, image_id, published, location, modifier_id, creator_id)
             SELECT p.id,
                    :name,
                    :image,
                    :published,
                    POINT(:lon, :lat),
+                   u.id,
                    u.id
             FROM projects p
                 LEFT JOIN users u ON u.username = :user
