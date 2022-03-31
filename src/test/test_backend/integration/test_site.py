@@ -183,7 +183,7 @@ async def test_pap_create(db, client, setup, pap, admin, auth2, superuser):
     check_code(status.HTTP_201_CREATED, r)
 
 
-def test_pap_modify(client, setup, pap, admin, auth2, superuser):
+def test_pap_modify(client, setup, pap, admin, auth2, superuser, auto_publish):
     """Only admins modify
     """
     _id, site = _create_site()
@@ -209,5 +209,53 @@ def test_bad_language(setup, client, admin):
         id=genword(25),
         info=SiteInfo.construct(lang="az", name=genword(length=50)),
         location=Point(lon=10, lat=10)
-    ).dict())
+    ).dict(), headers=admin)
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
+
+
+def test_own_site(setup, client, admin, auth2, auto_publish):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    check_code(status.HTTP_201_CREATED, r)
+    site = to(Site, client.get(r.headers[LOCATION], headers=admin))
+    assert site.own
+    site = to(Site, client.get(r.headers[LOCATION], headers=auth2))
+    assert not site.own
+
+
+def test_modify_own_site(setup, client, auth2):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+    site.info.description = "awdwadawdiwuadiawuhjdiuawihdiuawhdiawuydawuiydhiuawydhuwhdwhdihawiudhawuidhuiawdhaw"
+    r = client.patch(SITE.format(*setup, _id), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+
+def test_create_memory_for_site_not_change(setup, client, auth2, admin):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert site.waiting_approval
+
+    client.post(
+        PUBLISH,
+        json=PUPOrder(parents={'project': setup.project}, identifier=_id, type='site').dict(),
+        headers=admin
+    )
+
+    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert not site.waiting_approval
+
+    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg").dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert not site.waiting_approval

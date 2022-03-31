@@ -68,6 +68,7 @@ async def get_site(
     response_class=Response,
     responses=rex.create(True),
 )
+@require_auth(scopes.AUTHENTICATED)
 async def new_site(
         r: Request,
         project: PID,
@@ -93,7 +94,7 @@ async def new_site(
     response_class=Response,
     responses=rex.modify(),
 )
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@require_auth(scopes.AUTHENTICATED)
 async def modify_site(
         r: Request,
         project: PID,
@@ -119,7 +120,7 @@ async def modify_site(
     response_class=Response,
     responses=rex.delete(),
 )
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@require_auth(scopes.AUTHENTICATED)
 async def delete_site(
         r: Request,
         project: PID,
@@ -142,7 +143,7 @@ async def delete_site(
     response_class=Response,
     responses=dict(filter(lambda e: e[0] != 404, rex.modify().items())),
 )
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@require_auth(scopes.AUTHENTICATED)
 async def localize_site(
         r: Request,
         project: PID,
