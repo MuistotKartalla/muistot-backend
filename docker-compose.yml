@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: testserver.Dockerfile
     restart: on-failure
-    tty: true
+    #tty: true
     volumes:
       - "./images/:/opt/files/"
       - "./src/muistoja:/code/muistoja:ro"
