@@ -17,6 +17,8 @@ services:
       - db
       - maildev
       - mailer
+      - session-storage
+      - username-generator
   db:
     image: mariadb:latest
     restart: on-failure
