@@ -16,16 +16,14 @@ services:
       - session-storage
       - username-generator
   db:
-    image: mariadb:latest
+    image: mariadb:10.6
     restart: "no"
     environment:
       MYSQL_ROOT_PASSWORD: test
     volumes:
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
-    logging:
-      driver: "none"
   session-storage:
-    image: redis:alpine
+    image: redis:6-alpine
     restart: "no"
   username-generator:
     build:

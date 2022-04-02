@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, Response, status, HTTPException
 from ..logic.email import fetch_user_by_email, can_send_email, send_email
 from ..logic.login import try_create_user, handle_login_token
 from ..logic.models import EmailStr
-from ...database import dba, Database
+from ...database import Databases, Database
 
 router = APIRouter(tags=["Auth"])
 
@@ -19,7 +19,7 @@ router = APIRouter(tags=["Auth"])
         400: {"description": "Bad request"},
     }
 )
-async def email_only_login(email: EmailStr, db: Database = Depends(dba)):
+async def email_only_login(email: EmailStr, db: Database = Depends(Databases.default)):
     username = await fetch_user_by_email(email, db)
     if username is None:
         username = await try_create_user(email, db)
@@ -39,5 +39,5 @@ async def email_only_login(email: EmailStr, db: Database = Depends(dba)):
         404: {"description": "Token not found"}
     }
 )
-async def exchange_code(r: Request, user: str, token: str, db: Database = Depends(dba)) -> Response:
+async def exchange_code(r: Request, user: str, token: str, db: Database = Depends(Databases.default)) -> Response:
     return await handle_login_token(url.unquote(user), token, db, r.state.manager)

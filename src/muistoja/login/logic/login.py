@@ -2,7 +2,6 @@ from secrets import compare_digest
 
 import headers
 import httpx
-from databases import Database
 from fastapi import HTTPException
 from fastapi import status
 from fastapi.responses import Response
@@ -10,9 +9,10 @@ from passlib.pwd import genword
 
 from .data import load_session_data
 from .models import LoginQuery, RegisterQuery, EmailStr
+from ...config import Config
+from ...database import Database
 from ...security.password import check_password, hash_password
 from ...sessions import SessionManager, Session
-from ...config import Config
 
 
 async def start_session(username: str, db: Database, sm: SessionManager) -> Response:

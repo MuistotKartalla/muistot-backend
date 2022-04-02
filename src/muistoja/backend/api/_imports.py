@@ -1,8 +1,7 @@
 # noinspection PyUnresolvedReferences
 from textwrap import dedent
 
-# noinspection PyUnresolvedReferences
-from databases import Database
+from fastapi import Depends
 # noinspection PyUnresolvedReferences
 from fastapi import Request, Response
 
@@ -13,14 +12,9 @@ from ..models import *
 # noinspection PyUnresolvedReferences
 from ..repos import *
 # noinspection PyUnresolvedReferences
+from ...database import Database
+from ...database import Databases
+# noinspection PyUnresolvedReferences
 from ...security import require_auth, scopes
 
-
-def _database():
-    from ...database import dba
-    from fastapi import Depends
-
-    return Depends(dba)
-
-
-DEFAULT_DB = _database()
+DEFAULT_DB = Depends(Databases.default)

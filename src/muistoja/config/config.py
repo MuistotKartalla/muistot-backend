@@ -12,6 +12,9 @@ class Database(BaseModel):
     use_ssl: bool = False
     rollback: bool = False
     driver: str = "mysql"
+    workers: int = 4
+    cpw: int = 4
+    max_wait: int = 2
 
 
 class Mailer(BaseModel):

@@ -3,8 +3,7 @@ from enum import Flag, auto
 from functools import wraps
 from typing import Any, Mapping
 
-from databases import Database
-
+from ....database import Database
 from ....security import User
 
 

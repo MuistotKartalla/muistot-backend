@@ -1,40 +1,17 @@
-import databases
 import pytest
 from fastapi.testclient import TestClient
 from muistoja.backend import main
-from muistoja.config import config_to_url
+from muistoja.database import Databases
 from muistoja.security.password import hash_password
 from passlib.pwd import genword
-from pymysql.err import OperationalError
 
 from utils import authenticate as auth, mock_request
 
 
 @pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture(scope="session")
-async def db(anyio_backend):
-    from muistoja.config import Config
-    db_instance = databases.Database(config_to_url(Config.db["default"]))
-    while True:
-        try:
-            await db_instance.connect()
-            break
-        except OperationalError:
-            pass
-    try:
-        yield db_instance
-    finally:
-        await db_instance.disconnect()
-
-
-@pytest.fixture
-def client(db):
-    with TestClient(main.app) as instance:
-        yield instance
+def client(db_instance):
+    main.app.dependency_overrides[Databases.default] = db_instance
+    yield TestClient(main.app)
 
 
 @pytest.fixture(scope="module")
@@ -54,28 +31,30 @@ def _credentials():
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def delete_users(db: databases.Database, _credentials, anyio_backend):
+async def delete_users(db_instance, _credentials, anyio_backend):
     yield
-    for username, _, _ in _credentials:
-        await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
-        assert (
-                   await db.fetch_val(
-                       "SELECT EXISTS(SELECT * FROM users WHERE username = :un)",
-                       values=dict(un=username)
-                   )
-               ) == 0
+    async with db_instance.begin() as db:
+        for username, _, _ in _credentials:
+            await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
+            assert (
+                       await db.fetch_val(
+                           "SELECT EXISTS(SELECT * FROM users WHERE username = :un)",
+                           values=dict(un=username)
+                       )
+                   ) == 0
 
 
 @pytest.fixture(name="login", autouse=True, scope="module")
-async def create_users(db: databases.Database, _credentials, anyio_backend):
-    for username, email, password in _credentials:
-        await db.execute(
-            "INSERT INTO users (email, username, password_hash, verified) "
-            "VALUE (:email, :username, :password, 1) ",
-            values=dict(
-                password=hash_password(password=password), username=username, email=email
-            ),
-        )
+async def create_users(db_instance, _credentials, anyio_backend):
+    async with db_instance.begin() as db:
+        for username, email, password in _credentials:
+            await db.execute(
+                "INSERT INTO users (email, username, password_hash, verified) "
+                "VALUE (:email, :username, :password, 1) ",
+                values=dict(
+                    password=hash_password(password=password), username=username, email=email
+                ),
+            )
     username, email, password = _credentials[0]
     yield username, email, password
 

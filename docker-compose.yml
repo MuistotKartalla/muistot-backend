@@ -20,7 +20,7 @@ services:
       - session-storage
       - username-generator
   db:
-    image: mariadb:latest
+    image: mariadb:10.6
     restart: on-failure
     environment:
       MYSQL_ROOT_PASSWORD: test
@@ -30,7 +30,7 @@ services:
       - "muistot-db-data:/var/lib/mysql"
       - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
   session-storage:
-    image: redis:alpine
+    image: redis:6-alpine
     restart: on-failure
   username-generator:
     build:

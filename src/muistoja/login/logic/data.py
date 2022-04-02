@@ -1,7 +1,6 @@
 from typing import List, Dict
 
-from databases import Database
-
+from ...database import Database
 from ...security.scopes import SUPERUSER, ADMIN
 
 

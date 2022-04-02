@@ -14,12 +14,8 @@ cryptography>=36.0.0, <37.0.0
 
 # [DB]
 #
-# When using higher versions please check
-# database.__init__.py if the imports are still correct
-# Similarly if the underlying DB implementation changes
-# These might be a bit volatile as they are not as standard as some other libraries
-databases[mysql] >=0.5.5, <0.6.0
-aiomysql>=0.0.22, <0.1.0
+# This could later be changed into databases
+pymysql
 
 # [Sessions]
 redis
@@ -33,5 +29,7 @@ httpx
 python-magic
 email-validator # Pydantic EmailStr
 pycountry # Country validation
-languager
-httpheaders
+
+# Custom
+languager # Language swaps
+httpheaders # easy headers

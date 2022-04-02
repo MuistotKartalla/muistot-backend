@@ -140,7 +140,6 @@ def test_image(client, setup, db, auth, image, auto_publish):
     # Check not null
     s = to(Site, client.get(url))
     assert s.image is not None
-    print(s.image)
 
     # Found
     r = client.get(IMAGE.format(s.image), allow_redirects=False)

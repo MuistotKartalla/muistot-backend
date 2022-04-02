@@ -1,4 +1,3 @@
-from databases import Database
 from fastapi import APIRouter, Request, HTTPException, Response, Depends
 from fastapi.responses import JSONResponse
 from headers import *
@@ -6,7 +5,7 @@ from headers import *
 from ..logic.email import send_email
 from ..logic.login import login_email, login_username, register_user, confirm
 from ..logic.models import LoginQuery, RegisterQuery
-from ...database import dba
+from ...database import Database, Databases
 
 router = APIRouter()
 
@@ -21,7 +20,7 @@ router = APIRouter()
         400: {"description": "Bad Request"},
     }
 )
-async def default_login(r: Request, login: LoginQuery, db: Database = Depends(dba)):
+async def default_login(r: Request, login: LoginQuery, db: Database = Depends(Databases.default)):
     if login.username is not None:
         return await login_username(login, db, r.state.manager)
     elif login.email is not None:
@@ -41,7 +40,7 @@ async def default_login(r: Request, login: LoginQuery, db: Database = Depends(db
     response_class=Response,
     status_code=201,
 )
-async def default_register(r: Request, query: RegisterQuery, db: Database = Depends(dba)):
+async def default_register(r: Request, query: RegisterQuery, db: Database = Depends(Databases.default)):
     if AUTHORIZATION in r.headers:
         return JSONResponse(status_code=403, content="Already signed-in")
     resp = await register_user(query, db)
@@ -60,5 +59,5 @@ async def default_register(r: Request, query: RegisterQuery, db: Database = Depe
         204: {"description": "Successful verification"},
     },
 )
-async def register_confirm(user: str, token: str, db: Database = Depends(dba)):
+async def register_confirm(user: str, token: str, db: Database = Depends(Databases.default)):
     return await confirm(user, token, db)

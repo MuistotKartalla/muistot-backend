@@ -1,13 +1,9 @@
-from databases import Database
-
-from .connection import IntegrityError
-from .store import default_database as dba, connect, disconnect
+from .connection import Database
+from .store import connect, disconnect, Databases
 
 __all__ = [
-    "dba",
     "connect",
     "disconnect",
-
     "Database",
-    "IntegrityError"
+    "Databases"
 ]

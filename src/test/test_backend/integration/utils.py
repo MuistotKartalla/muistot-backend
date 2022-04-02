@@ -2,7 +2,6 @@ import random
 from typing import TypeVar, Type
 from typing import cast
 
-from databases import Database
 from fastapi import Request
 from headers import AUTHORIZATION
 from muistoja.backend.models import *
@@ -58,7 +57,7 @@ class Setup:
         )
 
 
-async def create_memory(pid: PID, sid: SID, db: Database, config, **additional_properties) -> MID:
+async def create_memory(pid: PID, sid: SID, db, config, **additional_properties) -> MID:
     out = await MemoryRepo(db, pid, sid).configure(config).create(
         NewMemory(
             title=genword(length=100),

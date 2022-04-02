@@ -1,8 +1,7 @@
 from secrets import token_urlsafe
 from typing import Tuple, Optional
 
-from databases import Database
-
+from ...database import Database
 from ...mailer import get_mailer
 
 

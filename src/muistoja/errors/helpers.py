@@ -60,9 +60,13 @@ async def low_error_handler(_: Request, exc: LowHTTPException) -> ErrorResponse:
 
 async def db_error_handler(_: Request, exc) -> ErrorResponse:
     from ..logging import log
+    from pymysql.err import IntegrityError
 
     log.exception("Database Error", exc_info=exc)
-    return ErrorResponse(ApiError(code=503, message="Error in database Communication"))
+    if isinstance(exc, IntegrityError):
+        return ErrorResponse(ApiError(code=409, message="Integrity Violation"))
+    else:
+        return ErrorResponse(ApiError(code=503, message="Error in database Communication"))
 
 
 def register_error_handlers(app: FastAPI):
@@ -72,10 +76,10 @@ def register_error_handlers(app: FastAPI):
     app.exception_handler(ValidationError)(validation_error_handler_2)
 
     try:
-        from aiomysql import DatabaseError
+        from pymysql.err import DatabaseError
 
         app.exception_handler(DatabaseError)(db_error_handler)
-    except ImportError:  # pragma: nocover
+    except ImportError:
         pass
 
 

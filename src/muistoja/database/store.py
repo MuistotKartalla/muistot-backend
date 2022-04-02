@@ -1,45 +1,66 @@
-from threading import Lock
-
-from aiomysql import OperationalError as DBConnectionError
+from typing import Dict, Iterator
 
 from .connection import DatabaseConnection
+from ..config import Config
 from ..logging import log
 
-LOCK = Lock()
-STORE = dict()
+
+class DatabaseDependency:
+
+    def __init__(self, name: str, database: DatabaseConnection):
+        self.database = database
+        self.name = name
+
+    async def __call__(self):
+        c = self.database
+        if not c.connected:
+            if not c.connected:
+                try:
+                    await c.connect()
+                except c.OperationalError as e:
+                    log.error(f"Failed to connect database: {self.name}", exc_info=e)
+                    raise e
+        async with c.begin() as db:
+            yield db
 
 
-def get_database(config_name: str) -> DatabaseConnection:
-    with LOCK:
-        from ..config import config_to_url, Config
-        cfg = Config.db[config_name]
-        url = config_to_url(cfg)
-        db = DatabaseConnection(url=url, ssl=cfg.use_ssl)
-        STORE[config_name] = db
-        return db
+class _Databases:
+    _data: Dict[str, DatabaseDependency]
+    default: DatabaseDependency
+
+    def __init__(self):
+        self._data = dict()
+        for k, v in Config.db.items():
+            db = DatabaseConnection(v)
+            self._data[k] = DatabaseDependency(k, db)
+
+    def __getattr__(self, item) -> DatabaseDependency:
+        return self._data[item]
+
+    def __iter__(self) -> Iterator[DatabaseDependency]:
+        return self._data.values().__iter__()
 
 
-def manual(db: DatabaseConnection):
-    from contextlib import asynccontextmanager
-    return asynccontextmanager(db.__call__())
+Databases = _Databases()
 
 
 async def connect():
-    with LOCK:
-        for k, db in STORE.items():
-            try:
-                await db.disconnect()
-            except DBConnectionError as e:
-                log.info(f"Failed to disconnect database: {k}", exc_info=e)
+    """Try to connect to all declared connections
+    """
+    for dbd in Databases:
+        db = dbd.database
+        try:
+            await db.connect()
+        except db.OperationalError as e:
+            log.warning(f"Failed to connect to database: {dbd.name}", exc_info=e)
 
 
 async def disconnect():
-    with LOCK:
-        for k, db in STORE.items():
-            try:
-                await db.disconnect()
-            except DBConnectionError as e:
-                log.info(f"Failed to disconnect database: {k}", exc_info=e)
-
-
-default_database = get_database("default")
+    """Disconnect all opened connections
+    """
+    for dbd in Databases:
+        db = dbd.database
+        try:
+            await db.disconnect()
+        except db.OperationalError as e:
+            log.warning(f"Failed to disconnect from database: {dbd.name}", exc_info=e)

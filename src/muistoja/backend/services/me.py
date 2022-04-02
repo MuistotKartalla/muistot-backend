@@ -1,10 +1,9 @@
 from typing import Optional
 
-from databases import Database
 from fastapi import HTTPException, status, Request
 
 from ..models import PatchUser, UserData
-from ...database import IntegrityError
+from ...database import Database
 from ...sessions import SessionManager
 
 
@@ -31,52 +30,47 @@ async def change_password(db: Database, username: str, password: str, mgr: Sessi
 
 
 async def change_email(db: Database, username: str, email: str) -> bool:
-    async with db.transaction() as t:
-        try:
-            m = await db.fetch_one(
-                """
-                SELECT EXISTS(SELECT 1 FROM users WHERE email = :email), 
-                       (SELECT email=:email FROM users WHERE username = :user)
-                """,
-                values=dict(email=email, user=username)
-            )
-            if m[1]:
-                return False
-            elif m[0]:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
-            await db.execute(
-                """
-                UPDATE users SET email = :email WHERE username = :user
-                """,
-                values=dict(email=email, user=username)
-            )
-            return True
-        except IntegrityError:
-            await t.rollback()
+    try:
+        m = await db.fetch_one(
+            """
+            SELECT EXISTS(SELECT 1 FROM users WHERE email = :email), 
+                   (SELECT email=:email FROM users WHERE username = :user)
+            """,
+            values=dict(email=email, user=username)
+        )
+        if m[1]:
+            return False
+        elif m[0]:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
-    return False
+        await db.execute(
+            """
+            UPDATE users SET email = :email WHERE username = :user
+            """,
+            values=dict(email=email, user=username)
+        )
+        return True
+    except db.IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
 
 
 async def change_username(db: Database, username_old: str, username_new: str, mgr: SessionManager) -> bool:
     if username_old != username_new:
-        async with db.transaction() as t:
-            try:
-                await check_username_not_exists(db, username_new)
-                mgr.clear_sessions(username_old)
-                mgr.clear_sessions(username_new)
-                await db.execute(
-                    """
-                    UPDATE users SET username = :new WHERE username = :old
-                    """,
-                    values=dict(old=username_old, new=username_new)
-                )
-                return True
-            except IntegrityError:
-                await t.rollback()
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username in user")
-            finally:
-                mgr.clear_sessions(username_old)
-                mgr.clear_sessions(username_new)
+        try:
+            await check_username_not_exists(db, username_new)
+            mgr.clear_sessions(username_old)
+            mgr.clear_sessions(username_new)
+            await db.execute(
+                """
+                UPDATE users SET username = :new WHERE username = :old
+                """,
+                values=dict(old=username_old, new=username_new)
+            )
+            return True
+        except db.IntegrityError:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username in use")
+        finally:
+            mgr.clear_sessions(username_old)
+            mgr.clear_sessions(username_new)
     return False
 
 
