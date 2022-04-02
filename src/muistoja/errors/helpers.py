@@ -3,6 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from pymysql.err import DatabaseError
 from starlette.exceptions import HTTPException as LowHTTPException
 
 from .models import *
@@ -74,13 +75,7 @@ def register_error_handlers(app: FastAPI):
     app.exception_handler(RequestValidationError)(validation_error_handler)
     app.exception_handler(LowHTTPException)(low_error_handler)
     app.exception_handler(ValidationError)(validation_error_handler_2)
-
-    try:
-        from pymysql.err import DatabaseError
-
-        app.exception_handler(DatabaseError)(db_error_handler)
-    except ImportError:
-        pass
+    app.exception_handler(DatabaseError)(db_error_handler)
 
 
 __all__ = ["register_error_handlers", "modify_openapi"]

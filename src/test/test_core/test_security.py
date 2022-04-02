@@ -1,9 +1,20 @@
+import pytest
+from muistoja.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER
+from muistoja.security.auth_helper import auth_helper
+from muistoja.security.password import hash_password, check_password
+
+
 def test_manager_add():
     from muistoja.sessions import add_session_manager
     from muistoja.sessions.middleware import SessionManagerMiddleware
     from starlette.middleware.authentication import AuthenticationMiddleware
 
+    class State:
+        SessionManager = None
+
     class Mock:
+        state = State
+
         @staticmethod
         def add_middleware(middleware, **opts):
             assert middleware == AuthenticationMiddleware
@@ -11,3 +22,83 @@ def test_manager_add():
             assert "on_error" in opts
 
     add_session_manager(Mock)
+    assert State.SessionManager is not None
+
+
+@pytest.mark.anyio
+async def test_helper_extracts_user():
+    class Mock:
+        user = True
+
+    assert await auth_helper(Mock())  # FastAPI without generator
+
+
+def test_hashing_is_ok():
+    import string
+    import random
+    s = ''.join(random.choice(string.printable) for _ in range(0, random.randint(4, 64)))
+    assert check_password(password_hash=hash_password(password=s), password=s)
+
+
+def test_empty_not_equal():
+    import string
+    import random
+    s = ''.join(random.choice(string.printable) for _ in range(0, random.randint(4, 64)))
+    assert not check_password(password_hash=b"", password=s)
+    assert not check_password(password_hash=hash_password(password=s), password="None")
+
+
+def test_none_raises():
+    with pytest.raises(TypeError):
+        hash_password(password=None)
+
+
+def test_check_fails_on_none():
+    assert not check_password(password_hash=None, password="a")
+    assert not check_password(password_hash=hash_password(password="a"), password=None)
+
+
+def test_adds_params_to_signature():
+    def mock():
+        return True
+
+    _add_auth_params(mock, None)
+
+    import inspect
+    s = inspect.signature(mock)
+    assert REQUEST_HELPER in s.parameters.keys()
+    assert AUTH_HELPER in s.parameters.keys()
+
+
+@pytest.mark.anyio
+async def test_add_auth():
+    from fastapi import HTTPException
+
+    class MockU:
+        is_authenticated = False
+        scopes = set()
+
+    class MockR:
+        user = MockU
+
+    async def mock(r):
+        assert r == MockR
+        return True
+
+    f = require_auth("A")(mock)
+    args = {AUTH_HELPER: None, REQUEST_HELPER: MockR}
+
+    # Test Not Authenticated
+    with pytest.raises(HTTPException) as e:
+        await f(**args)
+    assert e.value.status_code == 401
+
+    # Test No Scope
+    MockU.is_authenticated = True
+    with pytest.raises(HTTPException) as e:
+        await f(**args)
+    assert e.value.status_code == 403
+
+    # Test Success
+    MockU.scopes.add("A")
+    assert await f(**args)

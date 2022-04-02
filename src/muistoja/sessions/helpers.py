@@ -11,14 +11,6 @@ from .middleware import SessionManagerMiddleware
 from ..config import Config
 from ..errors import ErrorResponse, ApiError
 
-session_manager = SessionManager(
-    redis_url=Config.security.session_redis,
-    token_bytes=Config.security.session_token_bytes,
-    lifetime=Config.security.session_lifetime,
-)
-"""Simple session manger added to all requests to supply user data.
-"""
-
 
 def on_error(_: Request, exc: AuthenticationError):
     """Customizes the authentication errors"""
@@ -28,6 +20,14 @@ def on_error(_: Request, exc: AuthenticationError):
 
 def add_session_manager(app: FastAPI):
     """Adds Redis session management to the app"""
+    session_manager = SessionManager(
+        redis_url=Config.security.session_redis,
+        token_bytes=Config.security.session_token_bytes,
+        lifetime=Config.security.session_lifetime,
+    )
+    """Simple session manger added to all requests to supply user data.
+    """
+    app.state.SessionManager = session_manager
     app.add_middleware(
         AuthenticationMiddleware,
         backend=SessionManagerMiddleware(session_manager),

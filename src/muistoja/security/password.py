@@ -1,6 +1,7 @@
 from passlib.context import CryptContext
 
 from ..config import Config
+from ..logging import log
 
 crypto_context = CryptContext(
     schemes=["bcrypt"],
@@ -9,8 +10,12 @@ crypto_context = CryptContext(
 )
 
 
-def check_password(*, password_hash: str, password: str) -> bool:
-    return crypto_context.verify(password, password_hash)
+def check_password(*, password_hash: bytes, password: str) -> bool:
+    try:
+        return crypto_context.verify(password, password_hash)
+    except Exception as e:
+        log.warning("Failed password check with exception", exc_info=e)
+        return False
 
 
 def hash_password(*, password: str) -> bytes:

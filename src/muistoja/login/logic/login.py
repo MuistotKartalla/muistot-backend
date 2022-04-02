@@ -34,7 +34,7 @@ async def handle_login(m, login: LoginQuery, sm: SessionManager, db: Database) -
             status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request"
         )
     username: str = m[0]
-    stored_hash: str = m[1]
+    stored_hash: bytes = m[1]
     verified = m[2] == 1
     if check_password(password_hash=stored_hash, password=login.password):
         if not verified:

@@ -6,11 +6,13 @@ import binascii
 import dataclasses
 import json
 import secrets
-from typing import Optional, Dict, NoReturn, Union
+from typing import Optional, Dict, NoReturn, Union, List
 
 import redis
 
 ALT = b":-"
+USER_PREFIX = "user:"
+TOKEN_PREFIX = b"token:"
 
 
 @dataclasses.dataclass
@@ -31,8 +33,7 @@ def decode(token: str) -> bytes:
 
 
 class SessionManager:
-    """
-    Manages Session in Redis
+    """Manages Session in Redis
     """
 
     redis: Optional[redis.Redis]
@@ -59,13 +60,15 @@ class SessionManager:
         self.lifetime = lifetime
 
     def connect(self) -> NoReturn:
-        """Connects the instance"""
+        """Connects the instance
+        """
         if not self.connected:
             self.redis = redis.from_url(self.url)
             self.connected = True
 
     def disconnect(self) -> NoReturn:
-        """Disconnect the instance"""
+        """Disconnect the instance
+        """
         if self.redis is not None:
             self.redis.close()
 
@@ -106,13 +109,15 @@ class SessionManager:
         raise ValueError("Invalid Session")
 
     def start_session(self, session: Session) -> str:
-        """Returns a session id for given user and stores session data"""
+        """Returns a session id for given user and stores session data
+        """
         self.connect()
+        self.clear_stale(session.user)
         while True:
-            token = secrets.token_bytes(nbytes=self.bytes)
+            token = TOKEN_PREFIX + secrets.token_bytes(nbytes=self.bytes)
             if not self.redis.exists(token):
                 break
-        self.redis.sadd(session.user, token)
+        self.redis.sadd(f"{USER_PREFIX}{session.user}", token)
         self.redis.set(token, json.dumps(dataclasses.asdict(session)), ex=self.lifetime)
         return encode(token)
 
@@ -129,7 +134,7 @@ class SessionManager:
         data = self.redis.get(token)
         self.redis.delete(token)
         if data is not None:
-            self.redis.srem(Session(**json.loads(data)).user, token)
+            self.redis.srem(f"{USER_PREFIX}{Session(**json.loads(data)).user}", token)
 
     def clear_sessions(self, user: str) -> NoReturn:
         """Clears all sessions for a user
@@ -140,15 +145,36 @@ class SessionManager:
             Username of user for which the sessions should be cleared
         """
         self.connect()
-        tokens = self.redis.smembers(user)
-        self.redis.delete(user)
+        key = f"{USER_PREFIX}{user}"
+        tokens = self.redis.smembers(key)
+        self.redis.delete(key)
         for token in tokens:
             self.redis.delete(token)
 
     def clear_all_sessions(self) -> NoReturn:
-        """Clears all sessions in the database"""
+        """Clears all sessions in the database
+        """
         self.connect()
         self.redis.flushdb()
+
+    def clear_stale(self, user: str):
+        """Clears all stale user sessions
+        """
+        user_sessions = f"{USER_PREFIX}{user}"
+        for session in self.redis.smembers(user_sessions):
+            if not self.redis.exists(session):
+                self.redis.srem(user_sessions, session)
+
+    def get_sessions(self, user: str) -> List[Session]:
+        """Gets all open user sessions
+        """
+        self.clear_stale(user)
+        out = list()
+        for session in self.redis.smembers(f"{USER_PREFIX}{user}"):
+            data = self.redis.get(session)
+            if data:
+                out.append(Session(**json.loads(data)))
+        return out
 
 
 __all__ = ["SessionManager", "Session"]

@@ -7,7 +7,7 @@ class _BaseManager(HTTPBearer):
         super(_BaseManager, self).__init__(
             scheme_name="Session Token Auth",
             bearerFormat="Binary Data in Base64",
-            description="Contains Username and Session ID in Base64",
+            description="Contains Session ID in Base64",
             auto_error=False,
         )
 
