@@ -89,10 +89,6 @@ class ConnectionMaster:
     def __len__(self):
         return self.workers.__len__()
 
-    async def connect(self):
-        for w in self.workers:
-            await w.connect()
-
     def __del__(self):
         self.worker.shutdown(wait=False, cancel_futures=True)
 
