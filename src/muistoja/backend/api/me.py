@@ -1,5 +1,5 @@
 from ._imports import *
-from .utils._responses import UNAUTHENTICATED
+from .utils._responses import UNAUTHENTICATED, UNAUTHORIZED
 from ..services.me import (
     get_user_data,
     update_personal_info,
@@ -17,15 +17,7 @@ router = make_router(tags=["Me"])
     response_model=UserData,
     responses={
         401: UNAUTHENTICATED,
-        403: d(
-            dedent(
-                """
-                Unauthorized
-
-                Most likely the current user is not logged in or the session has expired.
-                """
-            )
-        ),
+        403: UNAUTHORIZED,
         422: d(
             dedent(
                 """
@@ -45,15 +37,7 @@ async def me(request: Request, db: Database = DEFAULT_DB):
     status_code=204,
     responses={
         401: UNAUTHENTICATED,
-        403: d(
-            dedent(
-                """
-                Unauthorized
-
-                Most likely the current user is not logged in or the session has expired.
-                """
-            )
-        ),
+        403: UNAUTHORIZED,
         422: d(
             dedent(
                 """
@@ -82,7 +66,18 @@ async def change_my_password(request: Request, password: str, db: Database = DEF
 @router.post(
     "/me/email",
     status_code=204,
-    response_class=Response
+    response_class=Response,
+    responses={
+        401: UNAUTHENTICATED,
+        403: UNAUTHORIZED,
+        422: d(
+            dedent(
+                """
+                Invalid value for email.
+                """
+            )
+        )
+    },
 )
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_email(request: Request, email: str, db: Database = DEFAULT_DB):
@@ -96,7 +91,18 @@ async def change_my_email(request: Request, email: str, db: Database = DEFAULT_D
     "/me/username",
     status_code=204,
     response_class=Response,
-    description="Changes username. If successful (204) the user is logged out of __ALL__ sessions."
+    description="Changes username. If successful (204) the user is logged out of __ALL__ sessions.",
+    responses={
+        401: UNAUTHENTICATED,
+        403: UNAUTHORIZED,
+        422: d(
+            dedent(
+                """
+                Invalid value for username.
+                """
+            )
+        )
+    },
 )
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_username(request: Request, username: str, db: Database = DEFAULT_DB):
@@ -111,15 +117,7 @@ async def change_my_username(request: Request, username: str, db: Database = DEF
     status_code=204,
     responses={
         401: UNAUTHENTICATED,
-        403: d(
-            dedent(
-                """
-                Unauthorized
-                
-                Most likely the current user is not logged in or the session has expired.
-                """
-            )
-        ),
+        403: UNAUTHORIZED,
     },
     description="Discards this session i.e. logs the user out."
 )
@@ -133,13 +131,7 @@ async def log_me_out(request: Request):
     status_code=204,
     responses={
         401: UNAUTHENTICATED,
-        403: d(
-            dedent(
-                """
-                Most likely not logged in
-                """
-            )
-        )
+        403: UNAUTHORIZED,
     },
     description="Logs the user out of __ALL__ sessions."
 )
