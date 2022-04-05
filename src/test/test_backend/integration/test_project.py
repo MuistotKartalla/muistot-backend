@@ -34,7 +34,7 @@ async def pid(db, anyio_backend):
 
 
 @pytest.mark.anyio
-async def test_invalid_project_406_edge_case(client, username, db):
+async def test_invalid_project_406_edge_case(pid, client, username, db):
     """
     It is possible to insert bad values to the database manually.
 
@@ -53,9 +53,9 @@ async def test_invalid_project_406_edge_case(client, username, db):
              1
         )
         """,
-        values=dict(pname=username),
+        values=dict(pname=pid),
     )
-    r = client.get(PROJECT.format(username))
+    r = client.get(PROJECT.format(pid))
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
 
 
@@ -208,3 +208,36 @@ def test_bad_language(client, superuser):
         info=ProjectInfo.construct(lang="az", name="test"),
     ).dict(), headers=superuser)
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
+
+
+@pytest.mark.anyio
+async def test_publish_admin_another_project_fails(db, pid, client, setup, users):
+    """All admin calls go through to publish but should reject if admin is not from current project
+    """
+    user = users[1]
+
+    _id = await db.fetch_val(
+        """
+        INSERT INTO projects (name, default_language_id) VALUE (:id, 1) RETURNING id
+        """,
+        values=dict(id=pid)
+    )
+    await db.execute(
+        """
+        INSERT INTO project_admins (project_id, user_id) SELECT :pid, id FROM users WHERE username = :user
+        """,
+        values=dict(pid=_id, user=user.username)
+    )
+
+    auth_header = authenticate(client, user.username, user.password)
+
+    r = client.post(
+        PUBLISH,
+        json={
+            "type": "project",
+            "identifier": setup.project
+        },
+        headers=auth_header
+    )
+
+    check_code(status.HTTP_403_FORBIDDEN, r)

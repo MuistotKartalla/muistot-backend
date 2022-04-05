@@ -1,6 +1,7 @@
 import random
 from typing import TypeVar, Type
 from typing import cast
+from urllib.parse import quote
 
 from fastapi import Request
 from headers import AUTHORIZATION
@@ -9,7 +10,6 @@ from muistoja.backend.repos import *
 from muistoja.config import Config
 from muistoja.security.auth import User
 from muistoja.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
-from passlib.pwd import genword
 
 from urls import *
 
@@ -43,7 +43,7 @@ class Setup:
         if hasattr(self, "memory"):
             values.append(self.memory)
             url = MEMORY
-        return url.format(*values)
+        return url.format(*(quote(str(o)) for o in values))
 
     def __str__(self):
         return self.__repr__()
@@ -52,9 +52,14 @@ class Setup:
         return self._url
 
     def __iter__(self):
-        return iter(
-            getattr(self, o) for o in ["project", "site", "memory"] if hasattr(self, o)
-        )
+        return iter(quote(str(getattr(self, o))) for o in ["project", "site", "memory"] if hasattr(self, o))
+
+
+def genword(length=10):
+    from secrets import choice
+    from string import ascii_letters, digits
+    pool = ascii_letters + digits + "-_"
+    return ''.join(choice(pool) for _ in range(0, length))
 
 
 async def create_memory(pid: PID, sid: SID, db, config, **additional_properties) -> MID:

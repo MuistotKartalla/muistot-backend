@@ -251,3 +251,12 @@ def test_image_delete(client, auth, image, setup, auto_publish):
 
     m = to(Memory, r)
     assert m.image is None
+
+
+def test_fetch_all(client, setup, auto_publish, auth):
+    for i in range(0, 10):
+        m = NewMemory(title=f"Test title {i}").dict()
+        r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+        check_code(status.HTTP_201_CREATED, r)
+    c = to(Memories, client.get(MEMORIES.format(*setup)))
+    assert len(c.items) == 10

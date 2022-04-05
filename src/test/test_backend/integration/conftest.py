@@ -1,11 +1,14 @@
+from collections import namedtuple
+
 import pytest
 from fastapi.testclient import TestClient
 from muistoja.backend import main
 from muistoja.database import Databases
 from muistoja.security.password import hash_password
-from passlib.pwd import genword
 
-from utils import authenticate as auth, mock_request
+from utils import authenticate as auth, mock_request, genword
+
+User = namedtuple('User', ('username', 'email', 'password'))
 
 
 @pytest.fixture(scope="session")
@@ -22,12 +25,20 @@ def _credentials():
     usernames = set()
     while len(out) != 3:
         length = 12
-        username, password = genword(length=length), genword(length=length)
+        username, password = genword(length=length) + "#1234", genword(length=length)
         if username not in usernames:
             email = f"{username}@example.com"
             out.append((username, email, password))
             usernames.add(username)
     yield out
+
+
+@pytest.fixture(scope="module")
+def users(_credentials):
+    data = list()
+    for c in _credentials:
+        data.append(User(username=c[0], email=c[1], password=c[2]))
+    yield data
 
 
 @pytest.fixture(autouse=True, scope="module")

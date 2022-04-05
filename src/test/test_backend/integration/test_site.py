@@ -115,15 +115,15 @@ async def test_invalid_site_406_edge_case(client, login, db, setup):
     """
     from fastapi import status
 
-    username, _, _ = login
+    name = genword(length=20)
     await db.execute(
         f"""
         INSERT INTO sites (name, published, project_id, location) 
         VALUE (:name, 1, (SELECT id FROM projects WHERE name = '{setup.project}'), POINT(10, 10))
         """,
-        values=dict(name=username),
+        values=dict(name=name),
     )
-    setup.site = username
+    setup.site = name
     check_code(status.HTTP_406_NOT_ACCEPTABLE, client.get(SITE.format(*setup)))
 
 
@@ -258,3 +258,12 @@ def test_create_memory_for_site_not_change(setup, client, auth2, admin):
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert not site.waiting_approval
+
+
+def test_fetch_all(client, setup, auto_publish, admin):
+    for _ in range(0, 10):
+        _id, site = _create_site()
+        r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+        check_code(status.HTTP_201_CREATED, r)
+    c = to(Sites, client.get(SITES.format(setup.project)))
+    assert len(c.items) == 10
