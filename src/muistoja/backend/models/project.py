@@ -12,19 +12,21 @@ class ProjectInfo(BaseModel):
     Localized data for a project
     """
 
-    lang: LANG = Field(description="Language of this info object")
+    lang: LANG = LANG_FIELD
     name: NAME = Field(description="Display name")
     abstract: Optional[TEXT] = Field(description="Short Description of the project")
     description: Optional[LONG_TEXT] = Field(description="Longer version of the description")
 
     @validator("lang")
     def validate_lang(cls, lang):
-        from languager import get_language
-
-        lang = get_language(lang).short
-        if lang is None:
+        from pycountry import languages
+        try:
+            if len(lang) == 3:
+                return languages.get(alpha_3=lang).alpha_2
+            else:
+                return languages.get(alpha_2=lang).alpha_2
+        except (AttributeError, LookupError):
             raise ValueError("No ISO639-1 ID Found")
-        return lang
 
     class Config:
         __examples__ = {

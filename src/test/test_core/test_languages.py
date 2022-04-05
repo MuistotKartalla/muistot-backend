@@ -1,4 +1,7 @@
 def test_finnish():
-    from languager import get_language
+    """Just makes sure this works
+    """
+    from pycountry import languages
 
-    assert get_language("fi").code == "fin"
+    assert languages.lookup("fi").alpha_3 == "fin"
+    assert languages.lookup("fi").alpha_2 == "fi"

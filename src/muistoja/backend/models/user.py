@@ -67,12 +67,15 @@ class _UserBase(BaseModel):
             import pycountry
             try:
                 if "-" not in value:
-                    c = pycountry.countries.lookup(value).alpha_2
+                    if len(value) == 2:
+                        c = pycountry.countries.get(alpha_2=value)
+                    else:
+                        c = pycountry.countries.get(alpha_3=value)
                 else:
-                    c = pycountry.subdivisions.lookup(value).code
+                    c = pycountry.subdivisions.get(code=value)
                 if c.alpha_2 is not None:
                     return c.alpha_2
-            except LookupError:
+            except (LookupError, AttributeError):
                 assert False, "Country lookup failed"
         else:
             return None

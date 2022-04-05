@@ -70,9 +70,9 @@ def entry(request: Request):
 )
 def languages(q: str = Query(..., regex=r"^[a-z]{2,3}$")):
     try:
-        from languager import get_language
+        from pycountry import languages
 
-        lang = get_language(q)
-        return {"id": lang.code, "name": lang.name}
-    except KeyError:
+        lang = languages.lookup(q)
+        return {"id": lang.alpha_3, "name": lang.name}
+    except (LookupError, AttributeError):
         raise HTTPException(status_code=404, detail="Language not found")
