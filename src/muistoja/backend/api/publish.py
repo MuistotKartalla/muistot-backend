@@ -7,6 +7,10 @@ from ._imports import *
 
 router = make_router(tags=["Admin"])
 
+BAD_PARENTS = "Bad parents"
+BAD_PARENTS_CNT = "Incorrect parent count"
+BAD_TYPE = "Wrong type for"
+
 ID_MAP = {
     "project": "name",
     "site": "name",
@@ -31,25 +35,33 @@ class PUPOrder(BaseModel):
 
     type: Literal["site", "memory", "comment", "project"]
     parents: Optional[Dict[Literal["site", "memory", "project"], Union[SID, MID, PID]]]
-    identifier: Union[SID, MID, CID]
+    identifier: Union[PID, SID, MID, CID]
     publish: bool = True
 
     @root_validator(skip_on_failure=True, pre=False)
     def validate_composition(cls, values):
-        type_, parents_ = values.get("type"), values.get("parents")
+        type_, parents_, id_ = values.get("type"), values.get("parents"), values.get("identifier")
         if type_ == "project":
-            assert parents_ is None or len(parents_) == 0, "Project cannot have parents"
+            assert issubclass(PID, type(id_)), f"{BAD_TYPE} identifier"
+            assert parents_ is None or len(parents_) == 0, BAD_PARENTS_CNT
         elif parents_ is None:
-            assert False, "Missing parents"
+            assert False, BAD_PARENTS
         elif type_ == "site":
-            assert "project" in parents_, "Incomplete parent tree"
+            assert issubclass(SID, type(id_)), f"{BAD_TYPE} identifier"
+            assert len(parents_) == 1, BAD_PARENTS_CNT
+            assert "project" in parents_, BAD_PARENTS
         elif type_ == "memory":
-            assert "project" in parents_ and "site" in parents_, "Incomplete parent tree"
+            assert issubclass(MID, type(id_)), f"{BAD_TYPE} identifier"
+            assert len(parents_) == 2, BAD_PARENTS_CNT
+            assert "project" in parents_ and "site" in parents_, BAD_PARENTS
         elif type_ == "comment":
-            assert "project" in parents_ and "site" in parents_ and "memory" in parents_, "Incomplete parent tree"
-        for k, t in [("project", PID), ("site", SID), ("memory", MID)]:
-            if k in parents_:
-                assert parents_[k]
+            assert issubclass(CID, type(id_)), f"{BAD_TYPE} identifier"
+            assert len(parents_) == 3, BAD_PARENTS_CNT
+            assert "project" in parents_ and "site" in parents_ and "memory" in parents_, BAD_PARENTS
+        if parents_ is not None:
+            for k, t in [("project", PID), ("site", SID), ("memory", MID)]:
+                if k in parents_:
+                    assert issubclass(t, type(parents_[k])), f"{BAD_TYPE} {k}"
         return values
 
     class Config:
