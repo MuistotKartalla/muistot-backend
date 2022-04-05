@@ -1,6 +1,6 @@
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def anyio_backend():
     return "asyncio"

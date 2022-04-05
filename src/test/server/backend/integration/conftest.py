@@ -117,7 +117,7 @@ def username(login):
 def image():
     import base64
     import pathlib
-    with open(pathlib.Path(__file__).parent / "test_image.jpg", "rb") as f:
+    with open(pathlib.Path(__file__).parent / "sample_image.jpg", "rb") as f:
         data = f.read()
     yield base64.b64encode(data).decode("ascii")
 
