@@ -20,45 +20,6 @@ async def pid(db, anyio_backend):
     await db.execute("DELETE FROM projects WHERE name = :id", values=dict(id=id_))
 
 
-#        ___           ___           ___           ___           ___
-#       /\  \         /\  \         /\  \         /\  \         /\  \
-#      /::\  \        \:\  \       /::\  \       /::\  \        \:\  \
-#     /:/\ \  \        \:\  \     /:/\:\  \     /:/\:\  \        \:\  \
-#    _\:\~\ \  \       /::\  \   /::\~\:\  \   /::\~\:\  \       /::\  \
-#   /\ \:\ \ \__\     /:/\:\__\ /:/\:\ \:\__\ /:/\:\ \:\__\     /:/\:\__\
-#   \:\ \:\ \/__/    /:/  \/__/ \/__\:\/:/  / \/_|::\/:/  /    /:/  \/__/
-#    \:\ \:\__\     /:/  /           \::/  /     |:|::/  /    /:/  /
-#     \:\/:/  /     \/__/            /:/  /      |:|\/__/     \/__/
-#      \::/  /                      /:/  /       |:|  |
-#       \/__/                       \/__/         \|__|
-
-
-@pytest.mark.anyio
-async def test_invalid_project_406_edge_case(pid, client, username, db):
-    """
-    It is possible to insert bad values to the database manually.
-
-    This tests they are correctly handled.
-    """
-    await db.fetch_val(
-        """
-        INSERT INTO projects (
-            name, 
-            published, 
-            default_language_id
-        ) 
-        VALUE (
-            :pname,
-             1, 
-             1
-        )
-        """,
-        values=dict(pname=pid),
-    )
-    r = client.get(PROJECT.format(pid))
-    check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
-
-
 def make_project(pid, client, superuser, **props):
     """Create project with given props and ensure it shows up
     """
@@ -85,14 +46,53 @@ def make_project(pid, client, superuser, **props):
     return p
 
 
-def test_create(pid, client, superuser, auto_publish):
+#        ___           ___           ___           ___           ___
+#       /\  \         /\  \         /\  \         /\  \         /\  \
+#      /::\  \        \:\  \       /::\  \       /::\  \        \:\  \
+#     /:/\ \  \        \:\  \     /:/\:\  \     /:/\:\  \        \:\  \
+#    _\:\~\ \  \       /::\  \   /::\~\:\  \   /::\~\:\  \       /::\  \
+#   /\ \:\ \ \__\     /:/\:\__\ /:/\:\ \:\__\ /:/\:\ \:\__\     /:/\:\__\
+#   \:\ \:\ \/__/    /:/  \/__/ \/__\:\/:/  / \/_|::\/:/  /    /:/  \/__/
+#    \:\ \:\__\     /:/  /           \::/  /     |:|::/  /    /:/  /
+#     \:\/:/  /     \/__/            /:/  /      |:|\/__/     \/__/
+#      \::/  /                      /:/  /       |:|  |
+#       \/__/                       \/__/         \|__|
+
+
+@pytest.mark.anyio
+async def test_project_406_edge_case(pid, client, username, db):
+    """
+    It is possible to insert bad values to the database manually.
+
+    This tests they are correctly handled.
+    """
+    await db.fetch_val(
+        """
+        INSERT INTO projects (
+            name, 
+            published, 
+            default_language_id
+        ) 
+        VALUE (
+            :pname,
+             1, 
+             1
+        )
+        """,
+        values=dict(pname=pid),
+    )
+    r = client.get(PROJECT.format(pid))
+    check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
+
+
+def test_project_create(pid, client, superuser, auto_publish):
     """Simple creation test
     """
     make_project(pid, client, superuser)
 
 
 @pytest.mark.anyio
-async def test_delete(pid, client, superuser, db, auto_publish):
+async def test_project_delete(pid, client, superuser, db, auto_publish):
     """Tests soft delete
     """
     make_project(pid, client, superuser)
@@ -114,7 +114,7 @@ async def test_delete(pid, client, superuser, db, auto_publish):
 
 
 @pytest.mark.anyio
-async def test_superuser_fetch_deleted_ok(setup, client, superuser, db):
+async def test_project_superuser_fetch_deleted_ok(setup, client, superuser, db):
     """Superusers can fetch deleted projects
     """
     pid = setup.project
@@ -127,7 +127,7 @@ async def test_superuser_fetch_deleted_ok(setup, client, superuser, db):
     assert r.status_code == status.HTTP_200_OK, r.text
 
 
-def test_admin_double_add_fail(client, setup, superuser, username):
+def test_project_admin_double_add_fail(client, setup, superuser, username):
     """Admin double add should fail with proper code
     """
     pid = setup.project
@@ -140,10 +140,10 @@ def test_admin_double_add_fail(client, setup, superuser, username):
     assert to(Project, client.get(PROJECT.format(pid))).admins == [username]
 
 
-def test_admin_double_delete_ok(client, setup, superuser, username):
+def test_project_admin_double_delete_ok(client, setup, superuser, username):
     """Deletion says ok always
     """
-    test_admin_double_add_fail(client, setup, superuser, username)
+    test_project_admin_double_add_fail(client, setup, superuser, username)
     pid = setup.project
 
     r = client.delete(ADMINS.format(pid), params=dict(username=username), headers=superuser)
@@ -154,7 +154,7 @@ def test_admin_double_delete_ok(client, setup, superuser, username):
     assert to(Project, client.get(PROJECT.format(pid))).admins == []
 
 
-def test_image_delete(pid, client, superuser, image, auto_publish):
+def test_project_image_delete(pid, client, superuser, image, auto_publish):
     """Images should be fetched and saved properly
 
     And deleted upon setting null
@@ -171,7 +171,7 @@ def test_image_delete(pid, client, superuser, image, auto_publish):
     assert to(Project, client.get(r.headers[LOCATION])).image is None, r.text
 
 
-def test_localize_no_auth(setup, client, superuser):
+def test_project_localize_no_auth(setup, client, superuser):
     """Fail on missing auth
     """
     data = ProjectInfo(name="a", lang="eng", description="a", abstract="b").json()
@@ -181,7 +181,7 @@ def test_localize_no_auth(setup, client, superuser):
     check_code(status.HTTP_401_UNAUTHORIZED, r)
 
 
-def test_localize_new(setup, client, superuser):
+def test_project_localize_new(setup, client, superuser):
     """Create new localization
     """
     data = ProjectInfo(name="a", lang="en", description="a", abstract="b").json()
@@ -193,14 +193,14 @@ def test_localize_new(setup, client, superuser):
     assert to(Project, client.get(r.headers[LOCATION], headers=headers)).info.json() == data
 
 
-def test_unknown_locale(setup, client):
+def test_porject_unknown_locale(setup, client):
     """Test unsupported locale
     """
     r = client.get(PROJECT.format(setup.project), headers={ACCEPT_LANGUAGE: "az"})
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
 
 
-def test_bad_language(client, superuser):
+def test_project_bad_language(client, superuser):
     """Test unsupported language
     """
     r = client.post(PROJECTS, json=NewProject(
@@ -211,7 +211,7 @@ def test_bad_language(client, superuser):
 
 
 @pytest.mark.anyio
-async def test_publish_admin_another_project_fails(db, pid, client, setup, users):
+async def test_project_publish_admin_another_project_fails(db, pid, client, setup, users):
     """All admin calls go through to publish but should reject if admin is not from current project
     """
     user = users[1]
