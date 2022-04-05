@@ -4,4 +4,4 @@
 pytest
 pytest-cov
 requests
-anyio[trio]
+anyio
