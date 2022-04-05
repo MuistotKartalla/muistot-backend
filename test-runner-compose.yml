@@ -11,8 +11,6 @@ services:
       - "./htmlcov/:/test-runner/htmlcov/"
     depends_on:
       - db
-      - maildev
-      - mailer
       - session-storage
       - username-generator
   db:
@@ -28,13 +26,3 @@ services:
   username-generator:
     build:
       context: ./namegen
-  maildev:
-    build:
-      context: ./email
-      dockerfile: maildev.Dockerfile
-    restart: "no"
-  mailer:
-    build:
-      context: ./email
-      dockerfile: mailer.Dockerfile
-    restart: "no"
