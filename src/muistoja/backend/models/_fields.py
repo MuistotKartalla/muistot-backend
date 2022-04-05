@@ -4,7 +4,7 @@ IMAGE_TXT = "Image file name to be fetched from the image endpoint."
 IMAGE_NEW = "Image data in base64."
 IMAGE = constr(strict=True, strip_whitespace=True, min_length=1, max_length=int(3E6))
 
-__ID_REGEX = r"^[a-zA-Z0-9-_#]+$"
+__ID_REGEX = r"^[a-zA-Z0-9-_]+$"
 """Common regex for project and site ID types
 """
 __ID_TYPE_STR = constr(
@@ -46,7 +46,7 @@ LANG_FIELD = Field(description="Language tag, supports ISO 639-1 format")
 COUNTRY = constr(
     min_length=2,
     max_length=6,
-    regex=r"^(?:[A-Z]{2,3}|[A-Z]{2}-(?:[A-Z]{1,3}|[0-9]{1,3}))",
+    regex=r"^(?:[a-zA-Z]{2,3}|[a-zA-Z]{2}-(?:[a-zA-Z]{1,3}|[0-9]{1,3}))",
 )
 """Country tag
 
