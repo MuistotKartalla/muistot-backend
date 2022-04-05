@@ -5,6 +5,9 @@ on:
     types: [ published ]
   push:
     branches: [ master ]
+    paths:
+      - ./src
+      - ./database
   workflow_dispatch:
 
 # Job

@@ -1,13 +1,6 @@
 ## Backend Server
 
-#### Multistage Docker image for testing
-
-Builds the server image in two stages by copying over
-a [virtual environment](https://docs.python.org/3/library/venv.html) to the final image.
-
-Runs currently on __Alpine Linux__ from `python:3.9-alpine` base image.
-
-The final image is around `100MB`
+[![codecov](https://codecov.io/gh/MuistotKartalla/muistot-backend/branch/master/graph/badge.svg?token=4FYJJVP12R)](https://codecov.io/gh/MuistotKartalla/muistot-backend)
 
 #### Backend server
 
@@ -15,13 +8,7 @@ The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [U
 
 ---
 
-## Information
-
-![[]](.github/images/api-structure.png)
-
-Here is the general structure of the api and a description of actions available for each resource.
-
-## Setup
+## Development Setup
 
 - Backend on `5600`
 - Database on `5601`
@@ -31,6 +18,8 @@ Here is the general structure of the api and a description of actions available 
 The setup scripts could be refactored into single files.
 
 #### Recreating database
+
+Deletes all data and volumes
 
 ```shell
 sh scripts/recreate_db.sh
@@ -74,51 +63,28 @@ for new Docker versions.
 
 Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
-#### Others
-
-Build the test image
-
-```shell
-docker build -t 'image_name' -f server.Dockerfile .
-```
-
-This isn't needed for anything as `docker-compose` takes care of things.
-
 ---
-
-#### TODO
-
-The old dump didn't include users or comments so migrating them is yet untested
-
-- Happy path integration tests
-- Not so happy tests
-- Finish documentation examples with something sensible
 
 #### Developer Notes
 
 ##### Login
 
-Logins are handled through email. There is a general purpose interface for mailing in [mailer](src/muistot/mailer).
-This can be used to integrate with _Mailgun_, _Amazon SES_, _Local Server_, ...
+Logins are handled through email. There is a general purpose interface for mailing in [mailer](src/muistot/mailer). This
+can be used to integrate with _Mailgun_, _Amazon SES_, _Local Server_, ...
 
 There was a plan to add OAuth from other provides, __but it is currently unfinished__.
 
 ##### Session Storage
 
-The sessions are stored in redis and the management is done with the [sessions](src/muistot/sessions) module.
-Sessions are stored in redis and the session token byte length is defined in the config. The tokens are base64 encoded.
-The sessions are bound to users in the Redis and any two sessions cannot share the same token. The sessions are stored
-in the following way:
+The sessions are stored in redis and the management is done with the [sessions](src/muistot/sessions) module. Sessions
+are stored in redis and the session token byte length is defined in the config. The tokens are base64 encoded. The
+sessions are bound to users in the Redis and any two sessions cannot share the same token. The sessions are stored in
+the following way:
 
 - token => Session Data
 - user => Session Tokens
 
-Technically it would be possible to end up in a situation where the user bucket has a session token that expired and was
-assigned to someone else. However, since this only leads to the session getting culled if the other user clear all their
-session it is not deemed a security risk. The data in the user bucket is __only__ used for session clearing.
-
-To remedy this risk a redis pub/sub listener should be employed in the final deployment that removes the value from any
-user set on expiry.
+Stale sessions are removed from the user pool on login.
 
 ##### Databases
 
@@ -140,8 +106,8 @@ so they are just swapped with regex `:(\w+)` => `%(\1)s`.
 The dependency and callsite clutter are quite annying at places. The callsites of many functions are polluted by request
 and _Depends_ parameters, but grouping them under one dependency is not really worth it. This could be improved later.
 
-There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/helpers.py) to replace the original
-errors. Also, all the error handlers are defined there.
+There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/helpers.py) to replace the original errors.
+Also, all the error handlers are defined there.
 
 ##### httpheaders
 
@@ -151,8 +117,8 @@ only as a part of student groups.
 
 ##### Repos
 
-This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data
-coming from and going into the database. The `base` contains the base definitions and checks for repos nad the `exists`
+This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data coming
+from and going into the database. The `base` contains the base definitions and checks for repos nad the `exists`
 module takes care of fetching resource status information. This status information is used for the repo decorations to
 manage access control.
 
@@ -205,3 +171,9 @@ This project could be refactored into smaller services e.g:
 
 And could then be run in a lower cost environment e.g. Amazon Lambda. This would also allow breaking down the project
 into smaller parts that could be containerized individually and could be run like microservices.
+
+## Information
+
+Here is the general structure of the api and a description of actions available for each resource.
+
+![[]](.github/images/api-structure.png)
