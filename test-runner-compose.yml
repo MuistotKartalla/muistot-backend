@@ -26,3 +26,4 @@ services:
   username-generator:
     build:
       context: ./namegen
+    image: namegen:latest

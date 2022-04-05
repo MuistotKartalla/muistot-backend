@@ -1,4 +1,4 @@
-name: Deploy
+name: Run Tests
 
 on:
   release:
@@ -9,72 +9,18 @@ on:
 
 jobs:
   test:
-    services:
-      redis:
-        image: redis:6-alpine
-        ports:
-          - 6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s
-          --health-timeout 1s
-          --health-retries 5
-      db:
-        image: mariadb:10.6
-        env:
-          MYSQL_ROOT_PASSWORD: test
-        ports:
-          - 3306
-        options: >-
-          --health-cmd "mysqladmin ping"
-          --health-interval 2s
-          --health-timeout 1s
-          --health-retries 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
-          architecture: 'x64'
-          cache: 'pip'
-      - name: Install Dependencies
-        run: pip install -r requirements-dev.txt
       - uses: satackey/action-docker-layer-caching@v0.0.11
         continue-on-error: true
       - name: Build the Namegen Image
         run: docker build -t namegen:latest ./namegen
-      - name: Verify MariaDB connection
-        timeout-minutes: 1
-        env:
-          PORT: ${{ job.services.db.ports[3306] }}
-        run: |
-          while !mysqladmin ping --host 127.0.0.1 --port $PORT --silent; do
-            sleep 1
-          done
-      - name: Initialize Database
-        env:
-          PORT: ${{ job.services.db.ports[3306] }}
-        run: |
-          mysql --host 127.0.0.1 --port $PORT -uroot -ptest < ./database/schema.sql
-      - name: Initialize Config
-        env:
-          PORT: ${{ job.services.redis.ports[6379] }}
-        run: |
-          echo '{'                                                   > ~/config.json
-          echo '"security":{'                                        >> ~/config.json
-          echo '"namegen_url":"http://localhost:8080",'              >> ~/config.json
-          echo '"session_redis":"redis://localhost:'"$PORT"'?db=0"'  >> ~/config.json
-          echo '},'                                                  >> ~/config.json
-          echo '"database":{'                                        >> ~/config.json
-          echo '"default":{"host":"localhost"}}'                     >> ~/config.json
-          echo '}'                                                   >> ~/config.json
-      - name: Run Namegen Container
-        run: docker run --rm -p 8080:8080 -d namegen:latest
       - name: Invoke Tests
-        run: |
-          pip install ./src
-          pytest --cov=muistot --cov-report term --cov-report html ./src/test
+        run: sh scripts/run_tests.sh
+      - uses: codecov/codecov-action@v2
+        with:
+          files: ./htmlcov/coverage.xml
   deploy:
     needs: [ test ]
     runs-on: ubuntu-latest

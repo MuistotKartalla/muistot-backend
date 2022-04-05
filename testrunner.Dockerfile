@@ -10,4 +10,4 @@ COPY requirements*.txt ./
 RUN pip install -r requirements-dev.txt
 COPY ./src/ ./src/
 RUN pip install ./src
-CMD pytest --cov=muistot --cov-report term --cov-report html && echo 'Tests Done'
+CMD pytest --cov=muistot --cov-report term --cov-report html --cov-report xml:./htmlcov/coverage.xml && echo 'Tests Done'
