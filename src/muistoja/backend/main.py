@@ -92,7 +92,6 @@ app = FastAPI(
     default_response_class=JSONResponse,
     openapi_tags=tags,
     root_path=os.getenv("PROXY_ROOT", ""),
-    root_path_in_servers=True
 )
 
 # ERROR HANDLERS
