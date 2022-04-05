@@ -72,7 +72,14 @@ def languages(q: str = Query(..., regex=r"^[a-z]{2,3}$")):
     try:
         from pycountry import languages
 
-        lang = languages.lookup(q)
-        return {"id": lang.alpha_3, "name": lang.name}
+        if len(q) == 3:
+            lang = languages.get(alpha_3=q)
+        else:
+            lang = languages.get(alpha_2=q)
+
+        out = dict(name=lang.name, id=lang.alpha_3, alpha_3=lang.alpha_3)
+        if hasattr(lang, "alpha_2"):
+            out["alpha_2"] = lang.alpha_2
+        return out
     except (LookupError, AttributeError):
         raise HTTPException(status_code=404, detail="Language not found")

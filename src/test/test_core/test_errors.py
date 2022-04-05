@@ -84,6 +84,8 @@ async def test_low_err():
 def test_openapi_modifier():
     class Mock:
         openapi_schema = None
+        root_path = "/api"
+        servers = list()
 
         def openapi(self):
             return {"components": {"schemas": dict()}}
@@ -91,6 +93,7 @@ def test_openapi_modifier():
     app = Mock()
     modify_openapi(app)
 
+    assert len(app.servers) != 0
     assert app.openapi_schema is not None
     assert len(app.openapi_schema["components"]["schemas"]) != 0  # Updates HTTPError
 

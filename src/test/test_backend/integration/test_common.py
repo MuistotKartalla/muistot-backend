@@ -18,4 +18,9 @@ def test_image_redirect(client):
 def test_lang(client):
     r = client.get("/languages?q=fi")
     check_code(status.HTTP_200_OK, r)
-    assert r.json() == {"id": "fin", "name": "Finnish"}
+    assert r.json() == {"id": "fin", "name": "Finnish", "alpha_2": "fi", "alpha_3": "fin"}
+
+
+def test_lang_not_found(client):
+    r = client.get("/languages?q=xxx")
+    check_code(status.HTTP_404_NOT_FOUND, r)
