@@ -1,5 +1,5 @@
 import pytest
-from muistoja.database import Databases
+from muistoja.database import Databases, Database
 
 
 @pytest.fixture(scope="session")
@@ -24,7 +24,7 @@ async def db_instance(anyio_backend):
 
 
 @pytest.fixture(scope="function")
-async def db(db_instance, anyio_backend):
+async def db(db_instance, anyio_backend) -> Database:
     async with db_instance.begin() as c:
         await c.execute('ROLLBACK')
         await c.execute('SET autocommit = 1')
