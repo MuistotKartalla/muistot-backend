@@ -1,12 +1,12 @@
 import pytest
-from muistoja.database.connection import DatabaseConnection, Database, ConnectionMaster, ConnectionExecutor
-from muistoja.database.connection import allocate_fair, named_to_pyformat
+from muistot.database.connection import DatabaseConnection, Database, ConnectionMaster, ConnectionExecutor
+from muistot.database.connection import allocate_fair, named_to_pyformat
 
 
 @pytest.fixture
 def cfg():
-    from muistoja.config import Config
-    from muistoja.config.config import Database
+    from muistot.config import Config
+    from muistot.config.config import Database
     db = Database(**Config.db["default"].dict())
     db.host = 'localhost'
     db.port = 8080

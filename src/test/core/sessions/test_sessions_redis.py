@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from muistoja.sessions.helpers import add_session_manager
-from muistoja.sessions.manager import SessionManager, Session, USER_PREFIX, TOKEN_PREFIX, decode, encode
+from muistot.sessions.helpers import add_session_manager
+from muistot.sessions.manager import SessionManager, Session, USER_PREFIX, TOKEN_PREFIX, decode, encode
 
 
 @pytest.fixture

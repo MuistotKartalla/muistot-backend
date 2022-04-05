@@ -1,4 +1,4 @@
-from muistoja.database.models import ResultSet, ResultSetCursor
+from muistot.database.models import ResultSet, ResultSetCursor
 
 
 def test_list_spread():

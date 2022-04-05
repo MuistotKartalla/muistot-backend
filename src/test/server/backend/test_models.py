@@ -1,7 +1,7 @@
 import pytest
-from muistoja.backend.api.publish import PUPOrder, BAD_TYPE, BAD_PARENTS_CNT, BAD_PARENTS
-from muistoja.backend.models import SiteInfo, ProjectInfo
-from muistoja.security import User
+from muistot.backend.api.publish import PUPOrder, BAD_TYPE, BAD_PARENTS_CNT, BAD_PARENTS
+from muistot.backend.models import SiteInfo, ProjectInfo
+from muistot.security import User
 from pydantic import ValidationError
 
 

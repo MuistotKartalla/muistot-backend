@@ -1,7 +1,7 @@
 import pytest
 from fastapi import HTTPException, status
 from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
-from muistoja.backend.repos.base.utils import extract_language, check_language, not_implemented
+from muistot.backend.repos.base.utils import extract_language, check_language, not_implemented
 from starlette.authentication import UnauthenticatedUser
 
 

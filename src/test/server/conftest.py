@@ -1,5 +1,5 @@
 import pytest
-from muistoja.database import Databases, Database
+from muistot.database import Databases, Database
 
 
 @pytest.fixture(scope="session")

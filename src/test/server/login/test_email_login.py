@@ -2,9 +2,9 @@ from collections import namedtuple
 
 import pytest
 from fastapi import HTTPException
-from muistoja import mailer
-from muistoja.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email, send_email
-from muistoja.mailer import Mailer, Result
+from muistot import mailer
+from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email, send_email
+from muistot.mailer import Mailer, Result
 
 User = namedtuple("User", ["username", "email"])
 
@@ -94,7 +94,7 @@ async def test_create_503(db, user):
 
     Although the email will fail here, the username should work too
     """
-    from muistoja.login.logic.login import try_create_user
+    from muistot.login.logic.login import try_create_user
     with pytest.raises(HTTPException) as e:
         await try_create_user(user.email, db)
     assert e.value.status_code == 503

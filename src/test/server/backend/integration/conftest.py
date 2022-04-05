@@ -2,9 +2,9 @@ from collections import namedtuple
 
 import pytest
 from fastapi.testclient import TestClient
-from muistoja.backend import main
-from muistoja.database import Databases
-from muistoja.security.password import hash_password
+from muistot.backend import main
+from muistot.database import Databases
+from muistot.security.password import hash_password
 
 from utils import authenticate as auth, mock_request, genword
 
@@ -124,7 +124,7 @@ def image():
 
 @pytest.fixture
 def auto_publish():
-    from muistoja.config import Config
+    from muistot.config import Config
     pre = Config.security.auto_publish
     Config.security.auto_publish = True
     yield

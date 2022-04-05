@@ -1,7 +1,7 @@
 import pytest
 from fastapi import status
 from headers import LOCATION
-from muistoja.backend.api.publish import PUPOrder
+from muistot.backend.api.publish import PUPOrder
 
 from utils import *
 

@@ -1,12 +1,12 @@
 import pytest
-from muistoja.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER
-from muistoja.security.auth_helper import auth_helper
-from muistoja.security.password import hash_password, check_password
+from muistot.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER
+from muistot.security.auth_helper import auth_helper
+from muistot.security.password import hash_password, check_password
 
 
 def test_manager_add():
-    from muistoja.sessions import add_session_manager
-    from muistoja.sessions.middleware import SessionManagerMiddleware
+    from muistot.sessions import add_session_manager
+    from muistot.sessions.middleware import SessionManagerMiddleware
     from starlette.middleware.authentication import AuthenticationMiddleware
 
     class State:

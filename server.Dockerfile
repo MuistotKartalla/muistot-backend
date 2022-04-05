@@ -20,4 +20,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV WEB_CONCURRENCY=2
 ENV PORT=5600
 EXPOSE 5600
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker","muistoja.backend.main:app"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker","muistot.backend.main:app"]

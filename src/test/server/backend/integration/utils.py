@@ -5,11 +5,11 @@ from urllib.parse import quote
 
 from fastapi import Request
 from headers import AUTHORIZATION
-from muistoja.backend.models import *
-from muistoja.backend.repos import *
-from muistoja.config import Config
-from muistoja.security.auth import User
-from muistoja.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
+from muistot.backend.models import *
+from muistot.backend.repos import *
+from muistot.config import Config
+from muistot.security.auth import User
+from muistot.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
 
 from urls import *
 

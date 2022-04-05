@@ -1,9 +1,9 @@
 import pytest
 from headers import AUTHORIZATION
-from muistoja.security import scopes
-from muistoja.sessions.helpers import on_error
-from muistoja.sessions.manager import Session, decode, encode
-from muistoja.sessions.middleware import SessionManagerMiddleware
+from muistot.security import scopes
+from muistot.sessions.helpers import on_error
+from muistot.sessions.manager import Session, decode, encode
+from muistot.sessions.middleware import SessionManagerMiddleware
 from starlette.authentication import AuthenticationError
 from starlette.datastructures import MutableHeaders, State
 

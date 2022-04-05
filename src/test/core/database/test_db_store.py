@@ -1,6 +1,6 @@
 import pytest
-from muistoja.config import Config
-from muistoja.database.store import _Databases, DatabaseDependency
+from muistot.config import Config
+from muistot.database.store import _Databases, DatabaseDependency
 
 
 def test_databases():

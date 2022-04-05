@@ -2,7 +2,7 @@ from typing import Dict
 
 import pytest
 from fastapi import status
-from muistoja.errors import Error
+from muistot.errors import Error
 
 from utils import *
 

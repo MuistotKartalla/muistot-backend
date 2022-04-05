@@ -2,12 +2,12 @@
 Basically just tests these output the right stuff
 """
 import pytest
-from muistoja.backend.models import ProjectInfo
-from muistoja.errors import ApiError, ErrorResponse, Error
-from muistoja.errors.helpers import db_error_handler, api_error_handler
-from muistoja.errors.helpers import register_error_handlers, low_error_handler, modify_openapi
-from muistoja.errors.helpers import validation_error_handler_2, validation_error_handler
-from muistoja.errors.models import HTTPValidationError
+from muistot.backend.models import ProjectInfo
+from muistot.errors import ApiError, ErrorResponse, Error
+from muistot.errors.helpers import db_error_handler, api_error_handler
+from muistot.errors.helpers import register_error_handlers, low_error_handler, modify_openapi
+from muistot.errors.helpers import validation_error_handler_2, validation_error_handler
+from muistot.errors.models import HTTPValidationError
 from pydantic import ValidationError
 
 

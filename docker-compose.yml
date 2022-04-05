@@ -9,7 +9,7 @@ services:
     #tty: true
     volumes:
       - "./images/:/opt/files/"
-      - "./src/muistoja:/code/muistoja:ro"
+      - "./src/muistot:/code/muistot:ro"
       - "./config.json:/root/config.json:ro"
     ports:
       - "127.0.0.1:5600:80"

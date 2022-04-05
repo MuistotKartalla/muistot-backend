@@ -98,14 +98,14 @@ The old dump didn't include users or comments so migrating them is yet untested
 
 ##### Login
 
-Logins are handled through email. There is a general purpose interface for mailing in [mailer](./src/muistoja/mailer).
+Logins are handled through email. There is a general purpose interface for mailing in [mailer](src/muistot/mailer).
 This can be used to integrate with _Mailgun_, _Amazon SES_, _Local Server_, ...
 
 There was a plan to add OAuth from other provides, __but it is currently unfinished__.
 
 ##### Session Storage
 
-The sessions are stored in redis and the management is done with the [sessions](./src/muistoja/sessions) module.
+The sessions are stored in redis and the management is done with the [sessions](src/muistot/sessions) module.
 Sessions are stored in redis and the session token byte length is defined in the config. The tokens are base64 encoded.
 The sessions are bound to users in the Redis and any two sessions cannot share the same token. The sessions are stored
 in the following way:
@@ -122,7 +122,7 @@ user set on expiry.
 
 ##### Databases
 
-These are found under [database](./src/muistoja/database)
+These are found under [database](src/muistot/database)
 
 The database connections are held inside a holder `Databases`. The connections used to be handled by the `databases`
 library, but it caused some weird and hard to track connection bugs at the end of the project deadline in Spring 2022,
@@ -140,7 +140,7 @@ so they are just swapped with regex `:(\w+)` => `%(\1)s`.
 The dependency and callsite clutter are quite annying at places. The callsites of many functions are polluted by request
 and _Depends_ parameters, but grouping them under one dependency is not really worth it. This could be improved later.
 
-There is a small hack done to the OpenAPI in [helpers.py](./src/muistoja/errors/helpers.py) to replace the original
+There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/helpers.py) to replace the original
 errors. Also, all the error handlers are defined there.
 
 ##### httpheaders
@@ -151,14 +151,14 @@ only as a part of student groups.
 
 ##### Repos
 
-This whole thing is under [repos](./src/muistoja/backend/repos). These take care of fetching and converting the data
+This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data
 coming from and going into the database. The `base` contains the base definitions and checks for repos nad the `exists`
 module takes care of fetching resource status information. This status information is used for the repo decorations to
 manage access control.
 
 ##### Security
 
-The [security](./src/muistoja/security) provides classes for users and crude session scope based resource access control
+The [security](src/muistot/security) provides classes for users and crude session scope based resource access control
 management. The access control is double-checked, once at the resource level to prevent grossly illegal calls and a
 second time at the repo level to fetch the up-to-date information.
 
@@ -167,12 +167,12 @@ someone was removed as an admin for example.
 
 ##### Logging
 
-The logging package [logging](./src/muistoja/logging/__init__.py) hooks into the uvicorn error logger to propagate log
+The logging package [logging](src/muistot/logging/__init__.py) hooks into the uvicorn error logger to propagate log
 messages.
 
 ##### Config
 
-Config is loaded with the [config](./src/muistoja/config) package. The config is a single Pydantic model that is read
+Config is loaded with the [config](src/muistot/config) package. The config is a single Pydantic model that is read
 from `./config.json` or `~/config.json` otherwise the base (testing) config is used.
 
 ##### Testing

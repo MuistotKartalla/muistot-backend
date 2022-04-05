@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="muistojakartalla",
+    name="muistotkartalla",
     version="0.0.1",
     author="TEST ONLY",
     author_email="TEST ONLY",
@@ -14,6 +14,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    packages=setuptools.find_packages(include=["muistoja", "muistoja.*"]),
+    packages=setuptools.find_packages(include=["muistot", "muistot.*"]),
     python_requires=">=3.9",
 )

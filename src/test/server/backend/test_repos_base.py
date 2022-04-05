@@ -1,5 +1,5 @@
 import pytest
-from muistoja.backend.repos.base import BaseRepo
+from muistot.backend.repos.base import BaseRepo
 
 
 def test_inherit_bad_name():
@@ -47,7 +47,7 @@ def test_no_certain_methods():
 
 
 def test_from_other_ok():
-    from muistoja.backend.repos import ProjectRepo
+    from muistot.backend.repos import ProjectRepo
 
     class Mock:
         _user = "A"

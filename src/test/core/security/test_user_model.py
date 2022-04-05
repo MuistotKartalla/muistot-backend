@@ -1,6 +1,6 @@
 import pytest
-from muistoja.security.scopes import SUPERUSER, ADMIN, AUTHENTICATED
-from muistoja.security.user import User
+from muistot.security.scopes import SUPERUSER, ADMIN, AUTHENTICATED
+from muistot.security.user import User
 
 
 def test_from_cache():
