@@ -5,7 +5,6 @@ import httpx
 from fastapi import HTTPException
 from fastapi import status
 from fastapi.responses import Response
-from passlib.pwd import genword
 
 from .data import load_session_data
 from .models import LoginQuery, RegisterQuery, EmailStr
@@ -159,6 +158,7 @@ async def handle_login_token(username: str, token: str, db: Database, sm: Sessio
 
 
 async def try_create_user(email: EmailStr, db: Database):
+    from secrets import token_urlsafe
     async with httpx.AsyncClient(base_url=Config.security.namegen_url) as client:
         for _ in range(0, 5):
             try:
@@ -167,7 +167,7 @@ async def try_create_user(email: EmailStr, db: Database):
                     RegisterQuery(
                         username=username,
                         email=email,
-                        password=genword(length=200)
+                        password=token_urlsafe(200)
                     ),
                     db,
                 )
