@@ -102,9 +102,9 @@ class SessionManager:
         """
         self.connect()
         token = decode(token)
+        self.extend(token)
         data = self.redis.get(token)
         if data is not None:
-            self.extend(token)
             return Session(**json.loads(data))
         raise ValueError("Invalid Session")
 

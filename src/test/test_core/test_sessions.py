@@ -62,7 +62,7 @@ async def test_simple_request():
     r = MockRequest("jwt ABSCD")
     with pytest.raises(AuthenticationError) as e:
         await middleware.authenticate(r)
-    assert e.value.args[0] == "Wrong Scheme"
+    assert e.value.__cause__.args[0] == "Wrong Scheme"
 
 
 @pytest.mark.anyio
@@ -70,7 +70,7 @@ async def test_bad_header():
     r = MockRequest("jwt ABSCD awdwawa")
     with pytest.raises(AuthenticationError) as e:
         await middleware.authenticate(r)
-    assert e.value.args[0] == "Wrong Scheme"
+    assert e.value.__cause__.args[0] == "Wrong Scheme"
 
 
 @pytest.mark.anyio

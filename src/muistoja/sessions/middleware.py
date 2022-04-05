@@ -29,7 +29,7 @@ class SessionManagerMiddleware(AuthenticationBackend):
         if header is not None:
             scheme, _, credentials = header.partition(" ")
             if scheme.lower() != "bearer":
-                raise AuthenticationError("Wrong Scheme")
+                raise AuthenticationError() from ValueError("Wrong Scheme")
             try:
                 session = self.manager.get_session(credentials)
                 user = User.from_cache(username=session.user, token=credentials)
@@ -42,9 +42,7 @@ class SessionManagerMiddleware(AuthenticationBackend):
                     creds.scopes.append(session_data["scopes"])
                     user.scopes.update(session_data["scopes"])
             except ValueError as e:
-                raise AuthenticationError(
-                    e.args[0] if len(e.args) > 0 else "Invalid Token"
-                )
+                raise AuthenticationError from e
         else:
             user = User.null()
             creds = AuthCredentials()

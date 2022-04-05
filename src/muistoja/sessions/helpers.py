@@ -14,7 +14,10 @@ from ..errors import ErrorResponse, ApiError
 
 def on_error(_: Request, exc: AuthenticationError):
     """Customizes the authentication errors"""
-    message = exc.args[0] if len(exc.args) >= 1 else "Error in auth"
+    try:
+        message = exc.__cause__.args[0]
+    except (AttributeError, IndexError):
+        message = "Error in Authentivation"
     return ErrorResponse(error=ApiError(code=status.HTTP_401_UNAUTHORIZED, message=message))
 
 
