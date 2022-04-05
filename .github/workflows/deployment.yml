@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  release:
+    types: [ published ]
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    services:
+      redis:
+        image: redis:6-alpine
+        ports:
+          - 6379/tcp
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 1s
+          --health-retries 5
+      db:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 2s
+          --health-timeout 1s
+          --health-retries 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+          architecture: 'x64'
+          cache: 'pip'
+      - name: Install Dependencies
+        run: pip install -r requirements-dev.txt
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        continue-on-error: true
+      - name: Build the Namegen Image
+        run: docker build ./namegen --file Dockerfile --tag namegen:latest
+      - name: Initialize Database
+        run: mysql -h db -uroot -ptest muistot < ./database/schema.sql
+      - name: Initialize Config
+        run: |
+          echo '{'                                              > ~/config.json
+          echo '"security":{'                                   >> ~/config.json
+          echo '"namegen_url":"http://localhost:8080",'         >> ~/config.json
+          echo '"session_redis":"redis://localhost:6379?db=0"'  >> ~/config.json
+          echo '},'                                             >> ~/config.json
+          echo '"database":{'                                   >> ~/config.json
+          echo '"default":{"host":"localhost"}}'                >> ~/config.json
+          echo '}'                                              >> ~/config.json
+      - name: Run Namegen Container
+        run: docker run --rm -p 8080:8080 namegen:latest
+      - name: Invoke Tests
+        run: pytest --cov=muistot --cov-report term --cov-report html
+  deploy:
+    needs: [ test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: sh scripts/deploy-backend.sh
+
