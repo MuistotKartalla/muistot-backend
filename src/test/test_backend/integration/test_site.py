@@ -267,3 +267,28 @@ def test_fetch_all(client, setup, auto_publish, admin):
         check_code(status.HTTP_201_CREATED, r)
     c = to(Sites, client.get(SITES.format(setup.project)))
     assert len(c.items) == 10
+
+
+@pytest.mark.anyio
+async def test_unpublished_project_site(db, setup, client, admin, auth2, auto_publish):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    check_code(status.HTTP_201_CREATED, r)
+
+    await db.execute("UPDATE projects SET published = 0 WHERE name = :name", values=dict(name=setup.project))
+    r = client.get(SITE.format(*setup, _id))
+    assert r.status_code == status.HTTP_404_NOT_FOUND and "Project" in r.text
+
+
+@pytest.mark.anyio
+async def test_key_failure_project_site(db, setup, client, admin, auth2, auto_publish):
+    await db.execute("SET FOREIGN_KEY_CHECKS=0")
+    try:
+        _id, site = _create_site()
+        r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+        check_code(status.HTTP_201_CREATED, r)
+        await db.execute("DELETE FROM projects WHERE name = :name", values=dict(name=setup.project))
+        r = client.get(SITE.format(*setup, _id))
+        assert r.status_code == status.HTTP_404_NOT_FOUND and "Project" in r.text
+    finally:
+        await db.execute("SET FOREIGN_KEY_CHECKS=1")

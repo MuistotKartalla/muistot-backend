@@ -12,6 +12,12 @@ def test_invalid_iso_lang():
         assert "ISO" in e.value.errors()[0]["msg"]
 
 
+def test_ok_iso_lang():
+    for m in (SiteInfo, ProjectInfo):
+        m(name="a", lang="fi")
+        m(name="a", lang="fin")
+
+
 def test_user():
     u = User.from_cache(username="abcd", token="abcd")
     assert u.username == u.identity == u.display_name
