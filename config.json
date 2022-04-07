@@ -1,4 +1,5 @@
 {
+  "testing": true,
   "auto_publish": true,
   "mailer": {
     "name": "local_mailer",

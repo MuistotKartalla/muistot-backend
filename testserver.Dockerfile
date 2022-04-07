@@ -15,6 +15,4 @@ WORKDIR /code
 RUN apk add --no-cache --update libmagic hiredis curl && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-HEALTHCHECK --interval=30s --timeout=10s --retries=1 --start-period=10s \
-CMD sh -c "curl -fs http://localhost:80/killme > /dev/null || kill 1"
 CMD ["uvicorn", "muistot.backend.main:app", "--reload", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]

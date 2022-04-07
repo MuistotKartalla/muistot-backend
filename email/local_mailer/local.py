@@ -2,8 +2,8 @@
 This is for testing
 """
 import httpx
-from muistoja.logging import log
-from muistoja.mailer import Mailer, Result
+from muistot.logging import log
+from muistot.mailer import Mailer, Result
 
 
 class DefaultMailer(Mailer):
