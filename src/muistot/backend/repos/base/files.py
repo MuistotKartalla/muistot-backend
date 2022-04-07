@@ -67,17 +67,25 @@ class Files:
             if self.user.is_authenticated:
                 m = await self.db.fetch_one(
                     """
-                    INSERT INTO images (uploader_id) 
+                    INSERT INTO images (uploader_id, file_name) 
                     SELECT
-                        u.id 
+                        u.id,
+                        CONCAT_WS('.', UUID(), :file_type)
                     FROM users u
                         WHERE u.username = :user
                     RETURNING id, file_name
                     """,
-                    values=dict(user=self.user.identity),
+                    values=dict(user=self.user.identity, file_type=file_type),
                 )
             else:
-                m = await self.db.fetch_one("INSERT INTO images VALUE () RETURNING id, file_name")
+                m = await self.db.fetch_one(
+                    """
+                    INSERT INTO images (file_name)
+                    VALUE (CONCAT_WS('.', UUID(), :file_type))
+                    RETURNING id, file_name
+                    """,
+                    values=dict(file_type=file_type)
+                )
             if m is None:
                 log.warning(f"Failure to insert file\n{self.user.identity}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
