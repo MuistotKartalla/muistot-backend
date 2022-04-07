@@ -6,8 +6,9 @@ on:
   push:
     branches: [ master ]
     paths:
-      - ./src
-      - ./database
+      - ./github/workflows/*.yml
+      - ./src/**/*.py
+      - ./database/*.sql
   workflow_dispatch:
 
 # Job
