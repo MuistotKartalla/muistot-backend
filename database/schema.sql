@@ -76,10 +76,10 @@ CREATE TABLE IF NOT EXISTS oauth_users
 
 CREATE TABLE IF NOT EXISTS images
 (
-    id          INTEGER     NOT NULL AUTO_INCREMENT,
-    created_at  DATETIME    NOT NULL                                                     DEFAULT CURRENT_TIMESTAMP,
-    uploader_id INTEGER     NULL COMMENT 'fk',
-    file_name   VARCHAR(36) NOT NULL COMMENT 'Never From Input' COLLATE ascii_general_ci DEFAULT UUID(),
+    id          INTEGER      NOT NULL AUTO_INCREMENT,
+    created_at  DATETIME     NOT NULL                                                     DEFAULT CURRENT_TIMESTAMP,
+    uploader_id INTEGER      NULL COMMENT 'fk',
+    file_name   VARCHAR(100) NOT NULL COMMENT 'Never From Input' COLLATE ascii_general_ci DEFAULT UUID(),
 
     PRIMARY KEY pk_images (id),
     INDEX idx_images_uploader (uploader_id),
