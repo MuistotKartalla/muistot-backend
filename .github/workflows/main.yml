@@ -1,4 +1,4 @@
-name: Manual Docker Deploy
+name: Test and Deploy
 
 on:
   release:
@@ -6,9 +6,9 @@ on:
   push:
     branches: [ master ]
     paths:
-      - ./github/workflows/*.yml
-      - ./src/**/*.py
-      - ./database/*.sql
+      - 'github/workflows/*.yml'
+      - 'src/**'
+      - 'database/*.sql'
   workflow_dispatch:
 
 # Job
