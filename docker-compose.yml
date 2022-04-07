@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: testserver.Dockerfile
-    restart: on-failure
+    restart: unless-stopped
     #tty: true
     volumes:
       - "./images/:/opt/files/"
