@@ -292,3 +292,19 @@ async def test_key_failure_project_site(db, setup, client, admin, auth2, auto_pu
         assert r.status_code == status.HTTP_404_NOT_FOUND and "Project" in r.text
     finally:
         await db.execute("SET FOREIGN_KEY_CHECKS=1")
+
+
+def test_site_patch_image(client, setup, db, auth, image, auto_publish):
+    """Test image upload and delete
+    """
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.patch(SITE.format(*setup, _id), json=dict(image=f'data:image/png;base64,{image}'), headers=auth)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    # Check data
+    r = client.get(IMAGE.format(to(Site, client.get(r.headers[LOCATION])).image))
+    import base64
+    assert image == base64.b64encode(r.content).decode('ascii')
