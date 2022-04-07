@@ -173,6 +173,9 @@ class ConnectionExecutor:
     async def close(self):
         await aio.get_running_loop().run_in_executor(self, self.connection.close)
 
+    async def ping(self):
+        await aio.get_running_loop().run_in_executor(self, self.connection.ping, True)
+
 
 class DatabaseConnection:
     """Abstracts database connectivity
@@ -241,12 +244,17 @@ class DatabaseConnection:
         except IndexError:
             connection = self._wait_for_connection()
         try:
-            await connection.begin()
-            yield connection
-            await connection.commit()
-        except BaseException as e:
-            await connection.rollback()
-            raise e
+            await connection.ping()
+            try:
+                await connection.begin()
+                yield connection
+                await connection.commit()
+            except BaseException as e:
+                try:
+                    await connection.rollback()
+                    raise e
+                except BaseException as ex:
+                    raise ex from e
         finally:
             self._connections.append(connection)
 

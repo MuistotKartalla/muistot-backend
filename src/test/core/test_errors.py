@@ -23,7 +23,7 @@ async def test_api_error():
 async def test_db_error():
     r = await db_error_handler(None, None)
     assert isinstance(r, ErrorResponse)
-    assert Error.parse_raw(r.body).error.code == 503
+    assert Error.parse_raw(r.body).error.code == 500
 
 
 @pytest.mark.anyio
@@ -32,6 +32,22 @@ async def test_db_integrity_error():
     r = await db_error_handler(None, IntegrityError())
     assert isinstance(r, ErrorResponse)
     assert Error.parse_raw(r.body).error.code == 409
+
+
+@pytest.mark.anyio
+async def test_db_interface_error():
+    from pymysql.err import InterfaceError
+    r = await db_error_handler(None, InterfaceError())
+    assert isinstance(r, ErrorResponse)
+    assert Error.parse_raw(r.body).error.code == 503
+
+
+@pytest.mark.anyio
+async def test_db_operational_error():
+    from pymysql.err import OperationalError
+    r = await db_error_handler(None, OperationalError())
+    assert isinstance(r, ErrorResponse)
+    assert Error.parse_raw(r.body).error.code == 503
 
 
 @pytest.mark.anyio

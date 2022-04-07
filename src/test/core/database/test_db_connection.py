@@ -101,7 +101,7 @@ async def test_begin_waiter(cfg):
 
 @pytest.mark.anyio
 async def test_begin_commit(cfg):
-    calls = {"begin", "commit"}
+    calls = {"begin", "commit", "ping"}
 
     class Connection:
 
@@ -110,6 +110,9 @@ async def test_begin_commit(cfg):
 
         async def commit(self):
             calls.remove("commit")
+
+        async def ping(self):
+            calls.remove("ping")
 
     c = DatabaseConnection(cfg)
     c._connected = True
@@ -123,7 +126,7 @@ async def test_begin_commit(cfg):
 
 @pytest.mark.anyio
 async def test_begin_rollback(cfg):
-    calls = {"begin", "rollback"}
+    calls = {"begin", "rollback", "ping"}
 
     class Connection:
 
@@ -132,6 +135,9 @@ async def test_begin_rollback(cfg):
 
         async def rollback(self):
             calls.remove("rollback")
+
+        async def ping(self):
+            calls.remove("ping")
 
     c = DatabaseConnection(cfg)
     c._connected = True
@@ -154,6 +160,9 @@ async def test_fastapi_compatibility_yielding(cfg):
             pass
 
         async def commit(self):
+            pass
+
+        async def ping(self):
             pass
 
     c = DatabaseConnection(cfg)
