@@ -2,8 +2,9 @@
   "testing": true,
   "auto_publish": true,
   "mailer": {
-    "name": "local_mailer",
+    "name": "muistot_mailers",
     "config": {
+      "driver": "local",
       "host": "http://mailer",
       "token": "test",
       "reroute": "http://localhost:3000"

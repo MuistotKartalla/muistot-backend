@@ -16,7 +16,6 @@ services:
     depends_on:
       - db
       - maildev
-      - mailer
       - session-storage
       - username-generator
   db:
@@ -37,11 +36,6 @@ services:
       context: ./namegen
     ports:
       - "127.0.0.1:5604:3306"
-  mailer:
-    build:
-      context: ./email
-      dockerfile: mailer.Dockerfile
-    restart: on-failure
   maildev:
     build:
       context: ./email

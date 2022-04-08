@@ -15,12 +15,8 @@ class Mock(Mailer):
         self.sends = list()
         self.verifys = list()
 
-    async def send_email(self, email: str, **data) -> Result:
+    async def send_email(self, email: str, email_type: str, **data) -> Result:
         self.sends.append((email, data))
-        return Result(success=True)
-
-    async def verify_email(self, email: str) -> Result:
-        self.verifys.append((email,))
         return Result(success=True)
 
 

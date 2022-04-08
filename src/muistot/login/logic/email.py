@@ -29,7 +29,7 @@ async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, 
 async def send_email(username: str, db: Database):
     email, token, verified = await create_email_verifier(username, db)
     mailer = get_mailer()
-    await mailer.send_email(email, user=username, token=token, verified=verified)
+    await mailer.send_email(email, "login", user=username, token=token, verified=verified)
 
 
 async def can_send_email(email: str, db: Database):

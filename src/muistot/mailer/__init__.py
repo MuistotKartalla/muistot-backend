@@ -20,46 +20,32 @@ class Result:
 
 class Mailer(metaclass=abc.ABCMeta):
     """
-    Abstract base for a Mailer that can send mails and verify addresses
+    Abstract base for a Mailer that can send mails
     """
 
     @abc.abstractmethod
-    async def send_email(self, email: str, **data) -> Result:
+    async def send_email(self, email: str, email_type: str, **data) -> Result:
         """
         Sends an email to a specified email
         The email should be verified first
 
         :param email:       Email to send to
+        :param email_type:  Email type to send, kwargs are the arguments for this type
         :return:            Result
-        """
-        pass
-
-    @abc.abstractmethod
-    async def verify_email(self, email: str) -> Result:
-        """
-        Verifies an email address
-
-        :param email:   Address to verify
-        :return:        Result
         """
         pass
 
 
 class LogMailer(Mailer):
 
-    async def send_email(self, email: str, **data) -> Result:
+    async def send_email(self, email: str, email_type: str, **data) -> Result:
         from ..logging import log
         import pprint
-        log.info(f"Email:\n - email: {email}\n - data:\n{pprint.pformat(data, indent=2, width=200)}")
+        log.info(f"Email:\n "
+                 f"- email: {email}\n "
+                 f"- type: {email_type}\n "
+                 f"- data:\n{pprint.pformat(data, indent=2, width=200)}")
         return Result(success=True)
-
-    async def verify_email(self, email: str) -> Result:
-        import email_validator
-        try:
-            r = email_validator.validate_email(email, check_deliverability=False)
-            return Result(success=True, reason=r.email)
-        except email_validator.EmailNotValidError as e:
-            return Result(success=False, reason=str(e))
 
 
 instance_lock = Lock()

@@ -15,6 +15,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_dir={"": "."},
-    packages=["local_mailer"],
+    packages=["muistot_mailers"],
     python_requires=">=3.9",
 )
