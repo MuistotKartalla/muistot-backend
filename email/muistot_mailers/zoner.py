@@ -85,7 +85,7 @@ class ZonerMailer(Mailer):
 
         return subject, content
 
-    async def send_mail(self, email: str, email_type: str, **data):
+    async def send_email(self, email: str, email_type: str, **data):
         try:
 
             if email_type == "login":
