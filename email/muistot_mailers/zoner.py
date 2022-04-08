@@ -1,3 +1,4 @@
+import pathlib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTP_SSL
@@ -17,7 +18,7 @@ class MailerConfig(BaseModel):
     service_url: str
 
 
-with open("zoner_template.html", "r") as f:
+with open(pathlib.Path(__file__).parent / "zoner_template.html", "r") as f:
     TEMPLATE = f.read()
 
 
