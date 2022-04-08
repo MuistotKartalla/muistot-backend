@@ -16,5 +16,9 @@ setuptools.setup(
     ],
     package_dir={"": "."},
     packages=["muistot_mailers"],
+    package_data={
+        'muistot_mailers': ['*.html']
+    },
+    include_package_data=True,
     python_requires=">=3.9",
 )
