@@ -5,7 +5,7 @@ from typing import List, Any, NoReturn, Union, Optional, Dict
 
 from fastapi import Request, HTTPException, status
 
-from .files import Files
+from ....files import Files
 from .utils import extract_language
 from ....config import Config
 from ....database import Database

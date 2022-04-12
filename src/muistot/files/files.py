@@ -3,13 +3,14 @@ import binascii
 import re
 from collections import namedtuple
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Tuple, Optional
 
 from fastapi import HTTPException, status
 
-from ....config import Config
-from ....database import Database
-from ....logging import log
+from ..config import Config
+from ..database import Database
+from ..logging import log
 
 PREFIX = re.compile(r"^data:image/[a-z]+;base64,")
 MIME_PREFIX = re.compile(r"^.+?/")
@@ -42,7 +43,7 @@ class Files:
     """
     Interfacing with files in base64 strings
     """
-    PATH = re.compile(r"^[\w-]{1,36}(?:\.[a-zA-Z0-9]{1,10})?$")
+    PATH = re.compile(r"^[a-zA-Z0-9_-]{1,36}(?:\.[a-zA-Z0-9]{1,10})?$")
 
     def __init__(self, db: Database, user: Any):
         self.db = db
@@ -96,7 +97,7 @@ class Files:
             return image_id
 
     @staticmethod
-    def get_mime(file: str):
+    def get_mime(file: Path):
         """
         raises FileNotFoundError
         """
@@ -108,10 +109,8 @@ class Files:
     def path(image: str):
         if not Files.PATH.match(image):
             raise ValueError("Bad Path")
-        if Config.files.location.endswith("/"):
-            return f"{Config.files.location}{image}"
         else:
-            return f"{Config.files.location}/{image}"
+            return Config.files.location / image
 
     Image = namedtuple("Image", ("exists", "path", "mime"))
 

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, Response
 from headers import LOCATION
 
 from .utils import make_router
-from ..repos import Files
+from ...files import Files
 
 router = make_router(tags=["Files"])
 
