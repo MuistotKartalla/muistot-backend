@@ -1,5 +1,6 @@
 import pytest
 from muistot.backend.repos.base import BaseRepo
+from muistot.backend.repos.exists.base import Exists
 
 
 def test_inherit_bad_name():
@@ -56,3 +57,29 @@ def test_from_other_ok():
     r = ProjectRepo(None).from_repo(Mock())
     assert r._user == "A"
     assert r.lang == "B"
+
+
+def test_indirect_inherit_warns(caplog):
+    class A:
+        pass
+
+    class BaExists(A, Exists):
+        pass
+
+    assert BaExists.__name__ in caplog.text
+
+    caplog.clear()
+
+    class CaExists(Exists):
+        pass
+
+    class DaExists(CaExists):
+        pass
+
+    assert DaExists.__name__ in caplog.text
+
+
+def test_bad_name_raises(caplog):
+    with pytest.raises(AssertionError):
+        class A(Exists):
+            pass

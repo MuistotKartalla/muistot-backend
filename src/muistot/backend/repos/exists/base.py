@@ -144,7 +144,6 @@ class Exists(ABC):
         fastapi.HTTPException
             On failure to meet prerequisites
         """
-        pass
 
 
 __all__ = [
