@@ -7,6 +7,7 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import common_paths, api_paths
+from ..cache import use_redis_cache
 from ..config import Config
 from ..errors import register_error_handlers, modify_openapi
 from ..sessions import add_session_manager
@@ -116,6 +117,7 @@ app.include_router(api_paths)
 
 # This is a hack
 add_session_manager(app)
+use_redis_cache(app)
 
 if not Config.testing:
     app.add_middleware(CORSMiddleware, allow_methods=set())

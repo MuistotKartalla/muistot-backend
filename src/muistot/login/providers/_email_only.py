@@ -19,7 +19,15 @@ router = APIRouter(tags=["Auth"])
         400: {"description": "Bad request"},
     }
 )
-async def email_only_login(email: EmailStr, db: Database = Depends(Databases.default)):
+async def email_only_login(r: Request, email: EmailStr, db: Database = Depends(Databases.default)):
+    cache = r.state.cache
+
+    if cache.exists(email, r.client.host, prefix="email-login:"):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+    else:
+        cache.set(email, "", prefix="email-login:", ttl=60)
+        cache.set(r.client.host, "", prefix="email-login:", ttl=60)
+
     username = await fetch_user_by_email(email, db)
     if username is None:
         username = await try_create_user(email, db)
