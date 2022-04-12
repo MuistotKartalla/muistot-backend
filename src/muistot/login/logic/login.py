@@ -159,7 +159,7 @@ async def handle_login_token(username: str, token: str, db: Database, sm: Sessio
 
 async def try_create_user(email: EmailStr, db: Database):
     from secrets import token_urlsafe
-    async with httpx.AsyncClient(base_url=Config.security.namegen_url) as client:
+    async with httpx.AsyncClient(base_url=Config.namegen.url) as client:
         for _ in range(0, 5):
             try:
                 username = (await client.get("/")).json()["value"]

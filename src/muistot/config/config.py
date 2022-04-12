@@ -1,25 +1,63 @@
-from typing import Dict, Optional, Set, Any
+from pathlib import Path
+from typing import Dict, Set
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AnyUrl, AnyHttpUrl, Extra, DirectoryPath
 
 
 class Database(BaseModel):
+    # Basic config for url
+    # --------------------
     host: str = "db"
     port: int = 3306
     database: str = "muistot"
     user: str = "root"
     password: str = "test"
-    use_ssl: bool = False
+
+    # Connection Config (databases)
+    # -----------------------------
+    # rollback: Force rollback
+    # driver:   Driver to use for connection
+    # -----------------------------
     rollback: bool = False
-    driver: str = "mysql"
+    driver: str = "mysql+asyncmy"
+    driver_config: Dict = Field(default_factory=lambda: {
+        "min_size": 4,
+        "max_size": 30
+    })
+
+    # Custom Driver Options
+    # -----------------------
+    # workers:  Number of connection handler threads
+    # cpw:      Number of connections per thread
+    # max_wait: Seconds to wait for a free connection
+    # ------------------------
     workers: int = 4
     cpw: int = 4
     max_wait: int = 2
 
+    # Remote Database
+    # -----------------------
+    # ssl: Use ssl for database connection
+    # -----------------------
+    ssl: bool = False
+
+    class Config:
+        extra = Extra.ignore
+
 
 class Mailer(BaseModel):
-    name: str
-    config: Any
+    driver: str = Field(".logmailer", regex=r'^\.?\w+(?:\.\w+)*$')
+    config: Dict = Field(default_factory=dict)
+
+
+class Namegen(BaseModel):
+    url: AnyHttpUrl = "http://username-generator"
+
+
+class Sessions(BaseModel):
+    redis_url: AnyUrl = "redis://session-storage?db=0"
+    token_lifetime: int = 60 * 16
+    token_bytes: int = 32
 
 
 class Security(BaseModel):
@@ -27,16 +65,10 @@ class Security(BaseModel):
     auto_publish: bool = False
     oauth: Dict[str, Dict] = Field(default_factory=dict)
 
-    session_redis: str = "redis://session-storage?db=0"
-    session_lifetime: int = 60 * 16
-    session_token_bytes: int = 32  # Reasonable default
-
-    namegen_url: str = "http://username-generator"
-
 
 class FileStore(BaseModel):
-    location: str = Field(regex="^.*/$", default="/opt/files")
-    allow_anonymous: bool = Field(default=False)
+    location: DirectoryPath = Field(default_factory=lambda: Path("/opt/files"))
+    allow_anonymous: bool = False
     allowed_filetypes: Set[str] = Field(default_factory=lambda: {
         "image/jpg",
         "image/jpeg",
@@ -47,15 +79,22 @@ class FileStore(BaseModel):
 class Localization(BaseModel):
     default: str = "fi"
     supported: Set[str] = Field(default_factory=lambda: {
-        "fi", "en", "se"
+        "fi",
+        "en"
     })
 
 
-class BaseConfig(BaseModel):
-    testing: bool = Field(default=True)
-    localization: Localization = Field(default_factory=Localization)
-    security: Security = Field(default_factory=Security)
-    files: FileStore = Field(default_factory=FileStore)
+class Cache(BaseModel):
+    redis_url: AnyUrl = "redis://session-storage?db=1"
 
-    db: Optional[Dict[str, Database]] = Field(default_factory=lambda: dict(default=Database()))
-    mailer: Optional[Mailer] = Field(default=None)
+
+class BaseConfig(BaseModel):
+    testing: bool = Field(default_factory=lambda: True)
+    database: Dict[str, Database] = Field(default_factory=lambda: dict(default=Database()))
+    security: Security = Field(default_factory=Security)
+    sessions: Sessions = Field(default_factory=Sessions)
+    namegen: Namegen = Field(default_factory=Namegen)
+    files: FileStore = Field(default_factory=FileStore)
+    mailer: Mailer = Field(default_factory=Mailer)
+    localization: Localization = Field(default_factory=Localization)
+    cache: Cache = Field(default_factory=Cache)

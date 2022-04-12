@@ -33,19 +33,6 @@ class Mailer(metaclass=abc.ABCMeta):
         :param email_type:  Email type to send, kwargs are the arguments for this type
         :return:            Result
         """
-        pass
-
-
-class LogMailer(Mailer):
-
-    async def send_email(self, email: str, email_type: str, **data) -> Result:
-        from ..logging import log
-        import pprint
-        log.info(f"Email:\n "
-                 f"- email: {email}\n "
-                 f"- type: {email_type}\n "
-                 f"- data:\n{pprint.pformat(data, indent=2, width=200)}")
-        return Result(success=True)
 
 
 instance_lock = Lock()
@@ -54,13 +41,9 @@ instance: Optional[Mailer] = None
 
 def _derive_default() -> Mailer:
     import importlib
-
-    if Config.mailer is None:
-        return LogMailer()
-    else:
-        mailer_config = Config.mailer.config
-        mailer_impl = Config.mailer.name
-        return getattr(importlib.import_module(f"{mailer_impl}", __name__), "get")(**mailer_config)
+    mailer_config = Config.mailer.config
+    mailer_impl = Config.mailer.driver
+    return getattr(importlib.import_module(f"{mailer_impl}", __name__), "get")(**mailer_config)
 
 
 def get_mailer() -> Mailer:

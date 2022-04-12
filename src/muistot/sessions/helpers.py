@@ -24,9 +24,9 @@ def on_error(_: Request, exc: AuthenticationError):
 def add_session_manager(app: FastAPI):
     """Adds Redis session management to the app"""
     session_manager = SessionManager(
-        redis_url=Config.security.session_redis,
-        token_bytes=Config.security.session_token_bytes,
-        lifetime=Config.security.session_lifetime,
+        redis_url=Config.sessions.redis_url,
+        token_bytes=Config.sessions.token_bytes,
+        lifetime=Config.sessions.token_lifetime,
     )
     """Simple session manger added to all requests to supply user data.
     """
