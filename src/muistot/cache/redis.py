@@ -17,7 +17,9 @@ class FastStorage:
 
     def disconnect(self):
         if self.redis is not None:
-            self.redis.close()
+            i = self.redis
+            self.redis = None
+            i.close()
 
     def set(self, key: str, value: str, /, prefix: str = "custom:", ttl: int = None):
         self.redis.set(f"{prefix}{key}", value, ex=ttl)

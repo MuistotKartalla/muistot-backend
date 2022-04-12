@@ -47,3 +47,14 @@ def test_set_delete_custom(redis):
     assert redis.get("a", prefix="b") == "c".encode("utf-8")
     redis.delete("a", prefix="b")
     assert redis.get("a", prefix="b") is None
+
+
+def test_connect_on_startup():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    use_redis_cache(app)
+    i = app.state.FastStorage
+    with TestClient(app):
+        assert i.redis is not None
+    assert i.redis is None
