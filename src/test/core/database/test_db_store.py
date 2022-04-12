@@ -5,7 +5,7 @@ from muistot.database.store import _Databases, DatabaseDependency
 
 def test_databases():
     d = _Databases()
-    for k in Config.db.keys():
+    for k in Config.database.keys():
         assert isinstance(getattr(d, k), DatabaseDependency)
     for db in d:
         assert isinstance(db, DatabaseDependency)
@@ -19,18 +19,18 @@ def test_dependency():
 
         connect_called = False
         beginned = False
-        connected = False
+        is_connected = False
 
         async def connect(self):
             Mock.connect_called = True
 
         @contextlib.asynccontextmanager
-        async def begin(self):
+        async def __call__(self):
             Mock.beginned = True
             yield
 
     dp = DatabaseDependency('test-name', Mock())
-    assert hasattr(dp.__call__(), '__anext__')
+    assert hasattr(dp.__call__(), '__anext__')  # FastAPI will wrap this
     assert dp.name == 'test-name'
 
     async def run():
@@ -54,7 +54,7 @@ def test_dependency_fail_to_connect():
     class Mock:
 
         OperationalError = RuntimeError
-        connected = False
+        is_connected = False
 
         async def connect(self):
             raise RuntimeError()

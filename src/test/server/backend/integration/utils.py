@@ -151,11 +151,13 @@ def mock_request(username):
 
 
 def authenticate(client, username, password):
-    auth = client.post(
+    r = client.post(
         "/login/",
         json={"username": username, "password": password},
         allow_redirects=True,
-    ).headers[AUTHORIZATION]
+    )
+    check_code(200, r)
+    auth = r.headers[AUTHORIZATION]
     return {AUTHORIZATION: auth}
 
 

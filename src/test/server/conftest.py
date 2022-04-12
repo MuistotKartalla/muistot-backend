@@ -25,7 +25,7 @@ async def db_instance(anyio_backend):
 
 @pytest.fixture(scope="function")
 async def db(db_instance, anyio_backend) -> Database:
-    async with db_instance.begin() as c:
+    async with db_instance() as c:
         await c.execute('ROLLBACK')
         await c.execute('SET autocommit = 1')
         yield c

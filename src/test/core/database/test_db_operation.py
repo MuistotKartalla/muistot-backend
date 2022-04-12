@@ -1,10 +1,11 @@
 import pytest
-from muistot.database import Databases
+from muistot.config import Config
+from muistot.database.connection import DatabaseConnection
 
 
 @pytest.fixture(scope="function")
 async def db_instance(anyio_backend):
-    inst = Databases.default.database
+    inst = DatabaseConnection(Config.database["default"])
     while True:
         try:
             await inst.connect()
@@ -25,7 +26,7 @@ async def test_connection_reconnect(db_instance):
     old_sock.close()
     next_db.connection._sock = None
     # Next Connection
-    async with db_instance.begin() as db:
+    async with db_instance() as db:
         assert db is next_db
         assert await db.fetch_val("SELECT 1")
     assert await next_db.fetch_val("SELECT 1")
@@ -36,7 +37,7 @@ async def test_connection_intermittent_failure(db_instance):
     from pymysql.err import InterfaceError
     # Next Connection
     with pytest.raises(InterfaceError) as e:
-        async with db_instance.begin() as db:
+        async with db_instance() as db:
             assert await db.fetch_val("SELECT 1")
             old_sock = db.connection._sock
             old_sock.close()

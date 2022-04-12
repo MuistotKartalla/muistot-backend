@@ -13,7 +13,11 @@ User = namedtuple('User', ('username', 'email', 'password'))
 
 @pytest.fixture(scope="session")
 def client(db_instance):
-    main.app.dependency_overrides[Databases.default] = db_instance
+    async def mock_dep():
+        async with db_instance() as c:
+            yield c
+
+    main.app.dependency_overrides[Databases.default] = mock_dep
     yield TestClient(main.app)
 
 
@@ -44,7 +48,7 @@ def users(_credentials):
 @pytest.fixture(autouse=True, scope="module")
 async def delete_users(db_instance, _credentials, anyio_backend):
     yield
-    async with db_instance.begin() as db:
+    async with db_instance() as db:
         for username, _, _ in _credentials:
             await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
             assert (
@@ -57,7 +61,7 @@ async def delete_users(db_instance, _credentials, anyio_backend):
 
 @pytest.fixture(name="login", autouse=True, scope="module")
 async def create_users(db_instance, _credentials, anyio_backend):
-    async with db_instance.begin() as db:
+    async with db_instance() as db:
         for username, email, password in _credentials:
             await db.execute(
                 "INSERT INTO users (email, username, password_hash, verified) "

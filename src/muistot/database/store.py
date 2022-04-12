@@ -1,26 +1,29 @@
 from typing import Dict, Iterator
 
-from .connection import DatabaseConnection
 from ..config import Config
 from ..logging import log
 
 
+def create_connection(database):
+    from .connection import DatabaseConnection
+    return DatabaseConnection(database)
+
+
 class DatabaseDependency:
 
-    def __init__(self, name: str, database: DatabaseConnection):
-        self.database = database
+    def __init__(self, name: str, database_instance):
+        self.database = database_instance
         self.name = name
 
     async def __call__(self):
         c = self.database
-        if not c.connected:
-            if not c.connected:
-                try:
-                    await c.connect()
-                except c.OperationalError as e:
-                    log.error(f"Failed to connect database: {self.name}", exc_info=e)
-                    raise e
-        async with c.begin() as db:
+        if not c.is_connected:
+            try:
+                await c.connect()
+            except c.OperationalError as e:
+                log.error(f"Failed to connect database: {self.name}", exc_info=e)
+                raise e
+        async with c() as db:
             yield db
 
 
@@ -30,9 +33,8 @@ class _Databases:
 
     def __init__(self):
         self._data = dict()
-        for k, v in Config.db.items():
-            db = DatabaseConnection(v)
-            self._data[k] = DatabaseDependency(k, db)
+        for k, v in Config.database.items():
+            self._data[k] = DatabaseDependency(k, create_connection(v))
 
     def __getattr__(self, item) -> DatabaseDependency:
         return self._data[item]

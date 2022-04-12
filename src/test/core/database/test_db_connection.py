@@ -7,7 +7,7 @@ from muistot.database.connection import allocate_fair, named_to_pyformat
 def cfg():
     from muistot.config import Config
     from muistot.config.config import Database
-    db = Database(**Config.db["default"].dict())
+    db = Database(**Config.database["default"].dict())
     db.host = 'localhost'
     db.port = 8080
     db.max_wait = 1
@@ -48,9 +48,9 @@ def test_master_delete():
 
 def test_connection_status():
     c = DatabaseConnection(None)
-    assert not c.connected
+    assert not c.is_connected
     c._connected = True
-    assert c.connected
+    assert c.is_connected
 
 
 @pytest.mark.anyio
@@ -61,7 +61,7 @@ async def test_connection_bad_host_config(cfg):
 
 
 @pytest.mark.anyio
-async def test_connection_no_double_init(cfg):
+async def test_connection_double_init_no_raise(cfg):
     c = DatabaseConnection(cfg)
     c._connected = True
     assert await c.connect() is None
@@ -78,7 +78,7 @@ async def test_connection_waiter_throws(cfg):
 async def test_no_begin_if_not_started(cfg):
     c = DatabaseConnection(cfg)
     with pytest.raises(DatabaseConnection.OperationalError):
-        async with c.begin():
+        async with c():
             pass
 
 
@@ -95,7 +95,7 @@ async def test_begin_waiter(cfg):
     c._wait_for_connection = wc
 
     with pytest.raises(RuntimeError):
-        async with c.begin():
+        async with c():
             pass
 
 
@@ -117,7 +117,7 @@ async def test_begin_commit(cfg):
     c = DatabaseConnection(cfg)
     c._connected = True
     c._connections.append(Connection())
-    async with c.begin() as cc:
+    async with c() as cc:
         assert isinstance(cc, Connection)
 
     assert len(calls) == 0
@@ -144,7 +144,7 @@ async def test_begin_rollback(cfg):
     c._connections.append(Connection())
 
     with pytest.raises(RuntimeError):
-        async with c.begin() as cc:
+        async with c() as cc:
             assert isinstance(cc, Connection)
             raise RuntimeError()
 
@@ -153,7 +153,7 @@ async def test_begin_rollback(cfg):
 
 
 @pytest.mark.anyio
-async def test_fastapi_compatibility_yielding(cfg):
+async def test_connection_yielding(cfg):
     class Connection:
 
         async def begin(self):
@@ -169,5 +169,5 @@ async def test_fastapi_compatibility_yielding(cfg):
     c._connected = True
     c._connections.append(Connection())
 
-    async for cc in c():  # FastAPI wants plain generators
+    async with c() as cc:  # Should be a contextmanager
         assert isinstance(cc, Connection)

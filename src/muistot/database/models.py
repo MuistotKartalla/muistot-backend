@@ -27,6 +27,13 @@ class ResultSet:
         for k, v in items:
             self.dict[k] = v
             self.list.append(v)
+        # Dict
+        self.values = self.dict.values
+        self.items = self.dict.items
+        self.get = self.dict.get
+        # List
+        self.count = self.list.count
+        self.__reversed__ = self.list.__reversed__
 
     def __getitem__(self, item: Union[str, int]):
         """Maps item to a value
@@ -47,7 +54,7 @@ class ResultSet:
     def __len__(self) -> int:
         """Results length e.i. number of columns
         """
-        return len(self.dict)
+        return self.dict.__len__()
 
     def __repr__(self):
         """Dict.__repr__
@@ -59,10 +66,10 @@ class ResultSet:
         """
         return self.dict.__str__()
 
-    def __contains__(self, item):
-        """Checks for value in result values
+    def __contains__(self, key: str):
+        """Checks for column in result set
         """
-        return item in self.list
+        return key in self.dict
 
     def keys(self):
         """Returns a view of result columns

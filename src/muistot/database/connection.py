@@ -22,7 +22,7 @@ def named_to_pyformat(query: str):
     For example:
     - SELECT 1 FROM users WHERE username = :user
     To:
-    - SELECT 1 FROM users WHERE username = %(user)%
+    - SELECT 1 FROM users WHERE username = %(user)s
 
     This is for backwards compatibility.
     Keep in mind the REGEX is quite simple replacing EVERYTHING :xyz with %(xyz)s
@@ -115,6 +115,7 @@ class ConnectionExecutor:
 
     @contextlib.contextmanager
     def _query(self, query, args) -> ResultSetCursor:
+        args = None if args is None else dict(**args)
         c = self.connection.cursor()
         try:
             c.execute(named_to_pyformat(query), args)
@@ -206,7 +207,7 @@ class DatabaseConnection:
         raise DatabaseConnection.OperationalError()
 
     @property
-    def connected(self):
+    def is_connected(self):
         return self._connected
 
     async def connect(self):
@@ -234,7 +235,7 @@ class DatabaseConnection:
         self._connected = False
 
     @contextlib.asynccontextmanager
-    async def begin(self):
+    async def __call__(self):
         """Allocates a single connection
         """
         if not self._connected:
@@ -257,10 +258,6 @@ class DatabaseConnection:
                     raise ex from e
         finally:
             self._connections.append(connection)
-
-    async def __call__(self):  # FastAPI
-        async with self.begin() as c:
-            yield c
 
 
 Database = ConnectionExecutor
