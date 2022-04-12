@@ -65,7 +65,64 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
 ---
 
-#### Developer Notes
+## Default Config
+
+```json
+{
+  "testing": true,
+  "databases": {
+    "default": {
+      "host": "db",
+      "port": 3306,
+      "database": "muistot",
+      "user": "root",
+      "password": "test",
+      "ssl": false,
+      "workers": 4,
+      "cpw": 4,
+      "max_wait": 2
+    }
+  },
+  "security": {
+    "bcrypt_cost": 12,
+    "auto_publish": false,
+    "oauth": {}
+  },
+  "sessions": {
+    "redis_url": "redis://session-storage?db=0",
+    "token_lifetime": 960,
+    "token_bytes": 32
+  },
+  "files": {
+    "location": "/opt/files",
+    "allow_anonymous": false,
+    "allowed_filetypes": [
+      "image/jpg",
+      "image/jpeg",
+      "image/png"
+    ]
+  },
+  "namegen": {
+    "url": "http://username-generator"
+  },
+  "cache": {
+    "redis_url": "redis://session-storage?db=1"
+  },
+  "mailer": {
+    "driver": ".logmailer",
+    "config": {}
+  },
+  "localization": {
+    "default": "fi",
+    "supported": [
+      "fi",
+      "en"
+    ]
+  }
+}
+```
+
+## Developer Notes
 
 ##### Login
 
@@ -177,3 +234,28 @@ into smaller parts that could be containerized individually and could be run lik
 Here is the general structure of the api and a description of actions available for each resource.
 
 ![[]](.github/images/api-structure.png)
+
+#### Replacing databases
+
+This should do the trick if used in connection store
+
+```python
+import databases
+
+Database = databases.Database
+
+
+def create_connection(database):
+    from urllib.parse import quote
+    return databases.Database(
+        url=(
+            f"{database.driver}://"
+            f"{quote(database.host)}:{database.port}/{quote(database.database)}"
+            f"?username={quote(database.user)}"
+            f"&password={quote(database.password)}"
+            f"&ssl={str(database.ssl).lower()}"
+        ),
+        force_rollback=database.rollback,
+        **database.driver_config
+    )
+```
