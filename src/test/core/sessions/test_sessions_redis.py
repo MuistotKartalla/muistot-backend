@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from muistot.sessions.helpers import add_session_manager
+from muistot.sessions.helpers import register_session_manager
 from muistot.sessions.manager import SessionManager, Session, USER_PREFIX, TOKEN_PREFIX, decode, encode
 
 
@@ -16,7 +16,7 @@ def mgr() -> SessionManager:
         def add_middleware(self, *_, **__):
             pass
 
-    add_session_manager(App)
+    register_session_manager(App)
     manager: SessionManager = App.state.SessionManager
     manager.connect()
     yield manager

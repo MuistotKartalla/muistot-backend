@@ -46,23 +46,27 @@ class _Databases:
 Databases = _Databases()
 
 
-async def connect():
-    """Try to connect to all declared connections
-    """
-    for dbd in Databases:
-        db = dbd.database
-        try:
-            await db.connect()
-        except db.OperationalError as e:
-            log.warning(f"Failed to connect to database: {dbd.name}", exc_info=e)
+def register_databases(app):
+    app.state.Databases = Databases
 
+    @app.on_event("startup")
+    async def connect():
+        """Try to connect to all declared connections
+        """
+        for dbd in app.state.Databases:
+            db = dbd.database
+            try:
+                await db.connect()
+            except db.OperationalError as e:
+                log.warning(f"Failed to connect to database: {dbd.name}", exc_info=e)
 
-async def disconnect():
-    """Disconnect all opened connections
-    """
-    for dbd in Databases:
-        db = dbd.database
-        try:
-            await db.disconnect()
-        except db.OperationalError as e:
-            log.warning(f"Failed to disconnect from database: {dbd.name}", exc_info=e)
+    @app.on_event("shutdown")
+    async def disconnect():
+        """Disconnect all opened connections
+        """
+        for dbd in app.state.Databases:
+            db = dbd.database
+            try:
+                await db.disconnect()
+            except db.OperationalError as e:
+                log.warning(f"Failed to disconnect from database: {dbd.name}", exc_info=e)

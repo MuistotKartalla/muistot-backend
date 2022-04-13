@@ -130,6 +130,8 @@ class ConnectionExecutor:
     def _fetch_val(self, query, args):
         with self._query(query, args) as c:
             res = c.fetchone()
+            # noinspection PyTypeChecker
+            # ResultSet accepts ints
             return res[0] if res is not None else res
 
     def _fetch_one(self, query, args):

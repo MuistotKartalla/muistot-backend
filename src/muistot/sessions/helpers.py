@@ -21,7 +21,7 @@ def on_error(_: Request, exc: AuthenticationError):
     return ErrorResponse(error=ApiError(code=status.HTTP_401_UNAUTHORIZED, message=message))
 
 
-def add_session_manager(app: FastAPI):
+def register_session_manager(app: FastAPI):
     """Adds Redis session management to the app"""
     session_manager = SessionManager(
         redis_url=Config.sessions.redis_url,
@@ -38,4 +38,4 @@ def add_session_manager(app: FastAPI):
     )
 
 
-__all__ = ["add_session_manager"]
+__all__ = ["register_session_manager"]

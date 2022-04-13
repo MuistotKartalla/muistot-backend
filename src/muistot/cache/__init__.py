@@ -1,5 +1,5 @@
-from .redis import use_redis_cache
+from .redis import register_redis_cache
 
 __all__ = [
-    'use_redis_cache'
+    'register_redis_cache'
 ]

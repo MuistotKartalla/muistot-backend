@@ -3,14 +3,15 @@ import textwrap
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import common_paths, api_paths
-from ..cache import use_redis_cache
+from ..cache import register_redis_cache
 from ..config import Config
+from ..database import register_databases
 from ..errors import register_error_handlers, modify_openapi
-from ..sessions import add_session_manager
+from ..login import register_login
+from ..sessions import register_session_manager
 
 description = textwrap.dedent(
     """
@@ -96,33 +97,26 @@ app = FastAPI(
 )
 
 # ERROR HANDLERS
-
 register_error_handlers(app)
 
-# START ROUTERS
-
+# ROUTERS
 app.include_router(common_paths)
 app.include_router(api_paths)
 
-# END ROUTERS
+# ADDITIONAL COMPONENTS
+register_login(app)
+register_databases(app)
 
-
-# START MIDDLEWARE
+# MIDDLEWARE
 #
 # THE ORDER IS VERY IMPORTANT
 #
 # Currently it works like adding layers to an onion.
 # The latest gets executed first.
+register_redis_cache(app)
+register_session_manager(app)
 
-
-# This is a hack
-add_session_manager(app)
-use_redis_cache(app)
-
-if not Config.testing:
-    app.add_middleware(CORSMiddleware, allow_methods=set())
-    app.add_middleware(HTTPSRedirectMiddleware)
-else:
+if Config.testing:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -145,33 +139,8 @@ else:
                 f"{r.method} request to {r.url} took {(time_ns() - start) / 1E6:.3f} millis"
             )
 
-
-# END MIDDLEWARE
-
-
-@app.on_event("startup")
-async def start_database():
-    """
-    Handle startup and database url parsing
-    """
-    from ..database import connect
-    await connect()
-
-
-@app.on_event("shutdown")
-async def stop_database():
-    """
-    Handle shutdown and database resource release
-    """
-    from ..database import disconnect
-    await disconnect()
-
-
-# LOGINS
-from ..login import register_login
-
-register_login(app)
-
-# This goes last
+# END
+# This call goes last
 # Modifies openapi definitions
+# This needs to be done only after everything is loaded and registered
 modify_openapi(app)

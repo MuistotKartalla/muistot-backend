@@ -1,6 +1,6 @@
 import pytest
 from muistot.backend.repos.base import BaseRepo
-from muistot.backend.repos.exists.base import Exists
+from muistot.backend.repos.exists.base import Exists, Status
 
 
 def test_inherit_bad_name():
@@ -83,3 +83,10 @@ def test_bad_name_raises(caplog):
     with pytest.raises(AssertionError):
         class A(Exists):
             pass
+
+
+def test_status_maintains_state():
+    s = Status.OWN
+    assert s.own and not s.published
+    s |= Status.PUBLISHED
+    assert s.own and s.published

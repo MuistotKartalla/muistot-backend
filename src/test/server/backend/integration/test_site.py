@@ -308,3 +308,12 @@ def test_site_patch_image(client, setup, db, auth, image, auto_publish):
     r = client.get(IMAGE.format(to(Site, client.get(r.headers[LOCATION])).image))
     import base64
     assert image == base64.b64encode(r.content).decode('ascii')
+
+
+def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.patch(SITE.format(*setup, _id), json=dict(), headers=auth)
+    check_code(status.HTTP_304_NOT_MODIFIED, r)

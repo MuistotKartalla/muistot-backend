@@ -34,7 +34,7 @@ class FastStorage:
         return bool(self.redis.exists(*iter(f"{prefix}{key}" for key in keys)))
 
 
-def use_redis_cache(app: FastAPI):
+def register_redis_cache(app: FastAPI):
     from ..config import Config
     instance = FastStorage(Config.cache.redis_url)
     app.state.FastStorage = instance

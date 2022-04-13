@@ -1,7 +1,7 @@
 import time
 
 import pytest
-from muistot.cache import use_redis_cache
+from muistot.cache import register_redis_cache as use_redis_cache
 
 
 @pytest.fixture

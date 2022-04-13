@@ -5,7 +5,7 @@ from muistot.security.password import hash_password, check_password
 
 
 def test_manager_add():
-    from muistot.sessions import add_session_manager
+    from muistot.sessions import register_session_manager
     from muistot.sessions.middleware import SessionManagerMiddleware
     from starlette.middleware.authentication import AuthenticationMiddleware
 
@@ -21,7 +21,7 @@ def test_manager_add():
             assert type(opts["backend"]) == SessionManagerMiddleware
             assert "on_error" in opts
 
-    add_session_manager(Mock)
+    register_session_manager(Mock)
     assert State.SessionManager is not None
 
 
