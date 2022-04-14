@@ -1,6 +1,7 @@
 """
 Supplies the functions needed to do the heavy lifting in authentication
 """
+from functools import wraps
 from typing import Any
 
 from fastapi import Depends, status, Request
@@ -10,6 +11,33 @@ from .user import User
 
 AUTH_HELPER = "__auth_helper__"
 REQUEST_HELPER = "__request__"
+
+
+async def _request_helper(r: Request):
+    """Yeets the FastAPI request to the helper function since fastapi seems to allow request once per layer
+    """
+    yield r
+
+
+def _add_request_param(f: Any):
+    """
+    Adds a request helper
+    """
+    import inspect
+
+    s: inspect.Signature = inspect.signature(f)
+    s = s.replace(
+        parameters=[
+            *s.parameters.values(),
+            inspect.Parameter(
+                REQUEST_HELPER,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=Depends(_request_helper),
+                annotation=None,
+            ),
+        ]
+    )
+    f.__signature__ = s
 
 
 def _add_auth_params(f: Any, auth_scheme_choice):
@@ -30,8 +58,8 @@ def _add_auth_params(f: Any, auth_scheme_choice):
             inspect.Parameter(
                 REQUEST_HELPER,
                 inspect.Parameter.KEYWORD_ONLY,
-                default=None,
-                annotation=Request,
+                default=Depends(_request_helper),
+                annotation=None,
             ),
         ]
     )
@@ -48,8 +76,6 @@ def require_auth(*required_scopes: str):
 
     This seems to work (for the moment) at least.
     """
-
-    from functools import wraps
 
     def actual_auth_thingy(f):
         @wraps(f)
@@ -72,7 +98,7 @@ def require_auth(*required_scopes: str):
                                f'Got ({",".join(user.scopes)})',
                     )
 
-            return await f(r, *args, **kwargs)
+            return await f(*args, **kwargs)
 
         _add_auth_params(check_auth, auth_helper)
 
@@ -81,6 +107,22 @@ def require_auth(*required_scopes: str):
     return actual_auth_thingy
 
 
+def disallow_auth(f):
+    from fastapi import HTTPException
+
+    @wraps(f)
+    async def wrapper(*args, **kwargs):
+        r = kwargs.pop(REQUEST_HELPER)
+        if r.user.is_authenticated:
+            raise HTTPException(status_code=403, detail="Already signed-in")
+        return await f(*args, **kwargs)
+
+    _add_request_param(wrapper)
+
+    return wrapper
+
+
 __all__ = [
     "require_auth",
+    "disallow_auth",
 ]

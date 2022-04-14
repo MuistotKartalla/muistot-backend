@@ -1,4 +1,5 @@
 ROOT = ""
+AUTH_PREFIX = "/auth"
 
 PROJECTS = ROOT + "/projects"
 PROJECT = PROJECTS + "/{}"
@@ -9,12 +10,17 @@ MEMORY = MEMORIES + "/{}"
 COMMENTS = MEMORY + "/comments"
 COMMENT = COMMENTS + "/{}"
 
-REGISTER = ROOT + "/register"
-LOGIN = ROOT + "/login"
-
 IMAGE = "/images/{}"
 ADMINS = PROJECT + "/admins"
 PROJECT_LOCALIZE = PROJECT + "/localize"
 
 PUBLISH = "/admin/publish"
 ENTRY = "/"
+
+STATUS = ROOT + AUTH_PREFIX + "/status"
+LOGIN = ROOT + AUTH_PREFIX + "/password"
+EMAIL_LOGIN = ROOT + AUTH_PREFIX + "/email"
+EMAIL_EXCHANGE = ROOT + AUTH_PREFIX + "/email/exchange"
+OAUTH_BASE = ROOT + AUTH_PREFIX + "/oauth"
+REGISTER = ROOT + AUTH_PREFIX + "/register"
+CONFIRM = ROOT + AUTH_PREFIX + "/confirm"

@@ -1,32 +1,27 @@
-from fastapi import APIRouter, Request, HTTPException, Response, Depends
-from fastapi.responses import JSONResponse
-from headers import *
+from fastapi import APIRouter, Request, Response, Depends
 
-from ..logic.email import send_email
-from ..logic.login import login_email, login_username, register_user, confirm
+from ..logic.login import register_user, confirm, password_login
 from ..logic.models import LoginQuery, RegisterQuery
 from ...database import Database, Databases
+from ...security import disallow_auth
 
 router = APIRouter()
 
 
 @router.post(
-    "/login",
+    "/password",
     tags=["Auth"],
     response_class=Response,
     status_code=200,
     responses={
         200: {"description": "Successful Login"},
         400: {"description": "Bad Request"},
+        403: {"description": "Already logged in"},
     }
 )
+@disallow_auth
 async def default_login(r: Request, login: LoginQuery, db: Database = Depends(Databases.default)):
-    if login.username is not None:
-        return await login_username(login, db, r.state.manager)
-    elif login.email is not None:
-        return await login_email(login, db, r.state.manager)
-    else:
-        raise HTTPException(status_code=400)
+    return await password_login(login, db, r.state.manager)
 
 
 @router.post(
@@ -40,24 +35,22 @@ async def default_login(r: Request, login: LoginQuery, db: Database = Depends(Da
     response_class=Response,
     status_code=201,
 )
-async def default_register(r: Request, query: RegisterQuery, db: Database = Depends(Databases.default)):
-    if AUTHORIZATION in r.headers:
-        return JSONResponse(status_code=403, content="Already signed-in")
-    resp = await register_user(query, db)
-    if resp.status_code == 201:
-        await send_email(query.username, db)
-    return resp
+@disallow_auth
+async def default_register(query: RegisterQuery, db: Database = Depends(Databases.default)):
+    return await register_user(query, db)
 
 
 @router.post(
-    "/register/confirm",
+    "/confirm",
     tags=["Auth"],
     response_class=Response,
-    status_code=204,
+    status_code=200,
     responses={
         404: {"description": "Failed to find verifier"},
-        204: {"description": "Successful verification"},
+        403: {"description": "Already logged in"},
+        200: {"description": "Successful verification"},
     },
 )
-async def register_confirm(user: str, token: str, db: Database = Depends(Databases.default)):
-    return await confirm(user, token, db)
+@disallow_auth
+async def register_confirm(r: Request, user: str, token: str, db: Database = Depends(Databases.default)):
+    return await confirm(user, token, db, r.state.manager)

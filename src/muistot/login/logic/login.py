@@ -1,12 +1,11 @@
-from secrets import compare_digest
-
 import headers
 import httpx
 from fastapi import HTTPException
 from fastapi import status
 from fastapi.responses import Response
 
-from .data import load_session_data
+from .data import load_session_data, check_token
+from .email import send_confirm_email
 from .models import LoginQuery, RegisterQuery, EmailStr
 from ...config import Config
 from ...database import Database
@@ -81,7 +80,7 @@ async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> Re
     )
 
 
-async def register_user(user: RegisterQuery, db: Database) -> Response:
+async def register_user(user: RegisterQuery, db: Database, send_mail=True) -> Response:
     m = await db.fetch_one(
         "SELECT"
         "   EXISTS(SELECT 1 FROM users WHERE username=:uname), "
@@ -107,21 +106,9 @@ async def register_user(user: RegisterQuery, db: Database) -> Response:
                 password=hash_password(password=user.password),
             ),
         )
+        if send_mail:
+            await send_confirm_email(user.username, db)
         return Response(status_code=status.HTTP_201_CREATED)
-
-
-async def check_token(username: str, token: str, db: Database) -> bool:
-    db_token = await db.fetch_val(
-        """
-        SELECT uev.verifier
-        FROM user_email_verifiers uev 
-            JOIN users u ON uev.user_id = u.id
-                AND u.username = :user
-        WHERE TIMESTAMPDIFF(MINUTE, uev.created_at, CURRENT_TIMESTAMP) < 10
-        """,
-        values=dict(user=username),
-    )
-    return db_token is not None and compare_digest(token, db_token)
 
 
 async def is_verified(username: str, db: Database) -> bool:
@@ -149,27 +136,30 @@ async def delete_verifiers(username: str, db: Database):
 
 async def handle_login_token(username: str, token: str, db: Database, sm: SessionManager) -> Response:
     if await check_token(username, token, db):
-        if not (await is_verified(username, db)):
+        if not await is_verified(username, db):
             await verify(username, db)
         await delete_verifiers(username, db)
-        res = await start_session(username, db, sm)
-        return res
+        return await start_session(username, db, sm)
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-async def try_create_user(email: EmailStr, db: Database):
+async def try_create_user(email: EmailStr, db: Database) -> str:
     from secrets import token_urlsafe
     async with httpx.AsyncClient(base_url=Config.namegen.url) as client:
         for _ in range(0, 5):
             try:
-                username = (await client.get("/")).json()["value"]
+                r = await client.get("/")
+                if r.status_code != 200:
+                    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+                username = r.json()["value"]
                 await register_user(
                     RegisterQuery(
                         username=username,
                         email=email,
-                        password=token_urlsafe(200)
+                        password=token_urlsafe(200),
                     ),
                     db,
+                    send_mail=False,
                 )
                 return username
             except HTTPException as e:
@@ -180,20 +170,39 @@ async def try_create_user(email: EmailStr, db: Database):
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
-async def confirm(username: str, token: str, db: Database):
-    if await check_token(username, token, db):
+async def confirm(username: str, code: str, db: Database, sm: SessionManager):
+    if await check_token(username, code, db):
         await verify(username, db)
         await delete_verifiers(username, db)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        return await start_session(username, db, sm)
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 
+async def email_login(email: EmailStr, db: Database) -> Response:
+    from .email import fetch_user_by_email, can_send_email, send_login_email
+    username = await fetch_user_by_email(email, db)
+    if username is None:
+        username = await try_create_user(email, db)
+    if await can_send_email(email, db):
+        await send_login_email(username, db)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    else:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many emails")
+
+
+async def password_login(login: LoginQuery, db: Database, sm: SessionManager) -> Response:
+    if login.username is not None:
+        return await login_username(login, db, sm)
+    else:
+        return await login_email(login, db, sm)
+
+
 __all__ = [
-    'confirm',
-    'login_email',
-    'login_username',
-    'register_user',
-    'handle_login_token',
-    'try_create_user'
+    "confirm",
+    "register_user",
+    "handle_login_token",
+    "try_create_user",
+    "email_login",
+    "password_login",
 ]

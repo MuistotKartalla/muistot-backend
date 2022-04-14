@@ -51,6 +51,45 @@ async def load_session_data(username: str, db: Database) -> Dict:
         return dict(scopes=list(scopes), projects=list())
 
 
+async def fetch_verifier(username: str, db: Database) -> str:
+    return await db.fetch_val(
+        """
+        SELECT uev.verifier
+        FROM user_email_verifiers uev 
+            JOIN users u ON uev.user_id = u.id
+                AND u.username = :user
+        WHERE TIMESTAMPDIFF(MINUTE, uev.created_at, CURRENT_TIMESTAMP) < 10
+        """,
+        values=dict(user=username),
+    )
+
+
+def hash_token(token: str):
+    from hashlib import sha256
+    return sha256(token.encode("ascii")).digest().hex()
+
+
+async def check_token(username: str, token: str, db: Database) -> bool:
+    from secrets import compare_digest
+    try:
+        token = hash_token(token)
+        in_database = await fetch_verifier(username, db)
+        if in_database is not None and compare_digest(token, in_database):
+            return True
+    except UnicodeEncodeError:
+        pass
+    return False
+
+
+def create_code():
+    import string
+    import secrets
+    return "".join(secrets.choice(string.digits) for _ in range(0, 6))
+
+
 __all__ = [
-    'load_session_data'
+    "load_session_data",
+    "check_token",
+    "hash_token",
+    "create_code"
 ]

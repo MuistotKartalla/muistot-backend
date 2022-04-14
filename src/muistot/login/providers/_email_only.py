@@ -1,45 +1,34 @@
 import urllib.parse as url
 
-from fastapi import APIRouter, Request, Depends, Response, status, HTTPException
+from fastapi import APIRouter, Request, Depends, Response
 
-from ..logic.email import fetch_user_by_email, can_send_email, send_email
-from ..logic.login import try_create_user, handle_login_token
+from ..logic.login import handle_login_token, email_login
 from ..logic.models import EmailStr
+from ..logic.utils import ratelimit_via_redis_host_and_key
 from ...database import Databases, Database
+from ...security import disallow_auth
 
 router = APIRouter(tags=["Auth"])
 
 
 @router.post(
-    "/login/email-only",
+    "/email",
     status_code=204,
     response_class=Response,
     responses={
         200: {"description": "Successful login"},
         400: {"description": "Bad request"},
+        403: {"description": "Already logged in"},
     }
 )
+@disallow_auth
 async def email_only_login(r: Request, email: EmailStr, db: Database = Depends(Databases.default)):
-    cache = r.state.cache
-
-    if cache.exists(email, r.client.host, prefix="email-login:"):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS)
-    else:
-        cache.set(email, "", prefix="email-login:", ttl=60)
-        cache.set(r.client.host, "", prefix="email-login:", ttl=60)
-
-    username = await fetch_user_by_email(email, db)
-    if username is None:
-        username = await try_create_user(email, db)
-    if await can_send_email(email, db):
-        await send_email(username, db)
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    else:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+    ratelimit_via_redis_host_and_key(r, email)
+    return await email_login(email, db)
 
 
 @router.post(
-    "/login/email-only/exchange",
+    "/email/exchange",
     status_code=200,
     response_class=Response,
     responses={
@@ -47,5 +36,6 @@ async def email_only_login(r: Request, email: EmailStr, db: Database = Depends(D
         404: {"description": "Token not found"}
     }
 )
+@disallow_auth
 async def exchange_code(r: Request, user: str, token: str, db: Database = Depends(Databases.default)) -> Response:
     return await handle_login_token(url.unquote(user), token, db, r.state.manager)

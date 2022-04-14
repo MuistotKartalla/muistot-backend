@@ -18,8 +18,6 @@ async def backup(db, anyio_backend, user):
         values=dict(user=user.username)
     )
     yield
-    print(type(pre))
-    print(dir(pre))
     await db.execute(
         "UPDATE users SET username=:username, email=:email, password_hash=:password_hash WHERE id=:id",
         values=pre

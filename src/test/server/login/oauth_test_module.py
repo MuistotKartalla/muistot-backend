@@ -9,7 +9,6 @@ def route_test():
 
 
 def initialize(raise_on_init=False, **_):
-    print('Init')
     if raise_on_init:
         raise RuntimeError("Raised")
     else:

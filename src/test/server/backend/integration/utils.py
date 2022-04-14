@@ -152,7 +152,7 @@ def mock_request(username):
 
 def authenticate(client, username, password):
     r = client.post(
-        "/login/",
+        LOGIN,
         json={"username": username, "password": password},
         allow_redirects=True,
     )

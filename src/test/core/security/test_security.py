@@ -1,5 +1,6 @@
 import pytest
-from muistot.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER
+from muistot.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER, _add_request_param, \
+    disallow_auth
 from muistot.security.auth_helper import auth_helper
 from muistot.security.password import hash_password, check_password
 
@@ -81,8 +82,7 @@ async def test_add_auth():
     class MockR:
         user = MockU
 
-    async def mock(r):
-        assert r == MockR
+    async def mock():
         return True
 
     f = require_auth("A")(mock)
@@ -102,3 +102,33 @@ async def test_add_auth():
     # Test Success
     MockU.scopes.add("A")
     assert await f(**args)
+
+
+def test_adds_request_param_to_signature():
+    def mock():
+        return True
+
+    _add_request_param(mock)
+
+    import inspect
+    s = inspect.signature(mock)
+    assert REQUEST_HELPER in s.parameters.keys()
+
+
+@pytest.mark.anyio
+async def test_disallow_auth():
+    from fastapi import HTTPException
+    class MockU:
+        is_authenticated = True
+
+    class Mock:
+        user = MockU
+
+    @disallow_auth
+    async def disallow():
+        pass
+
+    with pytest.raises(HTTPException) as e:
+        await disallow(**{REQUEST_HELPER: Mock})
+
+    assert e.value.status_code == 403

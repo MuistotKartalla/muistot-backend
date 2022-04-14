@@ -5,8 +5,7 @@ from .providers import *
 
 
 def register_login(app: FastAPI):
-    app.include_router(default_login)
-    app.include_router(email_login)
+    register_default_providers(app)
     register_oauth_providers(app)
 
 
