@@ -1,10 +1,8 @@
-from .local import LocalMailer
 from .server import ServerMailer
 from .zoner import ZonerMailer
 
 DRIVERS = {
-    "local": LocalMailer,
-    "smtp": LocalMailer,
+    "smtp": ZonerMailer,
     "server": ServerMailer,
     "zoner": ZonerMailer,
 }

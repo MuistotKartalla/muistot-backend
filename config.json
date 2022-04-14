@@ -4,10 +4,14 @@
   "mailer": {
     "driver": "muistot_mailers",
     "config": {
-      "driver": "local",
-      "host": "http://mailer",
-      "token": "test",
-      "reroute": "http://localhost:3000"
+      "driver": "zoner",
+      "host": "maildev",
+      "port": 25,
+      "ssl": false,
+      "user": "test",
+      "password": "test",
+      "service_url": "http://localhost:3000",
+      "sender": "do-not-reply@muistotkartalla.fi"
     }
   }
 }

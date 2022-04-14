@@ -1,7 +1,6 @@
 import pathlib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from smtplib import SMTP_SSL
+from email.message import EmailMessage
+from smtplib import SMTP_SSL, SMTP
 
 from muistot.logging import log
 from muistot.mailer import Mailer, Result
@@ -13,7 +12,7 @@ class MailerConfig(BaseModel):
     port: int
     user: str
     password: str
-
+    ssl: bool = True
     sender: str
     service_url: str
 
@@ -58,16 +57,16 @@ class ZonerMailer(Mailer):
     def __init__(self, **kwargs):
         self.config = MailerConfig(**kwargs)
 
-    def send_via_smtp(self, email: str, subject: str, *content: MIMEText):
-        mail = MIMEMultipart("alternative")
+    def send_via_smtp(self, email: str, subject: str, text: str, html: str):
+        mail = EmailMessage()
         mail["Subject"] = subject
         mail["From"] = self.get_sender()
         mail["To"] = email
-        for c in content:
-            mail.attach(c)
-        with SMTP_SSL(self.config.host, port=self.config.port) as s:
+        mail.set_content(text)
+        mail.add_alternative(html, subtype="html")
+        with (SMTP_SSL if self.config.ssl else SMTP)(self.config.host, port=self.config.port) as s:
             s.login(self.config.user, self.config.password)
-            s.sendmail(self.get_sender(), email, mail.as_string())
+            s.send_message(mail)
 
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
@@ -79,18 +78,14 @@ class ZonerMailer(Mailer):
 
         if lang == "en":
             subject = "Muistotkartalla Login"
-            content = [
-                MIMEText(get_eng_template(user, url), "html"),
-                MIMEText(f"Login link: {url}", "plain")
-            ]
+            html = get_eng_template(user, url)
+            text = f"Login link: {url}"
         else:
             subject = "Muistotkartalla Kirjautuminen"
-            content = [
-                MIMEText(get_fi_template(user, url), "html"),
-                MIMEText(f"Linkki kirjautumiseen: {url}", "plain")
-            ]
+            html = get_fi_template(user, url)
+            text = f"Linkki kirjautumiseen: {url}"
 
-        return subject, content
+        return subject, text, html
 
     def handle_verify_data(self, user: str, token: str, verified: bool, lang: str = "fi", **_):
         from urllib.parse import urlencode
@@ -99,43 +94,41 @@ class ZonerMailer(Mailer):
 
         if lang == "en":
             subject = "Muistotkartalla Verification"
-            content = [
-                MIMEText(set_template_data(
-                    "Muistotkartalla Verification",
-                    f"Welcome {user}! Please take a moment to verify your account to start using muistotkartalla."
-                    f"Click the button below or enter the code: {token}.",
-                    "Verify Account",
-                    url,
-                ), "html"),
-                MIMEText(f"Verify link: {url}", "plain")
-            ]
+            html = set_template_data(
+                "Muistotkartalla Verification",
+                f"Welcome {user}! Please take a moment to verify your account to start using muistotkartalla."
+                f"Click the button below or enter the code: {token}.",
+                "Verify Account",
+                url,
+            )
+            text = f"Verify link: {url}", "plain"
+
         else:
             subject = "Muistotkartalla Tilin Vahvistus"
-            content = [
-                MIMEText(set_template_data(
-                    "Muistotkartalla Tilin Vahvistus",
-                    f"Tervetuloa {user}! Vahvista vielä muistotkartalla tilisi klikkaamalla alla olevaa painiketta"
-                    f"tai koodilla {token}.",
-                    "Vahvista Tilisi",
-                    url,
-                ), "html"),
-                MIMEText(f"Linkki tilin vahvistamiseen: {url}", "plain")
-            ]
+            html = set_template_data(
+                "Muistotkartalla Tilin Vahvistus",
+                f"Tervetuloa {user}! Vahvista vielä muistotkartalla tilisi klikkaamalla alla olevaa painiketta"
+                f"tai koodilla {token}.",
+                "Vahvista Tilisi",
+                url,
+            )
+            text = f"Linkki tilin vahvistamiseen: {url}", "plain"
 
-        return subject, content
+        return subject, text, html
 
     async def send_email(self, email: str, email_type: str, **data):
         try:
 
             if email_type == "login":
-                subject, content = self.handle_login_data(**data)
+                subject, text, html = self.handle_login_data(**data)
             elif email_type == "register":
-                subject, content = self.handle_verify_data(**data)
+                subject, text, html = self.handle_verify_data(**data)
             else:
                 subject = "Muistotkartalla" if "subject" not in data else data["subject"]
-                content = MIMEText(data.get("content", ""))
+                text = data.get("content", "")
+                html = None
 
-            self.send_via_smtp(email, subject, content)
+            self.send_via_smtp(email, subject, text, html)
 
             return Result(success=True)
         except BaseException as e:
