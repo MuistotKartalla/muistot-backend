@@ -67,7 +67,7 @@ class ZonerMailer(Mailer):
             mail.attach(c)
         with SMTP_SSL(self.config.host, port=self.config.port) as s:
             s.login(self.config.user, self.config.password)
-            s.send_message(mail)
+            s.sendmail(self.get_sender(), email, mail.as_string())
 
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
