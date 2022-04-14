@@ -1,3 +1,5 @@
+import random
+
 from .base import *
 from .exists import Status, check
 from .memory import MemoryRepo
@@ -144,8 +146,33 @@ class SiteRepo(BaseRepo):
                 detail=f"Sites should be created in project default locale ({project_default})"
             )
 
-    @staticmethod
-    def construct_site(m) -> Site:
+    async def _get_random_image(self, site: SID):
+        image: bytes = self._cache.get(site, prefix="sites")
+        if image is None:
+            images = list(map(lambda m: m[0], await self.db.fetch_all(
+                """
+                SELECT i.file_name FROM  sites s
+                    JOIN memories m on s.id = m.site_id
+                        AND m.published
+                    JOIN images i on m.image_id = i.id
+                WHERE s.name = :site
+                ORDER BY RAND()
+                LIMIT 1
+                """,
+                values=dict(site=site)
+            )))
+            image: str = random.choice(images) if len(images) > 0 else None
+            self._cache.set(site, image or "", prefix="sites", ttl=60 * 5)
+        elif len(image) == 0:
+            image = None
+        else:
+            image = image.decode("utf-8")
+        return image
+
+    async def construct_site(self, m) -> Site:
+        if m.get("memories_count", 0) > 0 and m.get("image", None) is None:
+            m = dict(**m)
+            m["image"] = await self._get_random_image(m["id"])
         return Site(location=Point(**m), info=SiteInfo(**m), **m)
 
     @check.parents
@@ -171,7 +198,7 @@ class SiteRepo(BaseRepo):
                 )
             values.update(lon=lon, lat=lat)
             out = [
-                self.construct_site(m)
+                await self.construct_site(m)
                 async for m in self.db.iterate(
                     self._select_dist.format(where, n), values=values
                 )
@@ -179,7 +206,7 @@ class SiteRepo(BaseRepo):
             ]
         else:
             out = [
-                self.construct_site(m)
+                await self.construct_site(m)
                 async for m in self.db.iterate(
                     self._select.format(where), values=values
                 )
@@ -205,7 +232,7 @@ class SiteRepo(BaseRepo):
                 status_code=status.HTTP_406_NOT_ACCEPTABLE,
                 detail='Site missing default localization'
             )
-        out = self.construct_site(m)
+        out = await self.construct_site(m)
         if include_memories:
             out.memories = await MemoryRepo(self.db, self.project, out.id).from_repo(self).all(include_comments=False)
         return out

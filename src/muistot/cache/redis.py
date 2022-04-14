@@ -52,3 +52,12 @@ def register_redis_cache(app: FastAPI):
     @app.on_event("shutdown")
     async def close_cache():
         instance.disconnect()
+
+
+class EmptyCache(FastStorage):
+
+    def __init__(self):
+        super(EmptyCache, self).__init__("")
+
+    def __getattr__(self, *_, **__):
+        return lambda *_, **__: None

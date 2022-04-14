@@ -5,10 +5,11 @@ from typing import List, Any, NoReturn, Union, Optional, Dict
 
 from fastapi import Request, HTTPException, status
 
-from ....files import Files
 from .utils import extract_language
+from ....cache import FastStorage, NullCache
 from ....config import Config
 from ....database import Database
+from ....files import Files
 from ....logging import log
 from ....security import User
 
@@ -39,6 +40,8 @@ class BaseRepo(ABC):
             if name not in funcs:
                 log.warning(f"No {name} declared in repo {cls.__name__}")
 
+    _cache: FastStorage
+
     def __init__(self, db: Database, **kwargs):
         self.db = db
         for k, v in kwargs.items():
@@ -47,6 +50,7 @@ class BaseRepo(ABC):
         self._user: Union[User] = User.null()
         self.lang = "fi"
         self.auto_publish = Config.security.auto_publish
+        self._cache = NullCache()
 
     def configure(self, r: Request) -> "BaseRepo":
         """
@@ -64,11 +68,13 @@ class BaseRepo(ABC):
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Can not localize"
             )
+        self._cache = getattr(getattr(r, "state", object()), "cache", NullCache())
         return self
 
     def from_repo(self, repo: "BaseRepo") -> "BaseRepo":
         self._user = repo._user
         self.lang = repo.lang
+        self._cache = getattr(repo, "_cache", NullCache())
         return self
 
     @abstractmethod

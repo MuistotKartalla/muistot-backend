@@ -53,12 +53,11 @@ def extract_language(r: Request) -> str:
             out = r.headers[ACCEPT_LANGUAGE]
         else:
             out = r.headers[CONTENT_LANGUAGE]
-        if out is not None:
-            out = out.strip()
-            if len(out) > 0:
-                out = _validate_lang(out)
-            else:
-                out = Config.localization.default
+        out = out.strip()
+        if len(out) > 0:
+            out = _validate_lang(out)
+        else:
+            out = Config.localization.default
         if out is None:
             raise ValueError("bad-lang")
         else:

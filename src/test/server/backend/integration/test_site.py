@@ -317,3 +317,29 @@ def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish):
 
     r = client.patch(SITE.format(*setup, _id), json=dict(), headers=auth)
     check_code(status.HTTP_304_NOT_MODIFIED, r)
+
+
+def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish):
+    """Test random assignment of image from memories
+    """
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg", image=image).dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert site.image
+
+    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="eddede", image=image).dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    site2 = to(Site, r)
+
+    # Cached (5 min) should be same
+    assert site.image == site2.image
