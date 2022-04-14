@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from .logic import *
+from .logic.login import start_session
 from .providers import *
 
 
@@ -9,4 +10,4 @@ def register_login(app: FastAPI):
     register_oauth_providers(app)
 
 
-__all__ = ["register_login"]
+__all__ = ["register_login", "start_session"]

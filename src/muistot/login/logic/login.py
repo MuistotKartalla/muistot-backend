@@ -205,4 +205,5 @@ __all__ = [
     "try_create_user",
     "email_login",
     "password_login",
+    "start_session",
 ]

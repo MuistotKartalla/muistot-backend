@@ -2,6 +2,7 @@ from secrets import token_urlsafe as gen_pw
 
 import pytest
 from fastapi import status
+from headers import AUTHORIZATION
 
 from utils import authenticate
 
@@ -29,13 +30,14 @@ def test_change_username(client, auth, user):
     new_username = genword(length=30)
     # Change
     r = client.post(f"/me/username?username={new_username}", headers=auth)
-    assert r.status_code == status.HTTP_204_NO_CONTENT
+    assert r.status_code == status.HTTP_200_OK
+    assert AUTHORIZATION in r.headers
+    auth_new = r.headers[AUTHORIZATION]
     # Logged Out
     r = client.get("/me", headers=auth)
     assert r.status_code == status.HTTP_401_UNAUTHORIZED
-    # Re-Auth
-    auth = authenticate(client, new_username, user.password)
-    r = client.get("/me", headers=auth)
+    # Returned session is valid
+    r = client.get("/me", headers={AUTHORIZATION: auth_new})
     assert r.status_code == status.HTTP_200_OK
 
 
@@ -43,9 +45,14 @@ def test_change_email(client, auth):
     w = gen_pw(30)
     # Change
     r = client.post(f"/me/email?email={w}@example.com", headers=auth)
-    assert r.status_code == status.HTTP_204_NO_CONTENT
-    # Not Logged Out
+    assert r.status_code == status.HTTP_200_OK
+    assert AUTHORIZATION in r.headers
+    auth_new = r.headers[AUTHORIZATION]
+    # Logged Out
     r = client.get("/me", headers=auth)
+    assert r.status_code == status.HTTP_401_UNAUTHORIZED
+    # Returned token is valid
+    r = client.get("/me", headers={AUTHORIZATION: auth_new})
     assert r.status_code == status.HTTP_200_OK
 
 

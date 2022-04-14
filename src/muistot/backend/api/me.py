@@ -65,7 +65,7 @@ async def change_my_password(request: Request, password: str, db: Database = DEF
 
 @router.post(
     "/me/email",
-    status_code=204,
+    status_code=200,
     response_class=Response,
     responses={
         401: UNAUTHENTICATED,
@@ -81,15 +81,16 @@ async def change_my_password(request: Request, password: str, db: Database = DEF
 )
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_email(request: Request, email: str, db: Database = DEFAULT_DB):
-    if await change_email(db, request.user.identity, email):
-        return Response(status_code=204)
+    if await change_email(db, request.user.identity, email, manager(request)):
+        from ...login import start_session
+        return await start_session(request.user.identity, db, manager(request))
     else:
         return Response(status_code=304)
 
 
 @router.post(
     "/me/username",
-    status_code=204,
+    status_code=200,
     response_class=Response,
     description="Changes username. If successful (204) the user is logged out of __ALL__ sessions.",
     responses={
@@ -107,7 +108,8 @@ async def change_my_email(request: Request, email: str, db: Database = DEFAULT_D
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_username(request: Request, username: str, db: Database = DEFAULT_DB):
     if await change_username(db, request.user.identity, username, manager(request)):
-        return Response(status_code=204)
+        from ...login import start_session
+        return await start_session(username, db, manager(request))
     else:
         return Response(status_code=304)
 

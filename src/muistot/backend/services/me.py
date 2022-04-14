@@ -29,7 +29,7 @@ async def change_password(db: Database, username: str, password: str, mgr: Sessi
     mgr.clear_sessions(username)
 
 
-async def change_email(db: Database, username: str, email: str) -> bool:
+async def change_email(db: Database, username: str, email: str, mgr: SessionManager) -> bool:
     try:
         m = await db.fetch_one(
             """
@@ -42,12 +42,14 @@ async def change_email(db: Database, username: str, email: str) -> bool:
             return False
         elif m[0]:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
+        mgr.clear_sessions(username)
         await db.execute(
             """
             UPDATE users SET email = :email WHERE username = :user
             """,
             values=dict(email=email, user=username)
         )
+        mgr.clear_sessions(username)
         return True
     except db.IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
