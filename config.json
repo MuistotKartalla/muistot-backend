@@ -2,7 +2,7 @@
   "testing": true,
   "auto_publish": true,
   "mailer": {
-    "name": "muistot_mailers",
+    "driver": "muistot_mailers",
     "config": {
       "driver": "local",
       "host": "http://mailer",
