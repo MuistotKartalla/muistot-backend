@@ -7,7 +7,6 @@ RUN python -m pip install --upgrade pip \
 ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-RUN pip install gunicorn
 COPY ./email ./email
 RUN pip install ./email
 
@@ -22,4 +21,4 @@ ENV PORT=5600
 EXPOSE 5600
 HEALTHCHECK --interval=1m --timeout=10s --retries=1 --start-period=1m \
 CMD sh -c "curl -fs http://localhost:$PORT/projects > /dev/null || kill 1"
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker","muistot.backend.main:app"]
+CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers"]
