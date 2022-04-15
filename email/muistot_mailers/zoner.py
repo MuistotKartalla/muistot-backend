@@ -73,6 +73,7 @@ class ZonerMailer(Mailer):
             try:
                 mail_order = self.queue.popleft()
                 with (SMTP_SSL if self.config.ssl else SMTP)(self.config.host, port=self.config.port) as s:
+                    s.login(self.config.user, self.config.password)
                     self.connection = s
                     self.handle_threaded(*mail_order)
                     while True:
