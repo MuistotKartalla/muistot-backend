@@ -17,7 +17,6 @@ COPY --from=worker /opt/venv /opt/venv
 COPY src .
 ENV PATH="/opt/venv/bin:$PATH"
 EXPOSE 5600
-ENV PORT 5600
 HEALTHCHECK --interval=1m --timeout=10s --retries=1 --start-period=1m \
-CMD sh -c "curl -fs http://localhost:$PORT/projects > /dev/null || kill 1"
-CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--port", "$PORT", "--workers", "2", "--host", "0.0.0.0" , "--forwarded-allow-ips=*"]
+CMD sh -c "curl -fs http://localhost:5600/projects > /dev/null || kill 1"
+CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--port", "5600", "--workers", "2", "--host", "0.0.0.0" , "--forwarded-allow-ips=*"]
