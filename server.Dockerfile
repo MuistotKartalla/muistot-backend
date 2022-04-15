@@ -16,9 +16,7 @@ RUN apk add --no-cache --update libmagic hiredis curl && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 COPY src .
 ENV PATH="/opt/venv/bin:$PATH"
-ENV WEB_CONCURRENCY=2
-ENV PORT=5600
 EXPOSE 5600
 HEALTHCHECK --interval=1m --timeout=10s --retries=1 --start-period=1m \
 CMD sh -c "curl -fs http://localhost:$PORT/projects > /dev/null || kill 1"
-CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers"]
+CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--port", "5600", "--workers", "2"]
