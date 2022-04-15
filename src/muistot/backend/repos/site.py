@@ -129,8 +129,7 @@ class SiteRepo(BaseRepo):
         else:
             return False
 
-    async def _check_lang(self, model: NewSite):
-        check_language(model.info.lang)
+    async def _get_project_default_lang(self):
         project_default = await self.db.fetch_val(
             """
             SELECT l.lang
@@ -140,14 +139,10 @@ class SiteRepo(BaseRepo):
             """,
             values=dict(project=self.project)
         )
-        if model.info.lang != project_default:
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=f"Sites should be created in project default locale ({project_default})"
-            )
+        return project_default
 
     async def _get_random_image(self, site: SID):
-        image: bytes = self._cache.get(site, prefix="sites")
+        image: Optional[bytes] = self._cache.get(site, prefix="sites")
         if image is None:
             images = list(map(lambda m: m[0], await self.db.fetch_all(
                 """
@@ -166,7 +161,7 @@ class SiteRepo(BaseRepo):
         elif len(image) == 0:
             image = None
         else:
-            image = image.decode("utf-8")
+            image: str = image.decode("utf-8")
         return image
 
     async def construct_site(self, m) -> Site:
@@ -240,7 +235,7 @@ class SiteRepo(BaseRepo):
     @check.not_exists
     async def create(self, model: NewSite, _status: Status) -> SID:
         self._check_pap(_status)
-        await self._check_lang(model)
+        check_language(model.info.lang)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
             """
@@ -269,6 +264,13 @@ class SiteRepo(BaseRepo):
         )
         _id, name = ret
         await self._handle_info(name, model.info)
+        default_lang = await self._get_project_default_lang()
+        if default_lang != model.info.lang:
+            info = model.info
+            info.lang = default_lang
+            info.description = None
+            info.abstract = None
+            await self._handle_info(name, info)
         return name
 
     @check.own_or_admin

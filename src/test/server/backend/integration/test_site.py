@@ -1,3 +1,4 @@
+import headers
 import pytest
 from fastapi import status
 from headers import LOCATION
@@ -343,3 +344,22 @@ def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, au
 
     # Cached (5 min) should be same
     assert site.image == site2.image
+
+
+def test_create_site_non_default_locale_creates_default_placeholder(setup, client, admin, auto_publish):
+    _id, site = _create_site()
+    site.info.lang = "en"
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "fi"})
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert site.info.abstract is None
+    assert site.info.description is None
+    assert site.info.name == site.info.name
+
+    r = client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "en"})
+    check_code(status.HTTP_200_OK, r)
+    site = to(Site, r)
+    assert site.dict() == site.dict()

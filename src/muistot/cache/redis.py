@@ -24,7 +24,7 @@ class FastStorage:
     def set(self, key: str, value: str, /, prefix: str = "custom:", ttl: int = None):
         self.redis.set(f"{prefix}{key}", value, ex=ttl)
 
-    def get(self, key: str, /, prefix: str = "custom:") -> typing.Optional[str]:
+    def get(self, key: str, /, prefix: str = "custom:") -> typing.Optional[typing.Union[str, bytes]]:
         return self.redis.get(f"{prefix}{key}")
 
     def delete(self, key: str, /, prefix: str = "custom:"):
