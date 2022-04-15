@@ -107,8 +107,9 @@ def test_on_error_handles_no_args():
 
 
 def test_encode_correctness():
+    import hashlib
     a = b"abcd"
-    assert decode(encode(a)) == a
+    assert decode(encode(a)) == hashlib.sha256(a).digest()
 
 
 def test_decode_invalid_base64():

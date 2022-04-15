@@ -89,8 +89,9 @@ def test_clear_all_sessions(mgr):
 
 
 def test_get_session(mgr):
-    mgr.redis.sadd(USER_PREFIX + "gs", TOKEN_PREFIX + b"gs")
-    mgr.redis.set(TOKEN_PREFIX + b"gs", json.dumps(dict(user="test", data=dict(success=True))))
+    import hashlib
+    mgr.redis.sadd(USER_PREFIX + "gs", hashlib.sha256(TOKEN_PREFIX + b"gs").digest())
+    mgr.redis.set(hashlib.sha256(TOKEN_PREFIX + b"gs").digest(), json.dumps(dict(user="test", data=dict(success=True))))
 
     s = mgr.get_session(encode(TOKEN_PREFIX + b"gs"))
     assert s.user == "test"

@@ -6,6 +6,7 @@ import binascii
 import dataclasses
 import json
 import secrets
+from hashlib import sha256
 from typing import Optional, Dict, NoReturn, Union, List
 
 import redis
@@ -27,7 +28,7 @@ def encode(token: bytes) -> str:
 
 def decode(token: str) -> bytes:
     try:
-        return base64.b64decode(token.encode("ascii"), altchars=ALT, validate=True)
+        return sha256(base64.b64decode(token.encode("ascii"), altchars=ALT, validate=True)).digest()
     except (binascii.Error, UnicodeDecodeError):
         raise ValueError("Invalid Token Format")
 
@@ -115,10 +116,11 @@ class SessionManager:
         self.clear_stale(session.user)
         while True:
             token = TOKEN_PREFIX + secrets.token_bytes(nbytes=self.bytes)
-            if not self.redis.exists(token):
+            token_hash = sha256(token).digest()
+            if not self.redis.exists(token_hash):
                 break
-        self.redis.sadd(f"{USER_PREFIX}{session.user}", token)
-        self.redis.set(token, json.dumps(dataclasses.asdict(session)), ex=self.lifetime)
+        self.redis.sadd(f"{USER_PREFIX}{session.user}", token_hash)
+        self.redis.set(token_hash, json.dumps(dataclasses.asdict(session)), ex=self.lifetime)
         return encode(token)
 
     def end_session(self, token: str) -> NoReturn:
