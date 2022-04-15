@@ -81,7 +81,8 @@ class ZonerMailer(Mailer):
             except IndexError:
                 time.sleep(10)
             finally:
-                del self.connection
+                if hasattr(self, "connection"):
+                    del self.connection
 
     def send_via_smtp(self, email: str, subject: str, text: str, html: str):
         mail = EmailMessage()
