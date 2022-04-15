@@ -112,9 +112,7 @@ async def modify_site(
     "/projects/{project}/sites/{site}",
     description=dedent(
         """
-        Soft deletes a Site and hides it from normal users.
-        
-        Actual deletion can only be done by a maintainer or from the admin interface.
+        Just deletes the site permanently
         """
     ),
     response_class=Response,
@@ -129,7 +127,7 @@ async def delete_site(
 ):
     repo = SiteRepo(db, project)
     repo.configure(r)
-    await repo.toggle_publish(site, False)
+    await repo.delete(site)
     return deleted(r.url_for("get_sites", project=project))
 
 

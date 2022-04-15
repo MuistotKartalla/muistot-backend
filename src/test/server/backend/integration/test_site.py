@@ -363,3 +363,33 @@ def test_create_site_non_default_locale_creates_default_placeholder(setup, clien
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert site.dict() == site.dict()
+
+
+@pytest.mark.anyio
+async def test_site_delete_own(client, setup, db, auth2):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.delete(SITE.format(*setup, _id), headers=auth2)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    assert await db.fetch_val(
+        "SELECT NOT EXISTS(SELECT 1 FROM sites WHERE name = :id)",
+        values=dict(id=_id)
+    )
+
+
+@pytest.mark.anyio
+async def test_site_delete_other_admin(client, setup, db, auth2, admin):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.delete(SITE.format(*setup, _id), headers=admin)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    assert await db.fetch_val(
+        "SELECT NOT EXISTS(SELECT 1 FROM sites WHERE name = :id)",
+        values=dict(id=_id)
+    )

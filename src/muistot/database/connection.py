@@ -255,9 +255,9 @@ class DatabaseConnection:
             except BaseException as e:
                 try:
                     await connection.rollback()
-                    raise e
                 except BaseException as ex:
                     raise ex from e
+                raise e
         finally:
             self._connections.append(connection)
 
