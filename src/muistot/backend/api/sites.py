@@ -89,6 +89,8 @@ async def new_site(
         
         This endpoint is for modifying site location etc.
         This does not set any defaults.
+        
+        Other users can only modify the description
         """
     ),
     response_class=Response,
@@ -129,30 +131,3 @@ async def delete_site(
     repo.configure(r)
     await repo.delete(site)
     return deleted(r.url_for("get_sites", project=project))
-
-
-@router.put(
-    "/projects/{project}/sites/{site}/localize",
-    description=dedent(
-        """
-        This endpoint is used for localizing a site.
-        """
-    ),
-    response_class=Response,
-    responses=dict(filter(lambda e: e[0] != 404, rex.modify().items())),
-)
-@require_auth(scopes.AUTHENTICATED)
-async def localize_site(
-        r: Request,
-        project: PID,
-        site: SID,
-        info: SiteInfo,
-        db: Database = DEFAULT_DB
-):
-    repo = SiteRepo(db, project)
-    repo.configure(r)
-    await repo.localize(site, info)
-    return Response(
-        status_code=204,
-        headers=dict(location=r.url_for("get_site", project=project, site=site)),
-    )

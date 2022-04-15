@@ -34,7 +34,7 @@ class Status(Flag):
 
     @property
     def admin(self) -> bool:
-        return Status.ADMIN in self
+        return Status.ADMIN in self or Status.SUPER in self
 
     @property
     def published(self) -> bool:

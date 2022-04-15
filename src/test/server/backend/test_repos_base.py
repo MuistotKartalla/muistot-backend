@@ -90,3 +90,8 @@ def test_status_maintains_state():
     assert s.own and not s.published
     s |= Status.PUBLISHED
     assert s.own and s.published
+
+
+def test_status_super_is_admin():
+    s = Status.SUPER
+    assert s.admin

@@ -87,6 +87,8 @@ class Site(NewSite):
     waiting_approval: Optional[bool] = Field(description="If present, will tell approval status")
     memories: Optional[List[Memory]] = Field(description="List of memories fo this site")
     own: Optional[bool] = Field(description="If this item is owned by the current user")
+    creator: Optional[UID] = Field(description="The creator of this site")
+    modifier: Optional[UID] = Field(description="The last modifier of this site")
 
     class Config:
         __examples__ = {

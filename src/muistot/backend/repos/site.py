@@ -20,7 +20,9 @@ class SiteRepo(BaseRepo):
             IFNULL(si.abstract, def_si.abstract)        AS abstract,
             IFNULL(si.description, def_si.description)  AS description,
             IF(s.published, NULL, 1)                    AS waiting_approval,
-            IF(uc.id IS NOT NULL, TRUE, NULL)           AS own
+            IF(uc.username = :user, TRUE, NULL)         AS own,
+            uc.username                                 AS creator,
+            um.username                                 AS modifier
             %s
         FROM sites s
             JOIN projects p ON p.id = s.project_id
@@ -37,10 +39,8 @@ class SiteRepo(BaseRepo):
             LEFT JOIN memories m ON s.id = m.site_id
                 AND m.published
             LEFT JOIN images i ON i.id = s.image_id
-            LEFT JOIN users um ON um.id = s.modifier_id
-                AND um.username = :user
+            LEFT JOIN users um ON um.id = si.modifier_id
             LEFT JOIN users uc ON uc.id = s.creator_id
-                AND uc.username = :user
         {}
         GROUP BY s.id
         %s
@@ -183,7 +183,7 @@ class SiteRepo(BaseRepo):
         if _status.admin:
             where = "WHERE TRUE"
         elif self.authenticated:
-            where = "WHERE (s.published OR um.username = :user)"
+            where = "WHERE (s.published OR uc.username = :user)"
         else:
             where = "WHERE s.published"
         if n is not None and lat is not None and lon is not None:
@@ -217,7 +217,7 @@ class SiteRepo(BaseRepo):
         if _status.admin:
             where = "WHERE TRUE"
         elif self.authenticated:
-            where = "WHERE (s.published OR um.username = :user)"
+            where = "WHERE (s.published OR uc.username = :user)"
         else:
             where = "WHERE s.published"
 
@@ -273,10 +273,15 @@ class SiteRepo(BaseRepo):
             await self._handle_info(name, info)
         return name
 
-    @check.own_or_admin
+    @check.published_or_admin
     async def modify(self, site: SID, model: ModifiedSite, _status: Status) -> bool:
         self._check_pap(_status)
-        data = model.dict(exclude_unset=True)
+
+        if not (_status.own or _status.admin):
+            data = model.dict(exclude_unset=True, include={"info"})
+        else:
+            data = model.dict(exclude_unset=True)
+
         modified = False
         modified |= await self._handle_image(site, data)
         if "location" in data:
@@ -298,7 +303,7 @@ class SiteRepo(BaseRepo):
     async def toggle_publish(self, site: SID, published: bool):
         await self._set_published(published, name=site)
 
-    @check.exists
+    @check.published_or_admin
     async def localize(self, site: SID, localized_data: SiteInfo, _status: Status):
         self._check_pap(_status)
         await self._handle_info(site, localized_data)

@@ -393,3 +393,41 @@ async def test_site_delete_other_admin(client, setup, db, auth2, admin):
         "SELECT NOT EXISTS(SELECT 1 FROM sites WHERE name = :id)",
         values=dict(id=_id)
     )
+
+
+@pytest.mark.anyio
+async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    info = ModifiedSite(info=SiteInfo(name="aaaa", description="a", abstract="a", lang="fi")).dict(exclude_unset=True)
+
+    r = client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+    await db.execute("UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=_id))
+
+    r = client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    creator = client.get("/me", headers=auth).json()["username"]
+    modifier = client.get("/me", headers=auth2).json()["username"]
+
+    assert await db.fetch_val(
+        """
+        SELECT u.username 
+        FROM site_information si 
+            JOIN sites s on si.site_id = s.id 
+                AND s.name = :id
+            JOIN users u on si.modifier_id = u.id
+        """,
+        values=dict(id=_id)
+    ) == modifier
+
+    r = client.get(SITE.format(*setup, _id))
+    check_code(status.HTTP_200_OK, r)
+    s = to(Site, r)
+
+    assert s.creator == creator
+    assert s.modifier == modifier
