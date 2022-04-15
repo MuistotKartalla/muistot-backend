@@ -97,22 +97,22 @@ class ZonerMailer(Mailer):
             html = set_template_data(
                 "Muistotkartalla Verification",
                 f"Welcome {user}! Please take a moment to verify your account to start using muistotkartalla."
-                f"Click the button below or enter the code: {token}.",
+                f" Click the button below or enter the code: {token}.",
                 "Verify Account",
                 url,
             )
-            text = f"Verify link: {url}", "plain"
+            text = f"Verify link: {url}"
 
         else:
             subject = "Muistotkartalla Tilin Vahvistus"
             html = set_template_data(
                 "Muistotkartalla Tilin Vahvistus",
                 f"Tervetuloa {user}! Vahvista vielä muistotkartalla tilisi klikkaamalla alla olevaa painiketta"
-                f"tai koodilla {token}.",
+                f" tai koodilla {token}.",
                 "Vahvista Tilisi",
                 url,
             )
-            text = f"Linkki tilin vahvistamiseen: {url}", "plain"
+            text = f"Linkki tilin vahvistamiseen: {url}"
 
         return subject, text, html
 
