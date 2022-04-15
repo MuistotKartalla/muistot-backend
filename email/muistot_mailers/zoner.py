@@ -59,10 +59,10 @@ class ZonerMailer(Mailer):
 
     def __init__(self, **kwargs):
         self.config = MailerConfig(**kwargs)
-        self.thread = Thread(name="Zoner Mailer", target=self.send_threaded, daemon=True)
-        self.flag = Event()
-        self.thread.start()
         self.queue = deque()
+        self.flag = Event()
+        self.thread = Thread(name="Zoner Mailer", target=self.send_threaded, daemon=True)
+        self.thread.start()
 
     def __del__(self):
         self.flag.set()
