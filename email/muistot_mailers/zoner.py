@@ -56,6 +56,7 @@ def get_fi_template(user: str, link: str):
 
 class ZonerMailer(Mailer):
     config: MailerConfig
+    connection: SMTP
 
     def __init__(self, **kwargs):
         self.config = MailerConfig(**kwargs)
@@ -71,9 +72,16 @@ class ZonerMailer(Mailer):
         while not self.flag.is_set():
             try:
                 mail_order = self.queue.popleft()
-                self.handle_threaded(*mail_order)
+                with (SMTP_SSL if self.config.ssl else SMTP)(self.config.host, port=self.config.port) as s:
+                    self.connection = s
+                    self.handle_threaded(*mail_order)
+                    while True:
+                        mail_order = self.queue.popleft()
+                        self.handle_threaded(*mail_order)
             except IndexError:
                 time.sleep(10)
+            finally:
+                del self.connection
 
     def send_via_smtp(self, email: str, subject: str, text: str, html: str):
         mail = EmailMessage()
@@ -82,9 +90,7 @@ class ZonerMailer(Mailer):
         mail["To"] = email
         mail.set_content(text)
         mail.add_alternative(html, subtype="html")
-        with (SMTP_SSL if self.config.ssl else SMTP)(self.config.host, port=self.config.port) as s:
-            s.login(self.config.user, self.config.password)
-            s.send_message(mail)
+        self.connection.send_message(mail)
 
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
