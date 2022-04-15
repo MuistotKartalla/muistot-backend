@@ -1,6 +1,9 @@
 import pathlib
+import time
+from collections import deque
 from email.message import EmailMessage
 from smtplib import SMTP_SSL, SMTP
+from threading import Thread, Event
 
 from muistot.logging import log
 from muistot.mailer import Mailer, Result
@@ -56,6 +59,21 @@ class ZonerMailer(Mailer):
 
     def __init__(self, **kwargs):
         self.config = MailerConfig(**kwargs)
+        self.thread = Thread(name="Zoner Mailer", target=self.send_threaded, daemon=True)
+        self.flag = Event()
+        self.thread.start()
+        self.queue = deque()
+
+    def __del__(self):
+        self.flag.set()
+
+    def send_threaded(self):
+        while not self.flag.is_set():
+            try:
+                mail_order = self.queue.popleft()
+                self.handle_threaded(*mail_order)
+            except IndexError:
+                time.sleep(10)
 
     def send_via_smtp(self, email: str, subject: str, text: str, html: str):
         mail = EmailMessage()
@@ -116,9 +134,8 @@ class ZonerMailer(Mailer):
 
         return subject, text, html
 
-    async def send_email(self, email: str, email_type: str, **data):
+    def handle_threaded(self, email: str, email_type: str, data):
         try:
-
             if email_type == "login":
                 subject, text, html = self.handle_login_data(**data)
             elif email_type == "register":
@@ -130,7 +147,9 @@ class ZonerMailer(Mailer):
 
             self.send_via_smtp(email, subject, text, html)
 
-            return Result(success=True)
         except BaseException as e:
             log.exception("Failed mail", exc_info=e)
-            return Result(success=False)
+
+    async def send_email(self, email: str, email_type: str, **data):
+        self.queue.append((email, email_type, data))
+        return Result(success=True)
