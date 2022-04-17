@@ -29,14 +29,7 @@ class SiteInfo(BaseModel):
 
     @validator("lang")
     def validate_lang(cls, lang):
-        from pycountry import languages
-        try:
-            if len(lang) == 3:
-                return languages.get(alpha_3=lang).alpha_2
-            else:
-                return languages.get(alpha_2=lang).alpha_2
-        except (AttributeError, LookupError):
-            raise ValueError("No ISO639-1 ID Found")
+        return validate_language(lang)
 
 
 class NewSite(BaseModel):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, validator, EmailStr
+from pydantic import BaseModel, validator, EmailStr, root_validator
 
 from ._fields import *
 from .site import Site
@@ -19,14 +19,7 @@ class ProjectInfo(BaseModel):
 
     @validator("lang")
     def validate_lang(cls, lang):
-        from pycountry import languages
-        try:
-            if len(lang) == 3:
-                return languages.get(alpha_3=lang).alpha_2
-            else:
-                return languages.get(alpha_2=lang).alpha_2
-        except (AttributeError, LookupError):
-            raise ValueError("No ISO639-1 ID Found")
+        return validate_language(lang)
 
     class Config:
         __examples__ = {
@@ -79,6 +72,13 @@ class NewProject(BaseModel):
     admins: Optional[List[UID]] = Field(default_factory=list, unique_items=True, description="Admins for the project.")
     contact: Optional[ProjectContact] = Field(description="Project contact details if any are available.")
     admin_posting: bool = Field(default=False, description="True if only admins can post")
+
+    @root_validator(pre=False, skip_on_failure=True)
+    def validate_dates(cls, value):
+        starts, ends = value.get("starts", None), value.get("ends", None)
+        if starts is not None and ends is not None:
+            assert starts <= ends, "Project end before start"
+        return value
 
     class Config:
         __examples__ = {
@@ -151,6 +151,12 @@ class ModifiedProject(BaseModel):
     ends: Optional[datetime] = Field(description="Optional end date for the project")
     contact: Optional[ProjectContact] = Field(description="Modified contact data if any")
     info: Optional[ProjectInfo] = Field(description="Modified or created info")
+    default_language: Optional[str] = Field(description="For changing project default language")
+
+    @validator("default_language")
+    def validate_lang(cls, lang):
+        assert lang is not None, "Requires non null language"
+        return validate_language(lang)
 
     class Config:
         __examples__ = {

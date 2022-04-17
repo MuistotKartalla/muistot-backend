@@ -65,3 +65,14 @@ NAME = constr(strip_whitespace=True, min_length=0, max_length=200)
 TEXT = constr(strip_whitespace=True, min_length=0, max_length=20_000)
 SMALL_TEXT = constr(strip_whitespace=True, min_length=0, max_length=2_500)
 LONG_TEXT = constr(strip_whitespace=True, min_length=0, max_length=100_000)
+
+
+def validate_language(lang: str) -> str:
+    from pycountry import languages
+    try:
+        if len(lang) == 3:
+            return languages.get(alpha_3=lang).alpha_2
+        else:
+            return languages.get(alpha_2=lang).alpha_2
+    except (AttributeError, LookupError):
+        raise ValueError("No ISO639-1 ID Found")
