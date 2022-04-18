@@ -206,7 +206,7 @@ class DatabaseConnection:
                 return self._connections.popleft()
             except IndexError:
                 time.sleep(1E-10)
-        raise DatabaseConnection.OperationalError()
+        raise DatabaseConnection.OperationalError() from TimeoutError()
 
     @property
     def is_connected(self):

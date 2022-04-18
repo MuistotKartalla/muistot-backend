@@ -3,10 +3,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from pymysql.err import MySQLError, InterfaceError, OperationalError
+from pymysql.err import MySQLError, InterfaceError, OperationalError, IntegrityError
 from starlette.exceptions import HTTPException as LowHTTPException
 
 from .models import *
+from ..logging import log
 
 
 def modify_openapi(app: FastAPI):
@@ -40,15 +41,11 @@ async def validation_error_handler(
             ).dict(),
         )
     except Exception as e:
-        from ..logging import log
-
         log.exception("Failed request", exc_info=e)
         return ErrorResponse(ApiError(422, "request validation error"))
 
 
 async def validation_error_handler_2(_: Request, exc: ValidationError) -> JSONResponse:
-    from ..logging import log
-
     log.exception("Failed to parse database value", exc_info=exc)
     return ErrorResponse(
         ApiError(code=500, message="Could not parse value returned from database")
@@ -64,15 +61,15 @@ async def low_error_handler(_: Request, exc: LowHTTPException) -> ErrorResponse:
 
 
 async def db_error_handler(_: Request, exc) -> ErrorResponse:
-    from ..logging import log
-    from pymysql.err import IntegrityError
-
-    log.exception("Database Error", exc_info=exc)
     if isinstance(exc, IntegrityError):
+        log.warning("Integrity Violation", exc_info=exc)
         return ErrorResponse(ApiError(code=409, message="Integrity Violation"))
     elif isinstance(exc, (InterfaceError, OperationalError)):
+        if exc.__cause__ is None or type(exc.__cause__) != TimeoutError:
+            log.warning("Database Communication Error", exc_info=exc)
         return ErrorResponse(ApiError(code=503, message="Lost Connection to Database"))
     else:
+        log.warning("Unknown Database Error", exc_info=exc)
         return ErrorResponse(ApiError(code=500, message="Error in database Communication"))
 
 
