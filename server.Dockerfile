@@ -19,4 +19,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 EXPOSE 5600
 HEALTHCHECK --interval=1m --timeout=10s --retries=1 --start-period=1m \
 CMD sh -c "curl -fs http://localhost:5600/projects > /dev/null || kill 1"
-CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--port", "5600", "--workers", "2", "--host", "0.0.0.0" , "--forwarded-allow-ips=*", "--no-access-log", "--log-level", "warning"]
+CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--port", "5600", "--workers", "2", "--host", "0.0.0.0" , "--forwarded-allow-ips=*", "--no-access-log", "--log-level", "info"]

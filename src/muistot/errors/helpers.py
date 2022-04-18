@@ -67,6 +67,8 @@ async def db_error_handler(_: Request, exc) -> ErrorResponse:
     elif isinstance(exc, (InterfaceError, OperationalError)):
         if exc.__cause__ is None or type(exc.__cause__) != TimeoutError:
             log.warning("Database Communication Error", exc_info=exc)
+        else:
+            log.warning("Database Connections Exhausted")
         return ErrorResponse(ApiError(code=503, message="Lost Connection to Database"))
     else:
         log.warning("Unknown Database Error", exc_info=exc)
