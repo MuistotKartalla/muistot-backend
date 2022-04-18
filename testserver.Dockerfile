@@ -15,4 +15,4 @@ WORKDIR /code
 RUN apk add --no-cache --update libmagic hiredis curl && mkdir -p /opt/files
 COPY --from=worker /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-CMD ["uvicorn", "muistot.backend.main:app", "--reload", "--proxy-headers", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]
+CMD ["uvicorn", "muistot.backend.main:app", "--reload", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]
