@@ -108,7 +108,7 @@ class BaseRepo(ABC):
         """
 
     @abstractmethod
-    async def toggle_publish(self, *args) -> NoReturn:
+    async def toggle_publish(self, *args) -> bool:
         """
         Set publish
         """
@@ -133,6 +133,7 @@ class BaseRepo(ABC):
             f' WHERE {" AND ".join(f"{k} = :{k}" for k in values.keys())}',
             values={**values, "user": self.identity},
         )
+        return await self.db.fetch_val("SELECT ROW_COUNT()")
 
     @property
     def identity(self) -> Optional[str]:
@@ -141,14 +142,6 @@ class BaseRepo(ABC):
     @property
     def authenticated(self) -> bool:
         return self.identity is not None
-
-    @property
-    def admin(self):
-        return self._user.is_authenticated and (
-            self._user.is_admin_in(self.project)
-            if hasattr(self, "project")
-            else self.superuser
-        )
 
     @property
     def superuser(self) -> bool:

@@ -4,7 +4,6 @@ from typing import Optional, List
 from pydantic import BaseModel, validator, EmailStr, root_validator
 
 from ._fields import *
-from .site import Site
 
 
 class ProjectInfo(BaseModel):
@@ -118,7 +117,6 @@ class Project(NewProject):
 
     image: Optional[IMAGE] = Field(description=IMAGE_TXT)
     sites_count: conint(ge=0) = Field(description="Number of sites this project has")
-    sites: Optional[List[Site]] = Field(description="List of Sites (Optional)")
 
     class Config:
         __examples__ = {

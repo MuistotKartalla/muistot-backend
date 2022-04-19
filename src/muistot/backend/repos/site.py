@@ -55,8 +55,9 @@ class SiteRepo(BaseRepo):
     def __init__(self, db: Database, project: PID):
         super().__init__(db, project=project)
 
-    def _check_pap(self, _status: Status):
-        if _status.pap and not self.admin:
+    @staticmethod
+    def _check_pap(_status: Status):
+        if _status.pap and not _status.admin:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin posting only")
 
     async def _handle_info(self, site: SID, model: SiteInfo) -> bool:
@@ -234,7 +235,7 @@ class SiteRepo(BaseRepo):
 
     @check.not_exists
     async def create(self, model: NewSite, _status: Status) -> SID:
-        self._check_pap(_status)
+        SiteRepo._check_pap(_status)
         check_language(model.info.lang)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
@@ -275,7 +276,7 @@ class SiteRepo(BaseRepo):
 
     @check.published_or_admin
     async def modify(self, site: SID, model: ModifiedSite, _status: Status) -> bool:
-        self._check_pap(_status)
+        SiteRepo._check_pap(_status)
 
         if not (_status.own or _status.admin):
             data = model.dict(exclude_unset=True, include={"info"})
@@ -300,10 +301,5 @@ class SiteRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, site: SID, published: bool):
-        await self._set_published(published, name=site)
-
-    @check.published_or_admin
-    async def localize(self, site: SID, localized_data: SiteInfo, _status: Status):
-        self._check_pap(_status)
-        await self._handle_info(site, localized_data)
+    async def toggle_publish(self, site: SID, published: bool) -> bool:
+        return await self._set_published(published, name=site)

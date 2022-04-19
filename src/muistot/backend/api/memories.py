@@ -129,3 +129,28 @@ async def delete_memory(
     repo.configure(r)
     await repo.delete(memory)
     return deleted(r.url_for("get_memories", project=project, site=site))
+
+
+@router.post(
+    "/projects/{project}/sites/{site}/memories/{memory}/publish",
+    description=dedent(
+        """
+        Toggles published status
+        """
+    ),
+    response_class=Response,
+    responses=rex.modify(),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def modify_memory(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        publish: bool,
+        db: Database = DEFAULT_DB,
+):
+    repo = MemoryRepo(db, project, site)
+    repo.configure(r)
+    changed = await repo.toggle_publish(memory, publish)
+    return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)

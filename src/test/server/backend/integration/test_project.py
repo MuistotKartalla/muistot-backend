@@ -37,8 +37,8 @@ def make_project(pid, client, superuser, **props):
     check_code(status.HTTP_201_CREATED, r)
 
     # Check project
-    p = to(Project, client.get(r.headers[LOCATION]))
-    assert any(map(lambda prj: prj.id == p.id, to(Projects, client.get(PROJECTS)).items))  # In projects
+    p = to(Project, client.get(r.headers[LOCATION], headers=superuser))
+    assert any(map(lambda prj: prj.id == p.id, to(Projects, client.get(PROJECTS, headers=superuser)).items))
     assert p.id == m.id  # Cool id
     assert p.info.name == m.info.name.strip()  # Properties without whitespace
     assert p.info.abstract == m.info.abstract.strip()
@@ -174,23 +174,28 @@ def test_project_image_delete(pid, client, superuser, image, auto_publish):
 def test_project_localize_no_auth(setup, client, superuser):
     """Fail on missing auth
     """
-    data = ProjectInfo(name="a", lang="eng", description="a", abstract="b").json()
+    data = ModifiedProject(
+        info=ProjectInfo(name="a", lang="eng", description="a", abstract="b")
+    ).json(exclude_unset=True)
 
     # No Auth
-    r = client.put(PROJECT_LOCALIZE.format(setup.project), data=data)
+    r = client.patch(PROJECT.format(setup.project), data=data)
     check_code(status.HTTP_401_UNAUTHORIZED, r)
 
 
 def test_project_localize_new(setup, client, superuser):
     """Create new localization
     """
-    data = ProjectInfo(name="a", lang="en", description="a", abstract="b").json()
-    headers = dict()
-    headers[ACCEPT_LANGUAGE] = "en"
+    data = ModifiedProject(
+        info=ProjectInfo(name="awaddawda", lang="fi", description="adaw", abstract="bdwadw")
+    ).dict(exclude_unset=True)
 
-    r = client.put(PROJECT_LOCALIZE.format(setup.project), data=data, headers=superuser)
+    headers = dict()
+    headers[ACCEPT_LANGUAGE] = "fi"
+
+    r = client.patch(PROJECT.format(setup.project), json=data, headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
-    assert to(Project, client.get(r.headers[LOCATION], headers=headers)).info.json() == data
+    assert to(Project, client.get(r.headers[LOCATION], headers=headers)).info.dict() == data["info"]
 
 
 def test_porject_unknown_locale(setup, client):
@@ -241,3 +246,75 @@ async def test_project_publish_admin_another_project_fails(db, pid, client, setu
     )
 
     check_code(status.HTTP_403_FORBIDDEN, r)
+
+
+def test_project_publish(pid, client, superuser):
+    make_project(pid, client, superuser)
+
+    r = client.post(PUBLISH_PROJECT.format(pid, True), headers=superuser)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    r = client.get(PROJECT.format(pid))
+    check_code(status.HTTP_200_OK, r)
+
+    r = client.post(PUBLISH_PROJECT.format(pid, False), headers=superuser)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+
+    r = client.get(PROJECT.format(pid))
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+
+def test_project_double_publish_no_change(pid, client, superuser):
+    make_project(pid, client, superuser)
+
+    r = client.post(PUBLISH_PROJECT.format(pid, True), headers=superuser)
+    check_code(status.HTTP_204_NO_CONTENT, r)
+    r = client.post(PUBLISH_PROJECT.format(pid, True), headers=superuser)
+    check_code(status.HTTP_304_NOT_MODIFIED, r)
+
+
+def test_admin_sees_unpublished(pid, client, superuser, users):
+    u2 = users[2]
+    make_project(pid, client, superuser, admins=[u2.username])
+
+    aauth = authenticate(client, u2.username, u2.password)
+    r = client.get(PROJECT.format(pid), headers=aauth)
+    check_code(status.HTTP_200_OK, r)
+    assert any(map(lambda prj: prj.id == pid, to(Projects, client.get(PROJECTS, headers=aauth)).items))
+
+
+def test_user_does_not_see_unpublished(pid, client, superuser, users):
+    u2 = users[2]
+    make_project(pid, client, superuser)
+
+    aauth = authenticate(client, u2.username, u2.password)
+    r = client.get(PROJECT.format(pid), headers=aauth)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+    assert all(map(lambda prj: prj.id != pid, to(Projects, client.get(PROJECTS, headers=aauth)).items))
+
+
+def test_admin_not_exists_fails(pid, client, superuser):
+    m = NewProject(
+        id=pid,
+        info=ProjectInfo(
+            lang="en",
+            name=" Test Project ",
+            abstract=" Test Abstract ",
+            description=" Test Description "
+        ),
+        admins=["wadwdawdawdawdawdawdaddawda"]
+    )
+    r = client.post(PROJECTS, json=m.dict(), headers=superuser)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+
+def test_admin_not_exists_fails_on_add(pid, client, superuser):
+    make_project(pid, client, superuser)
+    r = client.post(ADMINS.format(pid), params=dict(username="adadwadwadawdawdadw"), headers=superuser)
+    check_code(status.HTTP_404_NOT_FOUND, r)
+
+
+def test_admin_not_exists_fails_on_delete(pid, client, superuser):
+    make_project(pid, client, superuser)
+    r = client.delete(ADMINS.format(pid), params=dict(username="adadwadwadawdawdadw"), headers=superuser)
+    check_code(status.HTTP_404_NOT_FOUND, r)

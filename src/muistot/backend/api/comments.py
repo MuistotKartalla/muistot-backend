@@ -150,3 +150,38 @@ async def delete_comment(
             memory=str(memory),
         )
     )
+
+
+@router.post(
+    "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}/publish",
+    description=dedent(
+        """
+        Toggles published status
+        """
+    ),
+    responses=rex.modify(),
+    response_class=Response,
+)
+@require_auth(scopes.AUTHENTICATED)
+async def modify_comment(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        comment: CID,
+        publish: bool,
+        db: Database = DEFAULT_DB,
+):
+    repo = CommentRepo(db, project, site, memory)
+    repo.configure(r)
+    changed = await repo.toggle_publish(comment, publish)
+    return modified(
+        lambda: r.url_for(
+            "get_comment",
+            project=project,
+            site=site,
+            memory=str(memory),
+            comment=str(comment),
+        ),
+        changed,
+    )

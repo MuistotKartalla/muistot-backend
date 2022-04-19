@@ -146,8 +146,8 @@ class CommentRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, comment: CID, published: bool):
-        await self._set_published(published, id=comment)
+    async def toggle_publish(self, comment: CID, published: bool) -> bool:
+        return await self._set_published(published, id=comment)
 
     @check.parents
     async def by_user(self, user: str) -> List[UserComment]:

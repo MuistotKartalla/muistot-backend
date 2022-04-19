@@ -131,3 +131,27 @@ async def delete_site(
     repo.configure(r)
     await repo.delete(site)
     return deleted(r.url_for("get_sites", project=project))
+
+
+@router.delete(
+    "/projects/{project}/sites/{site}/publish",
+    description=dedent(
+        """
+        Toggles published status
+        """
+    ),
+    response_class=Response,
+    responses=rex.modify(),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def publish_site(
+        r: Request,
+        project: PID,
+        site: SID,
+        publish: bool,
+        db: Database = DEFAULT_DB
+):
+    repo = SiteRepo(db, project)
+    repo.configure(r)
+    changed = await repo.toggle_publish(site, publish)
+    return modified(lambda: r.url_for("get_site", project=project, site=site), changed)

@@ -1,6 +1,8 @@
+import datetime
+
 import pytest
 from muistot.backend.api.publish import PUPOrder, BAD_TYPE, BAD_PARENTS_CNT, BAD_PARENTS
-from muistot.backend.models import SiteInfo, ProjectInfo
+from muistot.backend.models import SiteInfo, ProjectInfo, NewProject
 from muistot.security import User
 from pydantic import ValidationError
 
@@ -120,3 +122,24 @@ def test_good_pup():
     PUPOrder(type="comment", parents={"memory": 1, "site": "aaaa", "project": "aaaa"}, identifier=1)
     PUPOrder(type="project", parents={}, identifier="aaaa")
     PUPOrder(type="project", parents=None, identifier="aaaa")
+
+
+def test_project_dates():
+    with pytest.raises(ValidationError) as e:
+        NewProject(
+            id="aaaaaa",
+            info=ProjectInfo(name="aaaa", lang="fi"),
+            starts=datetime.datetime.fromisoformat("2022-01-01"),
+            ends=datetime.datetime.fromisoformat("2021-01-01")
+        )
+    assert "end before start" in str(e.value)
+
+
+def test_project_none_admins_raises():
+    with pytest.raises(ValidationError) as e:
+        NewProject(
+            id="aaaaaa",
+            info=ProjectInfo(name="aaaa", lang="fi"),
+            admins=None
+        )
+    assert "not iterable" in str(e.value)

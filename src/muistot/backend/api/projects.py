@@ -34,7 +34,6 @@ async def get_projects(
         """
         This endpoint returns the information for a single Project
         
-        It is possible to query all the sites at the same time too.
         An error message will be returned if the project is not published or active.
         """
     ),
@@ -49,11 +48,10 @@ async def get_project(
         r: Request,
         project: PID,
         db: Database = DEFAULT_DB,
-        include_sites: bool = False
 ) -> Project:
     repo = ProjectRepo(db)
     repo.configure(r)
-    return await repo.one(project, include_sites=include_sites)
+    return await repo.one(project)
 
 
 @router.post(
@@ -97,7 +95,7 @@ async def new_project(
     responses=dict(
         chain(
             filter(lambda e: e[0] != 404, rex.modify().items()),
-            [(404, d("Resource found"))],
+            [(404, d("Resource not found"))],
         )
     ),
 )
@@ -120,7 +118,7 @@ async def modify_project(
         """
         Soft Deletes a project by hiding it from regular users.
         
-        The actual deletion has to be done by a maintainer or from the Admin interface.
+        The actual deletion has to be done by a maintainer.
         """
     ),
     response_class=Response,
@@ -190,27 +188,29 @@ async def delete_project_admin(
     )
 
 
-@router.put(
-    "/projects/{project}/localize",
+@router.post(
+    "/projects/{project}/publish",
     description=dedent(
         """
-        This endpoint is used for localizing a project.
+        Toggles published status
         """
     ),
     response_class=Response,
-    responses=dict(filter(lambda e: e[0] != 404, rex.modify().items())),
+    responses=dict(
+        chain(
+            filter(lambda e: e[0] != 404, rex.modify().items()),
+            [(404, d("Resource not found"))],
+        )
+    ),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def localize_project(
+async def publish_project(
         r: Request,
         project: PID,
-        info: ProjectInfo,
-        db: Database = DEFAULT_DB
+        publish: bool,
+        db: Database = DEFAULT_DB,
 ):
     repo = ProjectRepo(db)
     repo.configure(r)
-    await repo.localize(project, info)
-    return Response(
-        status_code=204,
-        headers=dict(location=r.url_for("get_project", project=project)),
-    )
+    changed = await repo.toggle_publish(project, publish)
+    return modified(lambda: r.url_for("get_project", project=project), changed)

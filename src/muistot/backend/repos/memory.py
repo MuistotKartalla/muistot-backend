@@ -189,8 +189,8 @@ class MemoryRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, memory: MID, published: bool):
-        await self._set_published(published, id=memory)
+    async def toggle_publish(self, memory: MID, published: bool) -> bool:
+        return await self._set_published(published, id=memory)
 
     @check.parents
     async def by_user(self, user: str) -> List[UserMemory]:
