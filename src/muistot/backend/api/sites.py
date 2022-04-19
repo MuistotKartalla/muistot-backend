@@ -3,6 +3,7 @@ from typing import Optional
 from ._imports import *
 
 router = make_router(tags=["Sites"])
+caches = Cache("sites", evicts={"projects"})
 
 
 @router.get(
@@ -18,6 +19,10 @@ router = make_router(tags=["Sites"])
         """
     ),
     responses=rex.gets(Sites),
+)
+@caches.args(
+    "project",
+    exclude=lambda *_, **kwargs: any(kwargs[k] is not None for k in ("n", "lat", "lon"))
 )
 async def get_sites(
         r: Request,
@@ -43,6 +48,7 @@ async def get_sites(
     ),
     responses=rex.get(Site),
 )
+@caches.args("project", "site", "include_memories")
 async def get_site(
         r: Request,
         project: PID,
@@ -69,6 +75,7 @@ async def get_site(
     responses=rex.create(True),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def new_site(
         r: Request,
         project: PID,
@@ -97,6 +104,7 @@ async def new_site(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def modify_site(
         r: Request,
         project: PID,
@@ -121,6 +129,7 @@ async def modify_site(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def delete_site(
         r: Request,
         project: PID,
@@ -133,7 +142,7 @@ async def delete_site(
     return deleted(r.url_for("get_sites", project=project))
 
 
-@router.delete(
+@router.post(
     "/projects/{project}/sites/{site}/publish",
     description=dedent(
         """
@@ -144,6 +153,7 @@ async def delete_site(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def publish_site(
         r: Request,
         project: PID,

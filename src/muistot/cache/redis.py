@@ -21,14 +21,14 @@ class FastStorage:
             self.redis = None
             i.close()
 
-    def set(self, key: str, value: str, /, prefix: str = "custom:", ttl: int = None):
+    def set(self, key: str, value: typing.Union[str, bytes], /, prefix: str = "custom:", ttl: int = None):
         self.redis.set(f"{prefix}{key}", value, ex=ttl)
 
-    def get(self, key: str, /, prefix: str = "custom:") -> typing.Optional[typing.Union[str, bytes]]:
+    def get(self, key: str, /, prefix: str = "custom:") -> typing.Optional[bytes]:
         return self.redis.get(f"{prefix}{key}")
 
-    def delete(self, key: str, /, prefix: str = "custom:"):
-        return self.redis.delete(f"{prefix}{key}")
+    def delete(self, *keys: str, prefix: str = "custom:"):
+        return self.redis.delete(*(f"{prefix}{key}" for key in keys))
 
     def exists(self, *keys: str, prefix: str = "custom:") -> bool:
         return bool(self.redis.exists(*iter(f"{prefix}{key}" for key in keys)))
@@ -52,12 +52,3 @@ def register_redis_cache(app: FastAPI):
     @app.on_event("shutdown")
     async def close_cache():
         instance.disconnect()
-
-
-class EmptyCache(FastStorage):
-
-    def __init__(self):
-        super(EmptyCache, self).__init__("")
-
-    def __getattr__(self, *_, **__):
-        return lambda *_, **__: None

@@ -189,8 +189,14 @@ class MemoryRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, memory: MID, published: bool) -> bool:
-        return await self._set_published(published, id=memory)
+    async def toggle_publish(self, memory: MID, publish: bool) -> bool:
+        await self.db.execute(
+            f'UPDATE memories r'
+            f" SET r.published = {1 if publish else 0}"
+            f' WHERE r.id = :id',
+            values=dict(id=memory),
+        )
+        return await self.db.fetch_val("SELECT ROW_COUNT()")
 
     @check.parents
     async def by_user(self, user: str) -> List[UserMemory]:

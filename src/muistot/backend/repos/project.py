@@ -309,7 +309,13 @@ class ProjectRepo(BaseRepo):
 
     @check.admin
     async def toggle_publish(self, project: PID, publish: bool) -> bool:
-        return await self._set_published(publish, name=project)
+        await self.db.execute(
+            f'UPDATE projects r'
+            f" SET r.published = {1 if publish else 0}"
+            f' WHERE r.name = :id',
+            values=dict(id=project),
+        )
+        return await self.db.fetch_val("SELECT ROW_COUNT()")
 
     @check.admin
     async def add_admin(self, project: PID, user: UID):

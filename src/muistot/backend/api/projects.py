@@ -3,6 +3,7 @@ from itertools import chain
 from ._imports import *
 
 router = make_router(tags=["Projects"])
+caches = Cache("projects")
 
 
 @router.get(
@@ -18,6 +19,7 @@ router = make_router(tags=["Projects"])
     ),
     responses=dict(filter(lambda e: e[0] != 404, rex.gets(Projects).items())),
 )
+@caches.key("projects")
 async def get_projects(
         r: Request,
         db: Database = DEFAULT_DB
@@ -44,6 +46,7 @@ async def get_projects(
         )
     ),
 )
+@caches.args("project")
 async def get_project(
         r: Request,
         project: PID,
@@ -70,6 +73,7 @@ async def get_project(
     responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def new_project(
         r: Request,
         model: NewProject = sample(NewProject),
@@ -100,6 +104,7 @@ async def new_project(
     ),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def modify_project(
         r: Request,
         project: PID,
@@ -125,6 +130,7 @@ async def modify_project(
     responses=dict(filter(lambda e: e[0] != 404, rex.delete().items())),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def delete_project(
         r: Request,
         project: PID,
@@ -147,6 +153,7 @@ async def delete_project(
     responses=rex.create(False),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def add_project_admin(
         r: Request,
         project: PID,
@@ -173,6 +180,7 @@ async def add_project_admin(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def delete_project_admin(
         r: Request,
         project: PID,
@@ -204,6 +212,7 @@ async def delete_project_admin(
     ),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
 async def publish_project(
         r: Request,
         project: PID,

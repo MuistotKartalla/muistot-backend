@@ -12,8 +12,9 @@ from ..models import *
 # noinspection PyUnresolvedReferences
 from ..repos import *
 # noinspection PyUnresolvedReferences
-from ...database import Database
-from ...database import Databases
+from ...cache import Cache
+# noinspection PyUnresolvedReferences
+from ...database import Databases, Database
 # noinspection PyUnresolvedReferences
 from ...security import require_auth, scopes
 

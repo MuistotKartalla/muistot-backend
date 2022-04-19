@@ -86,6 +86,7 @@ class Localization(BaseModel):
 
 class Cache(BaseModel):
     redis_url: AnyUrl = "redis://session-storage?db=1"
+    cache_ttl: int = 60 * 10
 
 
 class BaseConfig(BaseModel):

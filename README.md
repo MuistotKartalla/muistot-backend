@@ -106,7 +106,8 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
     "url": "http://username-generator"
   },
   "cache": {
-    "redis_url": "redis://session-storage?db=1"
+    "redis_url": "redis://session-storage?db=1",
+    "cache_ttl": 600
   },
   "mailer": {
     "driver": ".logmailer",

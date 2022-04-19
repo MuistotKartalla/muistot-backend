@@ -18,7 +18,27 @@ def client(db_instance):
             yield c
 
     main.app.dependency_overrides[Databases.default] = mock_dep
-    yield TestClient(main.app)
+    client = TestClient(main.app)
+
+    class Mock:
+
+        def __getattribute__(self, item):
+            return lambda *_, **__: None
+
+    client.app.state.FastStorage.redis = Mock()
+
+    yield client
+
+
+@pytest.fixture(scope="function")
+def using_cache(client):
+    old = client.app.state.FastStorage.redis
+    client.app.state.FastStorage.redis = None
+    client.app.state.FastStorage.connect()
+    yield client.app.state.FastStorage.redis
+    client.app.state.FastStorage.redis.flushdb()
+    client.app.state.FastStorage.disconnect()
+    client.app.state.FastStorage.redis = old
 
 
 @pytest.fixture(scope="module")
@@ -107,7 +127,7 @@ def auth_fixture_3(client, _credentials):
     yield auth(client, username, password)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def repo_config(_credentials):
     yield mock_request(_credentials[0][0])
 

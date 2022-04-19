@@ -6,7 +6,7 @@ from typing import List, Any, NoReturn, Union, Optional, Dict
 from fastapi import Request, HTTPException, status
 
 from .utils import extract_language
-from ....cache import FastStorage, NullCache
+from ....cache import FastStorage
 from ....config import Config
 from ....database import Database
 from ....files import Files
@@ -50,7 +50,6 @@ class BaseRepo(ABC):
         self._user: Union[User] = User.null()
         self.lang = "fi"
         self.auto_publish = Config.security.auto_publish
-        self._cache = NullCache()
 
     def configure(self, r: Request) -> "BaseRepo":
         """
@@ -68,13 +67,11 @@ class BaseRepo(ABC):
             raise HTTPException(
                 status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Can not localize"
             )
-        self._cache = getattr(getattr(r, "state", object()), "cache", NullCache())
         return self
 
     def from_repo(self, repo: "BaseRepo") -> "BaseRepo":
         self._user = repo._user
         self.lang = repo.lang
-        self._cache = getattr(repo, "_cache", NullCache())
         return self
 
     @abstractmethod
@@ -112,28 +109,6 @@ class BaseRepo(ABC):
         """
         Set publish
         """
-
-    async def _set_published(self, published: bool, **values) -> NoReturn:
-        """
-        Changes published status for a Repo
-
-        Usage:
-
-        @set_published(False)
-        def delete(self, *args, **kwargs)
-            return "WHERE PART", DICT[VALUES]
-
-        :param published: 1 if published else 0
-        :return:          Decorated function
-        """
-        await self.db.execute(
-            f'UPDATE {type(self).__name__.removesuffix("Repo").lower()}s r'
-            f" LEFT JOIN users u ON u.username = :user"
-            f" SET r.published = {1 if published else 0}, r.modifier_id = u.id"
-            f' WHERE {" AND ".join(f"{k} = :{k}" for k in values.keys())}',
-            values={**values, "user": self.identity},
-        )
-        return await self.db.fetch_val("SELECT ROW_COUNT()")
 
     @property
     def identity(self) -> Optional[str]:

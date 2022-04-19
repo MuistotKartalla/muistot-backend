@@ -320,7 +320,7 @@ def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish):
     check_code(status.HTTP_304_NOT_MODIFIED, r)
 
 
-def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish):
+def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish, using_cache):
     """Test random assignment of image from memories
     """
     _id, site = _create_site()
@@ -341,9 +341,7 @@ def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, au
     r = client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site2 = to(Site, r)
-
-    # Cached (5 min) should be same
-    assert site.image == site2.image
+    assert site2.image is not None
 
 
 def test_create_site_non_default_locale_creates_default_placeholder(setup, client, admin, auto_publish):

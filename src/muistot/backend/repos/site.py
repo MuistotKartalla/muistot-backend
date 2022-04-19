@@ -143,27 +143,19 @@ class SiteRepo(BaseRepo):
         return project_default
 
     async def _get_random_image(self, site: SID):
-        image: Optional[bytes] = self._cache.get(site, prefix="sites")
-        if image is None:
-            images = list(map(lambda m: m[0], await self.db.fetch_all(
-                """
-                SELECT i.file_name FROM  sites s
-                    JOIN memories m on s.id = m.site_id
-                        AND m.published
-                    JOIN images i on m.image_id = i.id
-                WHERE s.name = :site
-                ORDER BY RAND()
-                LIMIT 1
-                """,
-                values=dict(site=site)
-            )))
-            image: str = random.choice(images) if len(images) > 0 else None
-            self._cache.set(site, image or "", prefix="sites", ttl=60 * 5)
-        elif len(image) == 0:
-            image = None
-        else:
-            image: str = image.decode("utf-8")
-        return image
+        images = list(map(lambda m: m[0], await self.db.fetch_all(
+            """
+            SELECT i.file_name FROM  sites s
+                JOIN memories m on s.id = m.site_id
+                    AND m.published
+                JOIN images i on m.image_id = i.id
+            WHERE s.name = :site
+            ORDER BY RAND()
+            LIMIT 1
+            """,
+            values=dict(site=site)
+        )))
+        return random.choice(images) if len(images) > 0 else None
 
     async def construct_site(self, m) -> Site:
         if m.get("memories_count", 0) > 0 and m.get("image", None) is None:
@@ -301,5 +293,11 @@ class SiteRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, site: SID, published: bool) -> bool:
-        return await self._set_published(published, name=site)
+    async def toggle_publish(self, site: SID, publish: bool) -> bool:
+        await self.db.execute(
+            f'UPDATE sites r'
+            f" SET r.published = {1 if publish else 0}"
+            f' WHERE r.name = :id',
+            values=dict(id=site),
+        )
+        return await self.db.fetch_val("SELECT ROW_COUNT()")

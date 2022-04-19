@@ -163,7 +163,7 @@ async def delete_comment(
     response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
-async def modify_comment(
+async def publish_comment(
         r: Request,
         project: PID,
         site: SID,

@@ -146,8 +146,14 @@ class CommentRepo(BaseRepo):
         )
 
     @check.admin
-    async def toggle_publish(self, comment: CID, published: bool) -> bool:
-        return await self._set_published(published, id=comment)
+    async def toggle_publish(self, comment: CID, publish: bool) -> bool:
+        await self.db.execute(
+            f'UPDATE comments r'
+            f" SET r.published = {1 if publish else 0}"
+            f' WHERE r.id = :id',
+            values=dict(id=comment),
+        )
+        return await self.db.fetch_val("SELECT ROW_COUNT()")
 
     @check.parents
     async def by_user(self, user: str) -> List[UserComment]:

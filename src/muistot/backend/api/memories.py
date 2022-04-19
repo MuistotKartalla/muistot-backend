@@ -1,6 +1,7 @@
 from ._imports import *
 
 router = make_router(tags=["Memories"])
+caches = Cache("memories", evicts={"sites"})
 
 
 @router.get(
@@ -63,6 +64,7 @@ async def get_memory(
     responses=rex.create(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def new_memory(
         r: Request,
         project: PID,
@@ -91,6 +93,7 @@ async def new_memory(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def modify_memory(
         r: Request,
         project: PID,
@@ -118,6 +121,7 @@ async def modify_memory(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def delete_memory(
         r: Request,
         project: PID,
@@ -142,7 +146,8 @@ async def delete_memory(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-async def modify_memory(
+@caches.evict
+async def publish_memory(
         r: Request,
         project: PID,
         site: SID,
