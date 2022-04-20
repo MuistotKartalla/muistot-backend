@@ -1,4 +1,4 @@
-from .store import Databases, register_databases
+from .store import Databases, register_databases, DatabaseDependency
 
 try:
     # This will not fail if databases is in use
@@ -10,5 +10,6 @@ except ImportError:
 __all__ = [
     "register_databases",
     "Database",
-    "Databases"
+    "Databases",
+    "DatabaseDependency"
 ]

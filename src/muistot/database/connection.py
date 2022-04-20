@@ -39,7 +39,7 @@ def make_connection(config: Database):
     Sets the cursor class to a custom one providing similar functionality to SQLAlchemy
     where the spread operators and spreading the result to multiple variables works as intended
     """
-    c = pymysql.Connection(
+    return pymysql.connect(
         user=config.user,
         password=config.password,
         host=config.host,
@@ -49,9 +49,8 @@ def make_connection(config: Database):
         charset="utf8mb4",
         cursorclass=ResultSetCursor,
         autocommit=False,
-        defer_connect=True
+        defer_connect=True,
     )
-    return c
 
 
 def allocate_fair(iterable):

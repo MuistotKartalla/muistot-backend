@@ -13,5 +13,18 @@
       "service_url": "http://localhost:3000",
       "sender": "do-not-reply@muistotkartalla.fi"
     }
+  },
+  "database": {
+    "default": {
+      "host": "db",
+      "port": 3306,
+      "database": "muistot",
+      "user": "root",
+      "password": "test",
+      "ssl": false,
+      "workers": 1,
+      "cpw": 2,
+      "max_wait": 1
+    }
   }
 }
