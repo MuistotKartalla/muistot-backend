@@ -16,6 +16,7 @@ caches = Cache("memories", evicts={"sites"})
     ),
     responses=rex.gets(Memories),
 )
+@caches.args("project", "site", "include_comments")
 async def get_memories(
         r: Request,
         project: PID,
@@ -40,6 +41,7 @@ async def get_memories(
     ),
     responses=rex.get(Memory),
 )
+@caches.args("project", "site", "memory", "include_comments")
 async def get_memory(
         r: Request,
         project: PID,

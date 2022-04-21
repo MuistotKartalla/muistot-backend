@@ -1,6 +1,7 @@
 from ._imports import *
 
 router = make_router(tags=["Comments"])
+caches = Cache("comments", evicts=["sites"])
 
 
 @router.get(
@@ -13,6 +14,7 @@ router = make_router(tags=["Comments"])
     ),
     responses=rex.gets(Comments),
 )
+@caches.args("project", "site", "memory")
 async def get_comments(
         r: Request,
         project: PID,
@@ -35,6 +37,7 @@ async def get_comments(
     ),
     responses=rex.get(Comment),
 )
+@caches.args("project", "site", "memory", "comment")
 async def get_comment(
         r: Request,
         project: PID,
@@ -59,6 +62,7 @@ async def get_comment(
     response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def new_comment(
         r: Request,
         project: PID,
@@ -94,6 +98,7 @@ async def new_comment(
     response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def modify_comment(
         r: Request,
         project: PID,
@@ -131,6 +136,7 @@ async def modify_comment(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def delete_comment(
         r: Request,
         project: PID,
@@ -163,6 +169,7 @@ async def delete_comment(
     response_class=Response,
 )
 @require_auth(scopes.AUTHENTICATED)
+@caches.evict
 async def publish_comment(
         r: Request,
         project: PID,
