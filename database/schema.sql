@@ -377,17 +377,6 @@ CREATE EVENT delete_verifiers
         STARTS '2021-01-01 02:00:00'
     DO CALL clean_verifiers() $$
 
-DROP TRIGGER IF EXISTS trg_verifier_update $$
-CREATE TRIGGER trg_verifier_update
-    AFTER UPDATE
-    ON users
-    FOR EACH ROW
-BEGIN
-    IF NEW.verified THEN
-        DELETE FROM user_email_verifiers WHERE user_id = OLD.id;
-    END IF;
-END $$
-
 DROP PROCEDURE IF EXISTS analyze_all_tables $$
 CREATE PROCEDURE analyze_all_tables()
 BEGIN
@@ -408,97 +397,95 @@ CREATE EVENT check_tables
 
 DELIMITER ;
 
+DROP TABLE IF EXISTS audit_comments;
 CREATE TABLE IF NOT EXISTS audit_comments
 (
     comment_id INTEGER NOT NULL,
     user_id    INTEGER NOT NULL,
 
     PRIMARY KEY pk_ac (comment_id, user_id),
-
-    CONSTRAINT FOREIGN KEY fg_ac_comment (comment_id) REFERENCES comments (id),
+    CONSTRAINT FOREIGN KEY fg_ac_comment (comment_id) REFERENCES comments (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
     CONSTRAINT FOREIGN KEY fg_ac_user (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS audit_memories;
 CREATE TABLE IF NOT EXISTS audit_memories
 (
     memory_id INTEGER NOT NULL,
     user_id   INTEGER NOT NULL,
 
     PRIMARY KEY pk_am (memory_id, user_id),
-
-    CONSTRAINT FOREIGN KEY fg_am_comment (memory_id) REFERENCES memories (id),
+    CONSTRAINT FOREIGN KEY fg_am_memory (memory_id) REFERENCES memories (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
     CONSTRAINT FOREIGN KEY fg_am_user (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+);
+
+DROP TABLE IF EXISTS audit_sites;
+CREATE TABLE IF NOT EXISTS audit_sites
+(
+    site_id INTEGER NOT NULL,
+    lang_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    PRIMARY KEY pk_as (site_id, lang_id, user_id),
+    CONSTRAINT FOREIGN KEY fg_as_site (site_id) REFERENCES sites (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY fg_as_lang (lang_id) REFERENCES languages (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY fg_as_user (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
 );
 
 DELIMITER $$
 
-DROP PROCEDURE IF EXISTS comments_audit_log;
-CREATE PROCEDURE comments_audit_log()
-BEGIN
-    SELECT COUNT(*)                    AS report_count,
-           c.id                        AS comment_id,
-           c.comment                   AS comment_story,
-           cu.username                 AS comment_user,
-           CONCAT_WS(',', ru.username) AS reporting_users,
-           m.id                        AS memory_id,
-           s.name                      AS site,
-           p.name                      AS project
-    FROM audit_comments ac
-             JOIN comments c ON ac.comment_id = c.id
-             JOIN memories m on c.memory_id = m.id
-             JOIN sites s on m.site_id = s.id
-             JOIN projects p on s.project_id = p.id
-             JOIN users cu ON c.user_id = cu.id
-             JOIN users ru ON ac.user_id = ru.id
-    GROUP BY ac.comment_id
-    ORDER BY report_count DESC;
-END $$
-
-DROP PROCEDURE IF EXISTS memories_audit_log;
-CREATE PROCEDURE memories_audit_log()
-BEGIN
-    SELECT COUNT(*)                    AS report_count,
-           m.id                        AS memory_id,
-           m.title                     AS memory_title,
-           m.story                     AS memory_story,
-           mu.username                 AS memory_user,
-           CONCAT_WS(',', ru.username) AS reporting_users,
-           s.name                      AS site,
-           p.name                      AS project
-    FROM audit_memories am
-             JOIN memories m on am.memory_id = m.id
-             JOIN sites s on m.site_id = s.id
-             JOIN projects p on s.project_id = p.id
-             JOIN users mu ON am.user_id = mu.id
-             JOIN users ru ON am.user_id = ru.id
-    GROUP BY am.memory_id
-    ORDER BY report_count DESC;
-END $$
 
 DROP PROCEDURE IF EXISTS hide_reported_things;
 CREATE PROCEDURE hide_reported_things()
 BEGIN
+    # Comments
     UPDATE comments c
         JOIN (
-            SELECT ac.comment_id,
+            SELECT comment_id,
                    COUNT(*) AS report_count
-            FROM audit_comments ac
-            GROUP BY ac.comment_id
-        ) ac ON ac.comment_id = c.id
+            FROM audit_comments
+            GROUP BY comment_id
+        ) audit ON audit.comment_id = c.id
     SET c.published = 0
-    WHERE ac.report_count > 10;
+    WHERE audit.report_count > 10;
+    # Memories
     UPDATE memories m
         JOIN (
-            SELECT am.memory_id,
+            SELECT memory_id,
                    COUNT(*) AS report_count
-            FROM audit_memories am
-            GROUP BY am.memory_id
-        ) am ON am.memory_id = m.id
+            FROM audit_memories
+            GROUP BY memory_id
+        ) audit ON audit.memory_id = m.id
     SET m.published = 0
-    WHERE am.report_count > 10;
+    WHERE audit.report_count > 10;
+    # Sites
+    UPDATE sites s
+        JOIN (
+            SELECT site_id,
+                   COUNT(*) AS report_count
+            FROM audit_sites
+            GROUP BY site_id
+        ) audit ON audit.site_id = s.id
+    SET s.published = 0
+    WHERE audit.report_count > 10;
+    # End
 END $$
 
-CREATE EVENT report_watchdog
+CREATE EVENT IF NOT EXISTS report_watchdog
     ON SCHEDULE EVERY 12 HOUR
         STARTS '2021-01-01 00:00:00'
     DO CALL hide_reported_things() $$
