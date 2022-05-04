@@ -17,4 +17,4 @@ COPY ./src/test/server/login/oauth_test_module.py ./src/muistot/login/providers/
 COPY ./src/test/core/mailer_test_module.py ./src/muistot/mailer/imaginary.py
 # Install
 RUN pip install ./src
-CMD pytest -x && echo 'Tests Done'
+CMD pytest && echo 'Tests Done'
