@@ -121,6 +121,7 @@ class ConnectionExecutor:
             yield c
         finally:
             c.close()
+            del c
 
     def _execute(self, query, args):
         with self._query(query, args):
