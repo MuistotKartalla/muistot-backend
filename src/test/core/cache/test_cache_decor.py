@@ -12,16 +12,19 @@ class Mock:
 
 @pytest.fixture
 def evicting():
-    Cache.evicting = True
+    Cache._evicting = True
     yield
-    Cache.evicting = False
+    Cache._evicting = False
 
 
 @pytest.fixture(autouse=True)
 def clear_instances():
+    old = Cache._always_evict.copy()
+    Cache._always_evict.clear()
     CachesMeta.instances.clear()
     yield
     CachesMeta.instances.clear()
+    Cache._always_evict = old
 
 
 def test_instance_same():

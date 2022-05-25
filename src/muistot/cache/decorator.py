@@ -1,7 +1,9 @@
+import collections
 import contextlib
 import functools
 import hashlib
 import inspect
+import itertools
 import threading
 import typing
 
@@ -17,11 +19,48 @@ from ..database import DatabaseDependency
 from ..security import User
 
 
-class DelayMarker:
+class LazyDelegator:
+    __slots__ = ['dep', 'wrapped', 'stack']
+
+    wrapped: typing.Any
+    stack: contextlib.AsyncExitStack
+    dep: typing.Optional[DatabaseDependency]
+
+    def __init__(self, wrapped, stack):
+        self.wrapped = wrapped
+        self.stack = stack
+        self.dep = None
+
+    def __getattr__(self, item: str):
+        """
+        Delegate Calls with Lazy Initialization
+
+        This will fail if the first attribute called is not async
+        """
+        if self.dep is None:
+            async def proxy_call(*args, **kwargs):
+                self.dep = await self.stack.enter_async_context(self.wrapped())
+                return await getattr(self.dep, item)(*args, **kwargs)
+
+            return proxy_call
+        else:
+            return getattr(self.dep, item)
+
+
+class DelayedDependency:
     """
     This is used to delay database dependency gets to not run out of connections
     """
-    actual_dependency: DatabaseDependency
+    stack: contextlib.AsyncExitStack
+    wrapped: typing.Any
+
+    def __init__(self, dependency: DatabaseDependency):
+        self.wrapped = contextlib.asynccontextmanager(dependency)
+
+    async def __call__(self):
+        """FastAPI"""
+        async with contextlib.AsyncExitStack() as stack:
+            yield LazyDelegator(self.wrapped, stack)
 
 
 STORAGE = "entity-cache:{}:"
@@ -29,16 +68,6 @@ SHIM_KEY = "__cache_shim__"
 TTL = Config.cache.cache_ttl
 
 FUNC_TYPE = typing.Callable[..., typing.Awaitable[BaseModel]]
-
-
-def get_database_delayed(actual_dependency):
-    marker = DelayMarker()
-    marker.actual_dependency = contextlib.asynccontextmanager(actual_dependency)
-
-    async def database_depends_delay_shim():
-        return marker
-
-    return database_depends_delay_shim
 
 
 def shash(data: typing.Iterable[typing.Any]):
@@ -64,7 +93,7 @@ def _add_shim(f: FUNC_TYPE, replace_deps: bool = False) -> FUNC_TYPE:
         """
         for v in s.parameters.values():
             if type(v.default) == DependsParam and type(v.default.dependency) == DatabaseDependency:
-                v = v.replace(default=Depends(get_database_delayed(v.default.dependency), use_cache=False))
+                v = v.replace(default=Depends(DelayedDependency(v.default.dependency), use_cache=False))
             params.append(v)
     else:
         params.extend(s.parameters.values())
@@ -117,15 +146,28 @@ class CachesMeta(type):
 
 
 class Cache(metaclass=CachesMeta):
-    evicting = False
-    evicted = set()
+    _evicting = False
+    _always_evict = collections.deque()
+    _evicted = set()
 
-    def __init__(self, prefix: str, *, evicts: typing.Set[str] = None):
+    Operator: 'CacheOperator'
+    """
+    Typehint Access for Operator
+    """
+
+    Inject: typing.Any = object()
+    """
+    Inject marker for Cache.use decorator
+    """
+
+    def __init__(self, prefix: str, *, evicts: typing.Set[str] = None, always_evict: bool = False):
         self.name = prefix
         self.store_prefix = STORAGE.format(prefix)
         self.evicts = list(evicts) if evicts is not None else list()
         # Locking
         self.lock = threading.Lock()
+        if always_evict:
+            Cache._always_evict.append(self)
 
     async def _get_from_cache(
             self,
@@ -143,29 +185,10 @@ class Cache(metaclass=CachesMeta):
             with self.lock:
                 data = r.get(key)
                 if data is None:
-                    """
-                    Replaces any Delayed dependencies and calls the actual endpoint function
-                    
-                    This allows leaving the actual database resolution to the last possible moment
-                    to avoid consuming connections for calls that do not need them.
-                    
-                    This will increase the amount of concurrent connections the high load endpoints
-                    can take without running out of connections.
-                    
-                    This doesn't however prevent the program from running out of connections if there
-                    are many calls made to endpoints without caching support.
-                    """
-                    async with contextlib.AsyncExitStack() as stack:
-                        new_kwargs = dict()
-                        for k, v in kwargs.items():
-                            if type(v) != DelayMarker:
-                                new_kwargs[k] = v
-                            else:
-                                new_kwargs[k] = await stack.enter_async_context(v.actual_dependency())
-                        response_entity: BaseModel = await f(*args, **new_kwargs)
-                        r.sadd(f"{prefix}all".encode("ascii"), key)
-                        r.set(key, response_entity.json(), ex=TTL)
-                        return response_entity
+                    response_entity: BaseModel = await f(*args, **kwargs)
+                    r.sadd(f"{prefix}all".encode("ascii"), key)
+                    r.set(key, response_entity.json(), ex=TTL)
+                    return response_entity
         return Response(status_code=200, content=data, media_type=JSONResponse.media_type)
 
     def key(self, key: str):
@@ -174,7 +197,7 @@ class Cache(metaclass=CachesMeta):
             @functools.wraps(f)
             async def wrapper(*args, **kwargs):
                 c, u = _pop(kwargs)
-                if Cache.evicting:
+                if Cache._evicting:
                     return await f(*args, **kwargs)
                 return await self._get_from_cache(
                     c.redis,
@@ -183,6 +206,7 @@ class Cache(metaclass=CachesMeta):
                     kwargs,
                     self.store_prefix,
                     "key",
+                    f.__name__,
                     *u.scopes,
                     key
                 )
@@ -199,7 +223,7 @@ class Cache(metaclass=CachesMeta):
             @functools.wraps(f)
             async def wrapper(*func_args, **func_kwargs):
                 c, u = _pop(func_kwargs)
-                if Cache.evicting or (exclude is not None and exclude(*func_args, **func_kwargs)):
+                if Cache._evicting or (exclude is not None and exclude(*func_args, **func_kwargs)):
                     return await f(*func_args, **func_kwargs)
                 key = iter(func_kwargs[arg] if arg in func_kwargs else args[idx_lookup[arg]] for arg in args)
                 return await self._get_from_cache(
@@ -209,6 +233,7 @@ class Cache(metaclass=CachesMeta):
                     func_kwargs,
                     self.store_prefix,
                     "args",
+                    f.__name__,
                     *u.scopes,
                     *key
                 )
@@ -218,7 +243,7 @@ class Cache(metaclass=CachesMeta):
         return cache_decorator
 
     def _evict(self, r: redis.Redis):
-        Cache.evicted.add(self.name)
+        Cache._evicted.add(self.name)
         set_key = f"{self.store_prefix}all".encode("ascii")
         keys = r.smembers(set_key)
         if keys is not None:
@@ -230,17 +255,67 @@ class Cache(metaclass=CachesMeta):
 
         @functools.wraps(f)
         async def wrapper(*func_args, **func_kwargs):
-            Cache.evicting = True
-            Cache.evicted.clear()
+            Cache._evicting = True
+            Cache._evicted.clear()
             try:
                 c, u = _pop(func_kwargs)
                 self._evict(c.redis)
-                for cache in self.evicts:
-                    if cache not in Cache.evicted:
+                for cache in itertools.chain(self.evicts, Cache._always_evict):
+                    if cache not in Cache._evicted:
                         Cache(cache)._evict(c.redis)
             finally:
-                Cache.evicted.clear()
-                Cache.evicting = False
+                Cache._evicted.clear()
+                Cache._evicting = False
             return await f(*func_args, **func_kwargs)
 
         return _add_shim(wrapper)
+
+    async def operate(self, r: Request):
+        """FastAPI
+        """
+        yield CacheOperator(self, r.state.cache)
+
+    def use(self, f: FUNC_TYPE) -> FUNC_TYPE:
+
+        @functools.wraps(f)
+        async def wrapper(*func_args, **func_kwargs):
+            func_kwargs.pop(SHIM_KEY)
+            return await f(*func_args, **func_kwargs)
+
+        params = list()
+        s = inspect.signature(f)
+        for k, v in s.parameters.items():
+            if v.default is Cache.Inject:
+                v = v.replace(default=Depends(self.operate))
+            params.append(v)
+
+        wrapper.__signature__ = s.replace(parameters=params)
+
+        return _add_shim(wrapper, replace_deps=True)
+
+
+class CacheOperator:
+    def __init__(self, p: 'Cache', r: redis.Redis):
+        self.parent = p
+        self.redis = r
+
+    def set(
+            self,
+            *keys: typing.Any,
+            data: typing.Union[str, bytes],
+            prefix: typing.Literal["key", "args", "custom"] = "custom"
+    ):
+        key = f"{self.parent.store_prefix}{prefix}:".encode("ascii") + shash(keys)
+        self.redis.set(key, data)
+        self.redis.sadd(f"{self.parent.store_prefix}all".encode("ascii"), key)
+
+    def get(
+            self,
+            *keys: typing.Any,
+            prefix: typing.Literal["key", "args", "custom"] = "custom"
+    ):
+        key = f"{self.parent.store_prefix}{prefix}:".encode("ascii") + shash(keys)
+        return self.redis.get(key)
+
+
+Cache.Operator = CacheOperator

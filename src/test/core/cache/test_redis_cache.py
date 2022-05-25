@@ -58,3 +58,13 @@ def test_connect_on_startup():
     with TestClient(app):
         assert i.redis is not None
     assert i.redis is None
+
+
+def test_disconnect_without_connect_ok():
+    from fastapi import FastAPI
+    app = FastAPI()
+    use_redis_cache(app)
+    i = app.state.FastStorage
+    assert i.redis is None
+    i.disconnect()
+    assert i.redis is None
