@@ -20,20 +20,23 @@ def is_allowed(file_type: str):
     return file_type in Config.files.allowed_filetypes
 
 
-def check_file(compressed_data: str) -> Tuple[Optional[bytes], Optional[str]]:
+def check_file(input_data: str) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Input data in Base64 with optional mime prefix
+    """
     file_type = "None"
     try:
         import magic
-        compressed_data = re.sub(PREFIX, "", compressed_data[:100], count=1) + compressed_data[100:]
-        raw_data = base64.b64decode(compressed_data, validate=True)
+        input_data = re.sub(PREFIX, "", input_data[:100], count=1) + input_data[100:]
+        raw_data = base64.b64decode(input_data, validate=True)
         file_type: str = magic.Magic(mime=True).from_buffer(raw_data)
         if is_allowed(file_type):
             return raw_data, re.sub(MIME_PREFIX, "", file_type)
-    except (binascii.Error, IndexError):
+    except (binascii.Error, UnicodeEncodeError):
         pass
     except Exception as e:
         log.exception(
-            f"Exception in file validation\n{file_type}\n{compressed_data[:40]}",
+            f"Exception in file validation\n{file_type}\n{repr(input_data)}",
             exc_info=e,
         )
     return None, None
@@ -59,37 +62,25 @@ class Files:
         :param file_data:   data in base64
         :return:            image_id if one was generated
         """
-        if file_data is not None and (
-                Config.files.allow_anonymous or self.user.is_authenticated
-        ):
+        if file_data is not None and self.user.is_authenticated:
             data, file_type = check_file(file_data)
             if data is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad image")
-            if self.user.is_authenticated:
-                m = await self.db.fetch_one(
-                    """
-                    INSERT INTO images (uploader_id, file_name) 
-                    SELECT
-                        u.id,
-                        CONCAT_WS('.', UUID(), :file_type)
-                    FROM users u
-                        WHERE u.username = :user
-                    RETURNING id, file_name
-                    """,
-                    values=dict(user=self.user.identity, file_type=file_type),
-                )
-            else:
-                m = await self.db.fetch_one(
-                    """
-                    INSERT INTO images (file_name)
-                    VALUE (CONCAT_WS('.', UUID(), :file_type))
-                    RETURNING id, file_name
-                    """,
-                    values=dict(file_type=file_type)
-                )
+            m = await self.db.fetch_one(
+                """
+                INSERT INTO images (uploader_id, file_name) 
+                SELECT
+                    u.id,
+                    CONCAT_WS('.', UUID(), :file_type)
+                FROM users u
+                    WHERE u.username = :user
+                RETURNING id, file_name
+                """,
+                values=dict(user=self.user.identity, file_type=file_type),
+            )
             if m is None:
                 log.warning(f"Failure to insert file\n{self.user.identity}")
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
             image_id = m[0]
             file_name = m[1]
             with open(self.path(file_name), "wb") as f:
@@ -107,7 +98,7 @@ class Files:
 
     @staticmethod
     def path(image: str):
-        if not Files.PATH.match(image):
+        if not Files.PATH.fullmatch(image):
             raise ValueError("Bad Path")
         else:
             return Config.files.location / image
