@@ -52,11 +52,15 @@ async def _actual_exists(repo: BaseRepo, arg: Any) -> Status:
 
     Imports the required module and gets the exists checker.
     """
-    service = _import_service(repo)
     kwargs = repo.identifiers
     kwargs[_name(repo).lower()] = arg
+    service = _import_service(repo)(user=repo.user, db=repo.db, **kwargs)
+    out = await service.exists()
 
-    out = await service(user=repo.user, db=repo.db, **kwargs).exists()
+    repo.auto_publish = Status.AUTO_PUBLISH in out
+    if repo.lang is None:
+        repo.lang = service.default_language
+
     return out | Status.SUPER if repo.superuser else out
 
 

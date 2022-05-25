@@ -147,9 +147,35 @@ def image():
 
 
 @pytest.fixture
-def auto_publish():
-    from muistot.config import Config
-    pre = Config.security.auto_publish
-    Config.security.auto_publish = True
+async def auto_publish(db, anyio_backend):
+    """
+    Tries to make projects auto publish in any scenario
+
+    Modify all existing
+      - Make published
+      - Set Auto Publish to True
+    Modify table
+      - Set defaults to true for auto_publish and published
+    Modify model
+      - Set auto_publish to True
+
+    But will not probably work in all cases
+    """
+    await db.execute("UPDATE projects SET auto_publish = TRUE, published = TRUE")
+    await db.execute("ALTER TABLE projects MODIFY COLUMN auto_publish BOOLEAN NOT NULL DEFAULT TRUE")
+    await db.execute("ALTER TABLE projects MODIFY COLUMN published BOOLEAN NOT NULL DEFAULT TRUE")
+
+    from muistot.backend.models import NewProject
+    f = NewProject.__fields__["auto_publish"]
+    old = f.default
+
+    f.default = True
+    NewProject.__schema_cache__.clear()
+
     yield
-    Config.security.auto_publish = pre
+
+    f.default = old
+    NewProject.__schema_cache__.clear()
+
+    await db.execute("ALTER TABLE projects MODIFY COLUMN auto_publish BOOLEAN NOT NULL DEFAULT FALSE")
+    await db.execute("ALTER TABLE projects MODIFY COLUMN published BOOLEAN NOT NULL DEFAULT FALSE")

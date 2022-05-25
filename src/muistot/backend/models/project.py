@@ -71,6 +71,7 @@ class NewProject(BaseModel):
     admins: Optional[List[UID]] = Field(default_factory=list, unique_items=True, description="Admins for the project.")
     contact: Optional[ProjectContact] = Field(description="Project contact details if any are available.")
     admin_posting: bool = Field(default=False, description="True if only admins can post")
+    auto_publish: bool = Field(default=False, description="True if children are automagically published")
 
     @root_validator(pre=False, skip_on_failure=True)
     def validate_dates(cls, value):
@@ -150,6 +151,7 @@ class ModifiedProject(BaseModel):
     contact: Optional[ProjectContact] = Field(description="Modified contact data if any")
     info: Optional[ProjectInfo] = Field(description="Modified or created info")
     default_language: Optional[str] = Field(description="For changing project default language")
+    auto_publish: Optional[bool] = Field(description="True if posts are automagically published")
 
     @validator("default_language")
     def validate_lang(cls, lang):

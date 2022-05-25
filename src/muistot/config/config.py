@@ -62,18 +62,22 @@ class Sessions(BaseModel):
 
 class Security(BaseModel):
     bcrypt_cost: int = 12
-    auto_publish: bool = False
     oauth: Dict[str, Dict] = Field(default_factory=dict)
+
+    class Config:
+        extra = Extra.ignore
 
 
 class FileStore(BaseModel):
     location: DirectoryPath = Field(default_factory=lambda: Path("/opt/files"))
-    allow_anonymous: bool = False
     allowed_filetypes: Set[str] = Field(default_factory=lambda: {
         "image/jpg",
         "image/jpeg",
         "image/png"
     })
+
+    class Config:
+        extra = Extra.ignore
 
 
 class Localization(BaseModel):

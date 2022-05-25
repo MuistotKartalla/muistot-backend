@@ -14,13 +14,17 @@ class CommentExists(Exists):
 
     _authenticated = (
         """
-        SELECT p.published,
-               s.published,
-               m.published,
-               c.published,
-               u.username = :user,
-               NOT ISNULL(pa.user_id)
+        SELECT p.published              AS project_published,
+               p.admin_posting,
+               p.auto_publish,
+               l.lang                   AS default_language,
+               NOT ISNULL(pa.user_id)   AS is_admin,
+               s.published              AS site_published,
+               m.published              AS memory_published,
+               c.published              AS comment_published,
+               u.username = :user       AS is_creator
         FROM projects p
+            JOIN languages l on p.default_language_id = l.id
                  LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
                  LEFT JOIN memories m ON s.id = m.site_id
@@ -39,11 +43,15 @@ class CommentExists(Exists):
 
     _plain = (
         """
-        SELECT p.published, 
-               s.published,
-               m.published,
-               c.published
+        SELECT p.published              AS project_published,
+               p.admin_posting,
+               p.auto_publish,
+               l.lang                   AS default_language,
+               s.published              AS site_published,
+               m.published              AS memory_published,
+               c.published              AS comment_published
         FROM projects p
+            JOIN languages l on p.default_language_id = l.id
                  LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
                  LEFT JOIN memories m ON s.id = m.site_id
@@ -79,24 +87,21 @@ class CommentExists(Exists):
 
         if m is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-        elif m[1] is None:
+        elif m["site_published"] is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
-        elif m[2] is None:
+        elif m["memory_published"] is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
 
-        s: Status = Status.start(m[3]).add_published(m, 3)
-
-        if self.authenticated:
-            s = s.add_admin(m, 5).add_own(m, 4)
+        s: Status = self.start(m, "comment_published")
 
         if s.own or s.admin:
             return s
 
-        if m[0] == 0:
+        if not m["project_published"]:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-        elif m[1] == 0:
+        elif not m["site_published"]:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
-        elif m[2] == 0:
+        elif not m["memory_published"]:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
 
         return s

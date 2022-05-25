@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Flag, auto
 from functools import wraps
-from typing import Any, Mapping
+from typing import Any, Mapping, Union
 
 from ....database import Database
 from ....security import User
@@ -27,6 +27,7 @@ class Status(Flag):
     ADMIN = auto()
     SUPER = auto()
     ADMIN_POSTING = auto()
+    AUTO_PUBLISH = auto()
 
     @property
     def own(self) -> bool:
@@ -54,26 +55,31 @@ class Status(Flag):
             return Status.EXISTS
 
     @exists
-    def add_published(self, m: Mapping, value: int) -> "Status":
+    def add_published(self, m: Mapping, value: Union[int, str]) -> "Status":
         """Add information if this resource is published
         """
         return self | Status.PUBLISHED if m[value] else self | Status.NOT_PUBLISHED
 
-    def add_admin(self, m: Mapping, value: int) -> "Status":
-        """Add information on if this user is an admin
-        """
-        return self | Status.ADMIN if m is not None and m[value] else self
-
     @exists
-    def add_own(self, m: Mapping, value: int) -> "Status":
+    def add_own(self, m: Mapping, value: Union[int, str] = 'is_creator') -> "Status":
         """Add information if this resource is the users own creation
         """
         return self | Status.OWN if m[value] else self
 
-    def add_pap(self, m: Mapping, value: int) -> "Status":
+    def add_admin(self, m: Mapping, value: Union[int, str] = 'is_admin') -> "Status":
+        """Add information on if this user is an admin
+        """
+        return self | Status.ADMIN if m is not None and m[value] else self
+
+    def add_pap(self, m: Mapping, value: Union[int, str] = 'admin_posting') -> "Status":
         """Project admin posting
         """
-        return self | Status.ADMIN_POSTING if m[value] else self
+        return self | Status.ADMIN_POSTING if m is not None and m[value] else self
+
+    def add_autopub(self, m: Mapping, value: Union[int, str] = 'auto_publish') -> "Status":
+        """Project automatically publishes posting
+        """
+        return self | Status.AUTO_PUBLISH if m is not None and m[value] else self
 
 
 class Exists(ABC):
@@ -81,6 +87,7 @@ class Exists(ABC):
     """
     _plain: str
     _authenticated: str
+    _lang: str
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -144,6 +151,25 @@ class Exists(ABC):
         fastapi.HTTPException
             On failure to meet prerequisites
         """
+
+    @property
+    def default_language(self):
+        return getattr(self, "_lang", "fi")
+
+    def start(self, m: Mapping, tag: str) -> Status:
+        self._lang = m["default_language"]
+        if self.authenticated:
+            return Status.start(m[tag]) \
+                .add_published(m, tag) \
+                .add_pap(m) \
+                .add_autopub(m) \
+                .add_admin(m) \
+                .add_own(m)
+        else:
+            return Status.start(m[tag]) \
+                .add_published(m, tag) \
+                .add_pap(m) \
+                .add_autopub(m)
 
 
 __all__ = [

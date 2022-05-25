@@ -27,7 +27,10 @@ class ProjectRepo(BaseRepo):
             COUNT(s.id)                                         AS sites_count,
             
             IF(p.starts IS NULL, TRUE, p.starts < CURDATE())    AS start_date,
-            IF(p.ends IS NULL, TRUE, p.ends > CURDATE())        AS end_date
+            IF(p.ends IS NULL, TRUE, p.ends > CURDATE())        AS end_date,
+            
+            p.admin_posting,
+            p.auto_publish
 
             %s
         FROM projects p
@@ -228,30 +231,29 @@ class ProjectRepo(BaseRepo):
                     modifier_id,
                     default_language_id,
                     image_id,
-                    published,
                     name,
                     starts,
                     ends,
-                    admin_posting
+                    admin_posting,
+                    auto_publish
             )
             SELECT u.id,
                    l.id,
                    :image_id,
-                   :published,
                    :id,
                    :starts,
                    :ends,
-                   :admin_posting
+                   :admin_posting,
+                   :auto_publish
             FROM users u
                      JOIN languages l ON l.lang = :lang
             WHERE u.username = :user
             """,
             values=dict(
-                **model.dict(include={"id", "starts", "ends", "admin_posting"}),
+                **model.dict(include={"id", "starts", "ends", "admin_posting", "auto_publish"}),
                 image_id=image_id,
                 user=self.identity,
                 lang=model.info.lang,
-                published=self.auto_publish,
             ),
         )
         await self._handle_localization(model.id, model.info)

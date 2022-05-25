@@ -12,12 +12,15 @@ class SiteExists(Exists):
 
     _authenticated = (
         """
-        SELECT p.published,
-               s.published,
+        SELECT p.published              AS project_published,
                p.admin_posting,
-               NOT ISNULL(pa.user_id),
-               uc.username = :user
+               p.auto_publish,
+               l.lang                   AS default_language,
+               NOT ISNULL(pa.user_id)   AS is_admin,
+               s.published              AS site_published,
+               uc.username = :user      AS is_creator
         FROM projects p
+            JOIN languages l on p.default_language_id = l.id
                 LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
                 LEFT JOIN project_admins pa
@@ -31,10 +34,13 @@ class SiteExists(Exists):
 
     _plain = (
         """
-        SELECT p.published,
-               s.published,
-               p.admin_posting
+        SELECT p.published              AS project_published,
+               p.admin_posting,
+               p.auto_publish,
+               l.lang                   AS default_language,
+               s.published              AS site_published
         FROM projects p
+            JOIN languages l on p.default_language_id = l.id
                  LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
         WHERE p.name = :project
@@ -56,15 +62,12 @@ class SiteExists(Exists):
         if m is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-        s: Status = Status.start(m[1]).add_published(m, 1).add_pap(m, 2)
+        s: Status = self.start(m, "site_published")
 
-        if self.authenticated:
-            s = s.add_admin(m, 3).add_own(m, 4)
-
-        if s.admin:
+        if s.own or s.admin:
             return s
 
-        if m[0] == 0:
+        if not m["project_published"]:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
         return s

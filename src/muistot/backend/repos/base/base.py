@@ -7,7 +7,6 @@ from fastapi import Request, HTTPException, status
 
 from .utils import extract_language
 from ....cache import FastStorage
-from ....config import Config
 from ....database import Database
 from ....files import Files
 from ....logging import log
@@ -48,8 +47,8 @@ class BaseRepo(ABC):
             setattr(self, k, v)
         self._kwargs = dict(**kwargs)
         self._user: Union[User] = User.null()
-        self.lang = "fi"
-        self.auto_publish = Config.security.auto_publish
+        self.lang = None  # Late init from exists
+        self.auto_publish = False  # Late init from exists
 
     def configure(self, r: Request) -> "BaseRepo":
         """
