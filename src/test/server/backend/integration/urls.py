@@ -14,6 +14,7 @@ IMAGE = "/images/{}"
 ADMINS = PROJECT + "/admins"
 
 PUBLISH = "/admin/publish"
+REPORT = "/report"
 ENTRY = "/"
 
 STATUS = ROOT + AUTH_PREFIX + "/status"

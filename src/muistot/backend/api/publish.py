@@ -26,17 +26,10 @@ TABLE_MAP = {
 }
 
 
-class PUPOrder(BaseModel):
-    """
-    Publish-UnPublish Order
-
-    Setting entities in a project to a published or un-published state.
-    """
-
+class OrderBase(BaseModel):
     type: Literal["site", "memory", "comment", "project"]
     parents: Optional[Dict[Literal["site", "memory", "project"], Union[SID, MID, PID]]]
     identifier: Union[PID, SID, MID, CID]
-    publish: bool = True
 
     @root_validator(skip_on_failure=True, pre=False)
     def validate_composition(cls, values):
@@ -54,7 +47,8 @@ class PUPOrder(BaseModel):
             assert issubclass(MID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 2, BAD_PARENTS_CNT
             assert "project" in parents_ and "site" in parents_, BAD_PARENTS
-        elif type_ == "comment":
+        elif type_ == "comment":  # pragma: no branch
+            # This is exhaustive so marking no branch
             assert issubclass(CID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 3, BAD_PARENTS_CNT
             assert "project" in parents_ and "site" in parents_ and "memory" in parents_, BAD_PARENTS
@@ -62,7 +56,98 @@ class PUPOrder(BaseModel):
             for k, t in [("project", PID), ("site", SID), ("memory", MID)]:
                 if k in parents_:
                     assert issubclass(t, type(parents_[k])), f"{BAD_TYPE} {k}"
+        else:
+            values["parents"] = dict()
         return values
+
+
+async def check_exists(
+        order: OrderBase,
+        username: str,
+        db: Database,
+        check_published: bool = True
+):
+    keys = dict(
+        pid=order.identifier if order.type == "project" else order.parents.get("project", None),
+        sid=order.identifier if order.type == "site" else order.parents.get("site", None),
+        mid=order.identifier if order.type == "memory" else order.parents.get("memory", None),
+        cid=order.identifier if order.type == "comment" else None,
+        user=username,
+    )
+
+    m = await db.fetch_one(
+        """
+        SELECT
+            NOT p.published AS project_not_published,
+            
+            ISNULL(s.id)    AS sid,
+            NOT s.published AS site_not_published,
+            
+            ISNULL(m.id)    AS mid,
+            NOT m.published AS memory_not_published,
+            
+            ISNULL(c.id)    AS cid,
+            NOT c.published AS comment_not_published,
+            
+            NOT (
+                ISNULL(pa.user_id) 
+                AND 
+                ISNULL(u_super.id)
+            )               AS admin
+        FROM projects p
+            LEFT JOIN sites s ON p.id = s.project_id
+                AND s.name = :sid
+            LEFT JOIN memories m ON s.id = m.site_id
+                AND m.id = :mid
+            LEFT JOIN comments c ON m.id = c.memory_id
+                AND c.id = :cid
+            LEFT JOIN users u_super
+                    JOIN superusers su ON su.user_id = u_super.id  
+                ON u_super.username = :user
+            LEFT JOIN project_admins pa
+                    JOIN users u_admin ON u_admin.id = pa.user_id
+                        AND u_admin.username = :user
+                ON pa.project_id = p.id
+        WHERE p.name = :pid
+        """,
+        values=keys
+    )
+
+    admin: bool = m["admin"] if m is not None else False
+
+    if m is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nproject")
+    if (order.parents.get("site", None) or order.type == "site") and m["sid"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nsite")
+    if (order.parents.get("memory", None) or order.type == "memory") and m["mid"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nmemory")
+    if order.type == "comment" and m["cid"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\ncomment")
+
+    if not admin:
+        if (
+                order.parents.get("project", None) or (check_published and order.type == "project")
+        ) and m["project_not_published"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nproject")
+        if (
+                order.parents.get("site", None) or (check_published and order.type == "site")
+        ) and m["site_not_published"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nsite")
+        if (
+                order.parents.get("memory", None) or (check_published and order.type == "memory")
+        ) and m["memory_not_published"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nmemory")
+        if check_published and order.type == "comment" and m["comment_not_published"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\ncomment")
+
+
+class PUPOrder(OrderBase):
+    """
+    Publish-UnPublish Order
+
+    Setting entities in a project to a published or un-published state.
+    """
+    publish: bool = True
 
     class Config:
         __examples__ = {
@@ -72,6 +157,9 @@ class PUPOrder(BaseModel):
                     "type": "site",
                     "identifier": "my-awesome-site#1234",
                     "publish": True,
+                    "parents": {
+                        "project": "my-awesome-project",
+                    }
                 },
             },
             "unpublish": {
@@ -86,7 +174,10 @@ class PUPOrder(BaseModel):
                 ),
                 "value": {
                     "type": "memory",
-                    "parents": {"site": "my-awesome-site#1234"},
+                    "parents": {
+                        "project": "my-awesome-project",
+                        "site": "my-awesome-site#1234",
+                    },
                     "identifier": 1234,
                     "publish": False,
                 },
@@ -102,7 +193,11 @@ class PUPOrder(BaseModel):
                 ),
                 "value": {
                     "type": "comment",
-                    "parents": {"site": "my_site", "memory": 34},
+                    "parents": {
+                        "project": "my-awesome-project",
+                        "site": "my_site",
+                        "memory": 34,
+                    },
                     "identifier": 1,
                     "publish": True,
                 },
@@ -157,6 +252,7 @@ async def publish(
                     + ''.join(map(lambda p: f'\nProject: {p}', r.user.admin_projects))
             ),
         )
+    await check_exists(order, r.user.identity, db, check_published=False)
     await db.execute(
         f"""
         UPDATE {TABLE_MAP[order.type]}
@@ -169,3 +265,64 @@ async def publish(
         resp.status_code = status.HTTP_204_NO_CONTENT
     else:
         resp.status_code = status.HTTP_304_NOT_MODIFIED
+
+
+class ReportOrder(OrderBase):
+    class Config:
+        __examples__ = {
+            "publish": {
+                "summary": "Reporting a site",
+                "value": {
+                    "type": "site",
+                    "identifier": "my-awesome-site#1234",
+                    "parents": {
+                        "project": "my-awesome-project",
+                    }
+                },
+            },
+        }
+
+
+@router.post(
+    "/report",
+    description=dedent(
+        """
+        This is a catch all endpoint for reporting.
+        """
+    ),
+    response_class=Response,
+    status_code=204,
+    responses={
+        304: d("The resource wasn't changed"),
+        204: d("Resource state changed successfully"),
+        400: d("Parent or identifier validation failed"),
+        404: d("Parents were not found"),
+        422: d("Invalid entity"),
+        403: d("Session token is invalid or user lacks privileges"),
+    },
+)
+@require_auth(scopes.AUTHENTICATED)
+async def report(
+        r: Request,
+        resp: Response,
+        order: ReportOrder = sample(ReportOrder),
+        db: Database = DEFAULT_DB
+):
+    if order.type == "project":
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
+    else:
+        await check_exists(order, r.user.username, db)
+        await db.execute(
+            f"""
+            INSERT IGNORE INTO audit_{TABLE_MAP[order.type]} ({order.type}_id, user_id)
+            SELECT r.id, u.id
+            FROM {TABLE_MAP[order.type]} r 
+                JOIN users u ON u.username = :user 
+            WHERE r.{ID_MAP[order.type]} = :id
+            """,
+            values=dict(id=order.identifier, user=r.user.identity),
+        )
+        if await db.fetch_val("SELECT ROW_COUNT()") == 1:
+            resp.status_code = status.HTTP_204_NO_CONTENT
+        else:
+            resp.status_code = status.HTTP_304_NOT_MODIFIED
