@@ -20,6 +20,7 @@ class Setup:
     project: PID
     site: SID
     memory: MID
+    comment: CID
 
     def __init__(self, *args):
         length = len(args)
@@ -27,6 +28,8 @@ class Setup:
             self.project, self.site, self.memory = args
         elif length == 2:
             self.project, self.site = args
+        elif length == 4:
+            self.project, self.site, self.memory, self.comment = args
         else:
             self.project = args[0]
 
