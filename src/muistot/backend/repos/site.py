@@ -301,3 +301,17 @@ class SiteRepo(BaseRepo):
             values=dict(id=site),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
+
+    @check.exists
+    async def report(self, site: SID):
+        await self.db.execute(
+            """
+            INSERT INTO audit_sites (site_id, lang_id, user_id) 
+            SELECT u.id, l.id, s.id 
+            FROM sites s 
+                JOIN users u ON u.username = :user 
+                JOIN languages l ON l.lang = :lang
+            WHERE s.name = :sid
+            """,
+            values=dict(user=self.identity, lang=self.lang, sid=site)
+        )

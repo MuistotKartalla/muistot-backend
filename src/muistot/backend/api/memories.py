@@ -161,3 +161,29 @@ async def publish_memory(
     repo.configure(r)
     changed = await repo.toggle_publish(memory, publish)
     return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)
+
+
+@router.post(
+    "/projects/{project}/sites/{site}/memories/{memory}/report",
+    description=dedent(
+        """
+        REports this memory
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
+)
+@require_auth(scopes.AUTHENTICATED)
+@caches.evict
+async def report_memory(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        publish: bool,
+        db: Database = DEFAULT_DB,
+):
+    repo = MemoryRepo(db, project, site)
+    repo.configure(r)
+    await repo.report(memory, publish)
+    return modified(r.url_for("get_memory", project=project, site=site, memory=str(memory)))

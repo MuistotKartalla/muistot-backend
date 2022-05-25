@@ -168,7 +168,7 @@ async def delete_comment(
     responses=rex.modify(),
     response_class=Response,
 )
-@require_auth(scopes.AUTHENTICATED)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 @caches.evict
 async def publish_comment(
         r: Request,
@@ -191,4 +191,39 @@ async def publish_comment(
             comment=str(comment),
         ),
         changed,
+    )
+
+
+@router.post(
+    "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}/report",
+    description=dedent(
+        """
+        Reports this comment
+        """
+    ),
+    responses=rex.delete(),
+    response_class=Response,
+)
+@require_auth(scopes.AUTHENTICATED)
+@caches.evict
+async def report_comment(
+        r: Request,
+        project: PID,
+        site: SID,
+        memory: MID,
+        comment: CID,
+        publish: bool,
+        db: Database = DEFAULT_DB,
+):
+    repo = CommentRepo(db, project, site, memory)
+    repo.configure(r)
+    await repo.report(comment, publish)
+    return deleted(
+        r.url_for(
+            "get_comment",
+            project=project,
+            site=site,
+            memory=str(memory),
+            comment=str(comment),
+        )
     )

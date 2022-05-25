@@ -165,3 +165,28 @@ async def publish_site(
     repo.configure(r)
     changed = await repo.toggle_publish(site, publish)
     return modified(lambda: r.url_for("get_site", project=project, site=site), changed)
+
+
+@router.post(
+    "/projects/{project}/sites/{site}/report",
+    description=dedent(
+        """
+        Reports this site
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@caches.evict
+async def report_site(
+        r: Request,
+        project: PID,
+        site: SID,
+        publish: bool,
+        db: Database = DEFAULT_DB
+):
+    repo = SiteRepo(db, project)
+    repo.configure(r)
+    await repo.report(site, publish)
+    return deleted(r.url_for("get_site", project=project, site=site))

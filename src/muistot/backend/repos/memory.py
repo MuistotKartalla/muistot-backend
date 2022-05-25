@@ -174,15 +174,6 @@ class MemoryRepo(BaseRepo):
     async def delete(self, memory: MID):
         await self.db.execute(
             """
-            UPDATE memories SET deleted = 1 WHERE id = :id
-            """,
-            values=dict(id=memory),
-        )
-
-    @check.admin
-    async def hard_delete(self, memory: MID):
-        await self.db.execute(
-            """
             DELETE FROM memories WHERE id = :id
             """,
             values=dict(id=memory),
@@ -198,41 +189,14 @@ class MemoryRepo(BaseRepo):
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
 
-    @check.parents
-    async def by_user(self, user: str) -> List[UserMemory]:
-        if (
-                await self.db.fetch_val(
-                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
-                    values=dict(user=user),
-                )
-                != 1
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
-        return [
-            UserMemory(**m)
-            async for m in self.db.iterate(
-                """
-            SELECT m.id,
-                   IF(m.deleted, '-', m.title)      AS title,
-                   IF(m.deleted, '-', m.story)      AS story,
-                   IF(m.deleted, '-', u.username)   AS user,
-                   IF(m.deleted, NULL, i.file_name) AS image,
-                   m.modified_at,
-                   COUNT(c.id)                      AS comments_count,
-                   p.name                           AS project,
-                   s.name                           AS site
+    @check.exists
+    async def report(self, memory: MID):
+        await self.db.execute(
+            """
+            INSERT INTO audit_memories (memory_id, user_id) 
+            SELECT :mid, u.id
             FROM users u
-                     JOIN memories m ON u.id = m.user_id
-                     JOIN sites s ON m.site_id = s.id
-                     JOIN projects p ON s.project_id = p.id
-                     JOIN images i ON m.image_id = i.id
-                     LEFT JOIN comments c ON m.id = c.memory_id
-                        AND c.published
-            WHERE u.username = :user
-            GROUP BY m.id
+            WHERE u.username = :user 
             """,
-                values=dict(user=user),
-            )
-        ]
+            values=dict(user=self.identity, mid=memory)
+        )

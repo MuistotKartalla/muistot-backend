@@ -155,36 +155,14 @@ class CommentRepo(BaseRepo):
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
 
-    @check.parents
-    async def by_user(self, user: str) -> List[UserComment]:
-        if (
-                await self.db.fetch_val(
-                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = :user)",
-                    values=dict(user=user),
-                )
-                != 1
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
-        return [
-            UserComment(**m)
-            async for m in self.db.iterate(
-                """
-            SELECT c.id,
-                   u.username AS user,
-                   c.comment,
-                   c.modified_at,
-                   p.name     AS project,
-                   s.name     AS site,
-                   m.id       AS memory
-            FROM users u 
-                     JOIN comments c ON c.user_id = u.id
-                     JOIN memories m ON c.memory_id = m.id
-                     JOIN sites s ON m.site_id = s.id
-                     JOIN projects p ON s.project_id = p.id
-            WHERE u.username = :user
+    @check.exists
+    async def report(self, comment: CID):
+        await self.db.execute(
+            """
+            INSERT INTO audit_comments (comment_id, user_id) 
+            SELECT :cid, u.id
+            FROM users u
+            WHERE u.username = :user 
             """,
-                dict(user=user),
-            )
-        ]
+            values=dict(user=self.identity, cid=comment)
+        )
