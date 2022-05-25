@@ -19,7 +19,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: test
     volumes:
-      - "./database/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro"
+      - "./database/schemas:/docker-entrypoint-initdb.d:ro"
   session-storage:
     image: redis:6-alpine
     restart: "no"
