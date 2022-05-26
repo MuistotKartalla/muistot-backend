@@ -4,7 +4,7 @@ from fastapi import Response, status, APIRouter
 from headers import LOCATION
 
 from . import _responses as rex
-from ._doctils import d, loc, sample
+from ._doctils import d, sample
 
 
 def created(url: str) -> Response:
@@ -63,4 +63,4 @@ def make_router(**kwargs) -> APIRouter:
     return router
 
 
-__all__ = ["created", "modified", "deleted", "make_router", "d", "loc", "sample", "rex"]
+__all__ = ["created", "modified", "deleted", "make_router", "d", "sample", "rex"]
