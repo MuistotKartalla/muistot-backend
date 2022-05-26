@@ -1,5 +1,3 @@
-from typing import Dict
-
 from fastapi import Body
 
 
@@ -24,15 +22,6 @@ def sample(model) -> Body:
     )
 
 
-def sample_response(model, description: str = None) -> Dict:
-    """Sample response from model"""
-    out = {}
-    if description:
-        out["description"] = description
-    out["content"] = {"application/json": {"examples": check_samples(model)}}
-    return out
-
-
 def d(_description: str, **kwargs):
     """Adds a description"""
     return {"description": _description, **kwargs}
@@ -41,6 +30,13 @@ def d(_description: str, **kwargs):
 def get_samples(model):
     """Introspect Model for samples"""
     if hasattr(model.Config, "__examples__"):
-        return sample_response(model)
+        return dict(
+            content={
+                "application/json":
+                    {
+                        "examples": check_samples(model)
+                    }
+            }
+        )
     else:
         return dict()
