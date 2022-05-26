@@ -5,6 +5,7 @@ from headers import LOCATION
 
 
 def check_samples(model):
+    """Check if model has samples and that they are okay"""
     import re
     samples = model.Config.__examples__
     for k, v in samples.items():
@@ -15,6 +16,7 @@ def check_samples(model):
 
 
 def sample(model) -> Body:
+    """Single sample for input parameter from JSON Body"""
     return Body(
         ...,
         examples=check_samples(model)
@@ -24,6 +26,7 @@ def sample(model) -> Body:
 
 
 def sample_response(model, description: str = None) -> Dict:
+    """Sample response from model"""
     out = {}
     if description:
         out["description"] = description
@@ -32,18 +35,22 @@ def sample_response(model, description: str = None) -> Dict:
 
 
 def d(_description: str, **kwargs):
+    """Adds a description"""
     return {"description": _description, **kwargs}
 
 
 def h(_h: str, _description: str, _type: str):
-    yield _h, {"description": _description, "type": _type}
+    """Adds header"""
+    return _h, {"description": _description, "type": _type}
 
 
 def loc(_description: str):
-    return next(h(LOCATION, _description, "string"))
+    """Adds location header"""
+    return h(LOCATION, _description, "string")
 
 
 def get_samples(model):
+    """Introspect Model for samples"""
     if hasattr(model.Config, "__examples__"):
         return sample_response(model)
     else:
