@@ -15,6 +15,9 @@ ADMINS = PROJECT + "/admins"
 
 PUBLISH = "/admin/publish"
 REPORT = "/report"
+REPORT_SITE = "/projects/{}/sites/{}/report"
+REPORT_MEMORY = "/projects/{}/sites/{}/memories/{}/report"
+REPORT_COMMENT = "/projects/{}/sites/{}/memories/{}/comments/{}/report"
 ENTRY = "/"
 
 STATUS = ROOT + AUTH_PREFIX + "/status"

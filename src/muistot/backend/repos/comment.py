@@ -159,7 +159,7 @@ class CommentRepo(BaseRepo):
     async def report(self, comment: CID):
         await self.db.execute(
             """
-            INSERT INTO audit_comments (comment_id, user_id) 
+            INSERT IGNORE INTO audit_comments (comment_id, user_id) 
             SELECT :cid, u.id
             FROM users u
             WHERE u.username = :user 

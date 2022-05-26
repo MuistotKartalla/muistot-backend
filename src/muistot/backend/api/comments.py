@@ -194,7 +194,7 @@ async def publish_comment(
     )
 
 
-@router.post(
+@router.put(
     "/projects/{project}/sites/{site}/memories/{memory}/comments/{comment}/report",
     description=dedent(
         """
@@ -212,12 +212,11 @@ async def report_comment(
         site: SID,
         memory: MID,
         comment: CID,
-        publish: bool,
         db: Database = DEFAULT_DB,
 ):
     repo = CommentRepo(db, project, site, memory)
     repo.configure(r)
-    await repo.report(comment, publish)
+    await repo.report(comment)
     return deleted(
         r.url_for(
             "get_comment",

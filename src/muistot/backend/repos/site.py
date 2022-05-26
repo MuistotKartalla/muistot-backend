@@ -306,11 +306,10 @@ class SiteRepo(BaseRepo):
     async def report(self, site: SID):
         await self.db.execute(
             """
-            INSERT INTO audit_sites (site_id, lang_id, user_id) 
-            SELECT u.id, l.id, s.id 
+            INSERT IGNORE INTO audit_sites (site_id, user_id) 
+            SELECT s.id, u.id 
             FROM sites s 
-                JOIN users u ON u.username = :user 
-                JOIN languages l ON l.lang = :lang
+                JOIN users u ON u.username = :user
             WHERE s.name = :sid
             """,
             values=dict(user=self.identity, lang=self.lang, sid=site)

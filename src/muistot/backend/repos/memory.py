@@ -193,7 +193,7 @@ class MemoryRepo(BaseRepo):
     async def report(self, memory: MID):
         await self.db.execute(
             """
-            INSERT INTO audit_memories (memory_id, user_id) 
+            INSERT IGNORE INTO audit_memories (memory_id, user_id) 
             SELECT :mid, u.id
             FROM users u
             WHERE u.username = :user 

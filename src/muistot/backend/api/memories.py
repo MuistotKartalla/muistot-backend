@@ -163,7 +163,7 @@ async def publish_memory(
     return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)
 
 
-@router.post(
+@router.put(
     "/projects/{project}/sites/{site}/memories/{memory}/report",
     description=dedent(
         """
@@ -180,10 +180,16 @@ async def report_memory(
         project: PID,
         site: SID,
         memory: MID,
-        publish: bool,
         db: Database = DEFAULT_DB,
 ):
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    await repo.report(memory, publish)
-    return modified(r.url_for("get_memory", project=project, site=site, memory=str(memory)))
+    await repo.report(memory)
+    return deleted(
+        r.url_for(
+            "get_memory",
+            project=project,
+            site=site,
+            memory=str(memory)
+        )
+    )
