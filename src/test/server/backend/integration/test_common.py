@@ -21,6 +21,12 @@ def test_lang(client):
     assert r.json() == {"id": "fin", "name": "Finnish", "alpha_2": "fi", "alpha_3": "fin"}
 
 
+def test_lang_no_short(client):
+    r = client.get("/languages?q=ace")
+    check_code(status.HTTP_200_OK, r)
+    assert r.json() == {"id": "ace", "name": "Achinese", "alpha_3": "ace"}
+
+
 def test_lang_not_found(client):
     r = client.get("/languages?q=xxx")
     check_code(status.HTTP_404_NOT_FOUND, r)
