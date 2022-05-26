@@ -6,7 +6,7 @@ from utils import *
 
 # noinspection DuplicatedCode
 @pytest.fixture(name="setup")
-async def setup(repo_config, db, anyio_backend, username):
+async def setup(repo_config, db, username):
     pid = await create_project(db, repo_config, admins=[username])
     sid = await create_site(pid, db, repo_config)
     mid = await create_memory(pid, sid, db, repo_config)

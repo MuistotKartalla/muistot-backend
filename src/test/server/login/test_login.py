@@ -10,7 +10,7 @@ from login_urls import STATUS, REGISTER, CONFIRM, PW_LOGIN
 
 
 @pytest.fixture
-async def admin(db, anyio_backend, user):
+async def admin(db, user):
     name = "'test_aaaaaa'"
     _id = await db.fetch_val(f"INSERT INTO projects (name, default_language_id) VALUE ({name}, 1) RETURNING id")
     await db.execute(f"INSERT INTO project_admins (project_id, user_id) VALUE ({_id}, {user.id})")
@@ -19,7 +19,7 @@ async def admin(db, anyio_backend, user):
 
 
 @pytest.fixture
-async def superuser(db, anyio_backend, user):
+async def superuser(db, user):
     await db.execute(f"INSERT INTO superusers (user_id) VALUE ({user.id})")
     yield
     await db.execute(f"DELETE FROM superusers WHERE user_id = {user.id}")

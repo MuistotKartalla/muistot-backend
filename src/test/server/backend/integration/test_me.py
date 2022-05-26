@@ -13,7 +13,7 @@ def user(users):
 
 
 @pytest.fixture(autouse=True)
-async def backup(db, anyio_backend, user):
+async def backup(db, user):
     pre = await db.fetch_one(
         "SELECT id, username, email, password_hash FROM users WHERE username = :user",
         values=dict(user=user.username)

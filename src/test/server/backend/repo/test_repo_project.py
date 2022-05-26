@@ -8,7 +8,7 @@ from muistot.security import User, scopes
 
 
 @pytest.fixture
-async def pid(db, anyio_backend):
+async def pid(db):
     name = "test_project_1234"
     await db.execute(f"INSERT INTO projects (name, default_language_id, published) VALUE ('{name}', 1, 1)")
     await db.execute(
@@ -20,14 +20,14 @@ async def pid(db, anyio_backend):
 
 
 @pytest.fixture
-async def dpid(db, anyio_backend):
+async def dpid(db):
     name = "test_project_12345678"
     yield name
     await db.execute(f"DELETE FROM projects WHERE name = '{name}'")
 
 
 @pytest.fixture
-async def user(pid, db, anyio_backend):
+async def user(pid, db):
     username = "test_user#1234"
     email = "testman@example.com"
     _id = await db.fetch_val(

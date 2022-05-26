@@ -50,7 +50,7 @@ def capture_mail():
 
 
 @pytest.fixture(scope="function")
-def client(db_instance, anyio_backend):
+def client(db_instance):
     app = FastAPI()
 
     async def mock_dep():
@@ -78,7 +78,7 @@ def client(db_instance, anyio_backend):
 
 
 @pytest.fixture
-async def non_existent_email(db, anyio_backend, client):
+async def non_existent_email(db, client):
     email = "does_not_Exist_in_tests@example.com"
     yield email
     await db.execute("DELETE FROM users WHERE email = :email", values=dict(email=email))

@@ -66,7 +66,7 @@ def users(_credentials):
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def delete_users(db_instance, _credentials, anyio_backend):
+async def delete_users(db_instance, _credentials):
     yield
     async with db_instance() as db:
         for username, _, _ in _credentials:
@@ -80,7 +80,7 @@ async def delete_users(db_instance, _credentials, anyio_backend):
 
 
 @pytest.fixture(name="login", autouse=True, scope="module")
-async def create_users(db_instance, _credentials, anyio_backend):
+async def create_users(db_instance, _credentials):
     async with db_instance() as db:
         for username, email, password in _credentials:
             await db.execute(
@@ -95,7 +95,7 @@ async def create_users(db_instance, _credentials, anyio_backend):
 
 
 @pytest.fixture(name="superuser")
-async def superuser(db, client, login, anyio_backend):
+async def superuser(db, client, login):
     await db.execute(
         "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
         values=dict(user=login[0]),
@@ -147,7 +147,7 @@ def image():
 
 
 @pytest.fixture
-async def auto_publish(db, anyio_backend):
+async def auto_publish(db):
     """
     Tries to make projects auto publish in any scenario
 

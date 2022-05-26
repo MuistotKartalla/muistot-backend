@@ -13,7 +13,7 @@ async def setup(repo_config, db):
 
 
 @pytest.fixture
-async def pid(db, anyio_backend):
+async def pid(db):
     from passlib.pwd import genword
     id_ = genword(length=25)
     yield id_

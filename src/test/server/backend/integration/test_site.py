@@ -8,7 +8,7 @@ from utils import *
 
 
 @pytest.fixture(name="setup")
-async def setup(repo_config, db, username, anyio_backend):
+async def setup(repo_config, db, username):
     pid = await create_project(db, repo_config, admins=[username])
     yield Setup(pid)
     await db.execute("DELETE FROM projects WHERE name = :project", dict(project=pid))
@@ -20,7 +20,7 @@ def admin(client, login):
 
 
 @pytest.fixture
-async def pap(setup, db, anyio_backend):
+async def pap(setup, db):
     await db.execute("UPDATE projects SET admin_posting = 1 WHERE name = :p", values=dict(p=setup.project))
     yield
 

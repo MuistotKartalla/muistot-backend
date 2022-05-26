@@ -24,7 +24,7 @@ async def db_instance(anyio_backend):
 
 
 @pytest.fixture(scope="function")
-async def db(db_instance, anyio_backend) -> Database:
+async def db(db_instance) -> Database:
     async with db_instance() as c:
         await c.execute('ROLLBACK')
         await c.execute('SET autocommit = 1')
@@ -34,7 +34,7 @@ async def db(db_instance, anyio_backend) -> Database:
 
 
 @pytest.fixture(scope="function")
-async def rollback(db, anyio_backend):
+async def rollback(db):
     await db.execute('COMMIT')
     await db.execute('SET autocommit = 0')
     await db.execute('BEGIN')
