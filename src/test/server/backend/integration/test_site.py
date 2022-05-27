@@ -94,8 +94,6 @@ def test_modify_location(setup, client, auth, auto_publish):
 
 def test_modify_location_same(setup, client, auth, auto_publish):
     """Change site location without actual change but return changed
-
-    TODO: Change this to check for 304 when caching is enabled
     """
     _id, site = _create_site()
 
@@ -455,3 +453,36 @@ def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
     assert b == sites_data[0] or b == sites_data[2]
     assert c == sites_data[0] or c == sites_data[2]
     assert b != a != c
+
+
+@pytest.mark.anyio
+async def test_sites_include_memories(client, setup, db, auth, auto_publish, repo_config):
+    _id, site = _create_site()
+    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    await create_memory(setup.project, site.id, db, repo_config)
+
+    r = client.get(SITE.format(*setup, _id) + "?include_memories=true", json=dict(), headers=auth)
+    check_code(status.HTTP_200_OK, r)
+    s = to(Site, r)
+    assert len(s.memories) == 1
+    assert s.memories_count == 1
+
+
+@pytest.mark.parametrize("q", [
+    "?n=1",
+    "?lat=10",
+    "?lon=10",
+    "?n=1&lat=10",
+    "?n=1&lon=10",
+    "?lat=10&lon=10",
+    "?n=0&lat=10&lon=10",
+    "?n=1&lat=-1&lon=10",
+    "?n=1&lat=100&lon=10",
+    "?n=1&lat=10&lon=-190",
+    "?n=1&lat=10&lon=190",
+])
+def test_site_fetch_by_distance_bad_params(client, setup, q):
+    r = client.get(SITES.format(*setup) + q)
+    check_code(status.HTTP_422_UNPROCESSABLE_ENTITY, r)

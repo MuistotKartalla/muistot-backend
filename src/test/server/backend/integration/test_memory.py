@@ -319,3 +319,4 @@ def test_fetch_with_comments(client, setup, auth, auto_publish):
 
     m = to(Memory, client.get(url + "?include_comments=true"))
     assert len(m.comments) == 10
+    assert m.comments_count == 10

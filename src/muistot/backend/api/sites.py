@@ -1,5 +1,6 @@
 from typing import Optional
 
+from fastapi import HTTPException, status
 from pydantic import conint, confloat
 
 from ._imports import *
@@ -29,11 +30,14 @@ caches = Cache("sites", evicts={"projects"})
 async def get_sites(
         r: Request,
         project: PID,
-        n: Optional[conint(ge=0)] = None,
+        n: Optional[conint(ge=1)] = None,
         lat: Optional[confloat(ge=0, le=90)] = None,
         lon: Optional[confloat(ge=-180, le=180)] = None,
         db: Database = DEFAULT_DB,
 ) -> Sites:
+    params = [n, lat, lon]
+    if not all(map(lambda o: o is None, params)) and not all(map(lambda o: o is not None, params)):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Bad Params")
     repo = SiteRepo(db, project)
     repo.configure(r)
     return Sites(items=await repo.all(n, lat, lon))
