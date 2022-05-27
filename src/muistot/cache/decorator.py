@@ -167,7 +167,7 @@ class Cache(metaclass=CachesMeta):
         # Locking
         self.lock = threading.Lock()
         if always_evict:
-            Cache._always_evict.append(self)
+            Cache._always_evict.append(prefix)
 
     async def _get_from_cache(
             self,
@@ -273,7 +273,10 @@ class Cache(metaclass=CachesMeta):
     async def operate(self, r: Request):
         """FastAPI
         """
-        yield CacheOperator(self, r.state.cache)
+        if Cache._evicting:
+            yield None
+        else:
+            yield CacheOperator(self, r.state.cache)
 
     def use(self, f: FUNC_TYPE) -> FUNC_TYPE:
 

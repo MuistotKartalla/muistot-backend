@@ -33,7 +33,9 @@ def test_instance_same():
     assert a is b
 
     c = Cache("projects")
+    d = Cache("projects")
     assert c is not a
+    assert c is d
 
 
 def test_index_of():
@@ -103,9 +105,11 @@ async def test_evict_loop_only_first():
     a = Cache("a", evicts={"b"})
     b = Cache("b", evicts={"a", "c"})
     c = Cache("c", evicts={"b"})
+    d = Cache("d", always_evict=True)
 
     evicted = [0]
     evicted_c = [0]
+    evicted_d = [0]
 
     def eviction_proxy(*_):
         evicted[0] += 1
@@ -113,9 +117,13 @@ async def test_evict_loop_only_first():
     def eviction_proxy_2(*_):
         evicted_c[0] += 1
 
+    def eviction_proxy_3(*_):
+        evicted_d[0] += 1
+
     a._evict = lambda *_: None
     b._evict = eviction_proxy
     c._evict = eviction_proxy_2
+    d._evict = eviction_proxy_3
 
     @a.evict
     async def assertion():
@@ -124,3 +132,120 @@ async def test_evict_loop_only_first():
     assert await assertion(**{SHIM_KEY: Mock})
     assert evicted[0] == 1
     assert evicted_c[0] == 0
+    assert evicted_d[0] == 1  # Always evict
+
+
+@pytest.mark.anyio
+async def test_cache_operate_inject():
+    from inspect import signature
+    from fastapi import Depends
+    a = Cache("test")
+
+    assert a.Inject is Cache.Inject
+
+    @a.use
+    async def assertion(_: a.Operator = a.Inject):
+        pass
+
+    assert isinstance(signature(assertion).parameters["_"].default, type(Depends(a.operate)))
+
+
+@pytest.mark.anyio
+async def test_cache_operate_missing_inject():
+    a = Cache("test")
+
+    @a.use
+    async def assertion(operator: a.Operator = None):
+        assert operator is None
+        return True
+
+    # this will raise if it provides operator
+    assert await assertion(**{SHIM_KEY: Mock})
+
+
+@pytest.mark.anyio
+async def test_cache_operate_yields():
+    a = Cache("test")
+
+    class Mock:
+        class state:
+            cache = None
+
+    operator = [o async for o in a.operate(Mock)][0]
+    assert isinstance(operator, a.Operator)
+
+
+@pytest.mark.anyio
+async def test_cache_operate_yields_none(evicting):
+    a = Cache("test")
+
+    class Mock:
+        class state:
+            cache = None
+
+    operator = [o async for o in a.operate(Mock)][0]
+    assert operator is None
+
+
+def test_operator_set_adds_key():
+    """Adds to set of all keys for clearing"""
+
+    class MockRedis:
+        ok = False
+
+        def set(self, *_, **__):
+            pass
+
+        def sadd(self, *_, **__):
+            MockRedis.ok = True
+
+    class MockParent:
+        store_prefix = "abc"
+
+    op = Cache.Operator(MockParent, MockRedis())
+
+    op.set('a', data=b'1234')
+
+    assert MockRedis.ok
+
+
+def test_operator_get_returns_value():
+    """Just a sanity check for returning raw value"""
+    flag = object()
+
+    class MockRedis:
+        ok = False
+
+        def get(self, *_, **__):
+            return flag
+
+    class MockParent:
+        store_prefix = "abc"
+
+    op = Cache.Operator(MockParent, MockRedis())
+
+    assert op.get('a') is flag
+
+
+@pytest.mark.anyio
+async def test_cache_evict_only_once():
+    a = Cache("a", evicts={"b"})
+    b = Cache("b", always_evict=True)
+
+    assert b.name == "b"
+
+    evict_count = [0]
+
+    def proxy(*_, **__):
+        Cache._evicted.add(b.name)
+        evict_count[0] += 1
+
+    a._evict = lambda *_, **__: None
+    b._evict = proxy
+
+    @a.evict
+    async def assertion():
+        return True
+
+    assert await assertion(**{SHIM_KEY: Mock})
+    assert evict_count[0] == 1  # fails if b was evicted twice (From a and always)
