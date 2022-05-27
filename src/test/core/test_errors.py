@@ -124,3 +124,15 @@ def test_api_error_additional():
     e = ApiError(400, "a", "b", "c")
     assert e.message == "a"
     assert e.details == ["b", "c"]
+
+
+@pytest.mark.anyio
+async def test_db_operational_error_2():
+    from pymysql.err import OperationalError
+    e = OperationalError()
+    e.__cause__ = TimeoutError()
+    r = await db_error_handler(None, e)
+    assert isinstance(r, ErrorResponse)
+    err = Error.parse_raw(r.body).error
+    assert err.code == 503
+    assert "Lost" in err.message
