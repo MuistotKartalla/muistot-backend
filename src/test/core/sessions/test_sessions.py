@@ -122,3 +122,41 @@ def test_decode_not_ascii():
     a = "öä"
     with pytest.raises(ValueError):
         assert decode(a)
+
+
+@pytest.mark.anyio
+async def test_manager_decode_data_correctness_missing():
+    class MockManager2(MockManager):
+
+        def get_session(self, token):
+            if token == "raise":
+                raise ValueError()
+            return Session(
+                user="a",
+                data=dict(
+                    scopes=[],
+                    projects=[]
+                ),
+            )
+
+    middleware2 = SessionManagerMiddleware(MockManager2())
+
+    class MockManager3(MockManager):
+
+        def get_session(self, token):
+            if token == "raise":
+                raise ValueError()
+            return Session(
+                user="a",
+                data=dict(
+                ),
+            )
+
+    middleware3 = SessionManagerMiddleware(MockManager3())
+
+    r = MockRequest("Bearer a")
+    a2, u2 = await middleware2.authenticate(r)
+    a3, u3 = await middleware3.authenticate(r)
+
+    assert u2.admin_projects == u3.admin_projects
+    assert u2.scopes == u3.scopes
