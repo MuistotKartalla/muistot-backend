@@ -171,3 +171,24 @@ async def test_connection_yielding(cfg):
 
     async with c() as cc:  # Should be a contextmanager
         assert isinstance(cc, Connection)
+
+
+@pytest.mark.anyio
+async def test_connection_iterate_handles_none(cfg):
+    async def nothing(*_, **__):
+        return None
+
+    class Executor:
+
+        @staticmethod
+        def submit(*_, **__):
+            from concurrent.futures import Future
+            f = Future()
+            f.set_result(None)
+            return f
+
+    conn = ConnectionExecutor(None, Executor)
+    conn._fetch_all = nothing
+
+    data = [o async for o in conn.iterate("")]
+    assert len(data) == 0

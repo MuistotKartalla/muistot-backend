@@ -170,3 +170,18 @@ async def test_email_login_non_verified_verifies(user, client, capture_mail, db)
     assert r.status_code == status.HTTP_200_OK
 
     assert await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
+
+
+@pytest.mark.anyio
+async def test_email_login_verified_ok(user, client, capture_mail, db):
+    """Sanity check"""
+    r = client.post(f"{EMAIL_LOGIN}?email={user.email}")
+    assert r.status_code == status.HTTP_204_NO_CONTENT
+
+    await db.execute(f"UPDATE users SET verified = 1 WHERE id = {user.id}")
+
+    token = capture_mail[("login", user.email)]["token"]
+    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token=token))}")
+    assert r.status_code == status.HTTP_200_OK
+
+    assert await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
