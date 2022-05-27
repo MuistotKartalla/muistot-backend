@@ -260,3 +260,62 @@ def test_fetch_all(client, setup, auto_publish, auth):
         check_code(status.HTTP_201_CREATED, r)
     c = to(Memories, client.get(MEMORIES.format(*setup)))
     assert len(c.items) == 10
+
+
+def test_modify_empty(client, auth, setup):
+    r = client.post(MEMORIES.format(*setup), json=NewMemory(title="ok").dict(), headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    r = client.patch(r.headers[LOCATION], json=dict(), headers=auth)
+    check_code(status.HTTP_304_NOT_MODIFIED, r)
+
+
+def test_get_own_unpulished(client, auth2, admin, setup):
+    r = client.post(MEMORIES.format(*setup), json=NewMemory(title="ok").dict(), headers=auth2)
+    check_code(status.HTTP_201_CREATED, r)
+
+    url = r.headers[LOCATION]
+
+    r = client.get(url, headers=auth2)
+    check_code(status.HTTP_200_OK, r)
+    c = to(Memory, r)
+    assert c.waiting_approval
+
+    r = client.get(url, headers=admin)
+    check_code(status.HTTP_200_OK, r)
+    c = to(Memory, r)
+    assert c.waiting_approval
+
+
+def test_fetch_all_privileged(client, setup, auth2, admin):
+    for i in range(0, 10):
+        m = NewMemory(title=f"Test title {i} not published").dict()
+        r = client.post(MEMORIES.format(*setup), json=m, headers=auth2)
+        check_code(status.HTTP_201_CREATED, r)
+    c = to(Memories, client.get(MEMORIES.format(*setup)))
+    assert len(c.items) == 0
+    c = to(Memories, client.get(MEMORIES.format(*setup), headers=auth2))
+    assert len(c.items) == 10
+    assert all(map(lambda o: o.waiting_approval, c.items))
+    c = to(Memories, client.get(MEMORIES.format(*setup), headers=admin))
+    assert len(c.items) == 10
+    assert all(map(lambda o: o.waiting_approval, c.items))
+
+
+def test_fetch_with_comments(client, setup, auth, auto_publish):
+    m = NewMemory(title=f"Test title not published").dict()
+    r = client.post(MEMORIES.format(*setup), json=m, headers=auth)
+    check_code(status.HTTP_201_CREATED, r)
+
+    url = r.headers[LOCATION]
+
+    for i in range(0, 10):
+        m = NewComment(comment=f"Test comment {i}").dict()
+        r = client.post(url + "/comments", json=m, headers=auth)
+        check_code(status.HTTP_201_CREATED, r)
+
+    m = to(Memories, client.get(MEMORIES.format(*setup) + "?include_comments=true"))
+    assert len(m.items[0].comments) == 10
+
+    m = to(Memory, client.get(url + "?include_comments=true"))
+    assert len(m.comments) == 10
