@@ -31,8 +31,6 @@ description = textwrap.dedent(
     The content is safe to be cached, if any parent node is deleted all children can be assumed gone as well.
     This means that a project being deleted (or unpublished) will lead to all its children being deleted.
     
-    Although the admin endpoint
-    
     Auth
     ----
     The authentication and session management is handled by the backend server.
@@ -116,7 +114,8 @@ register_databases(app)
 register_redis_cache(app)
 register_session_manager(app)
 
-if Config.testing:
+if Config.testing:  # pragma: no branch
+    # Only applied in testing
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
