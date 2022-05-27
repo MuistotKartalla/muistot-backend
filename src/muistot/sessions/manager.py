@@ -72,6 +72,7 @@ class SessionManager:
         """
         if self.redis is not None:
             self.redis.close()
+        self.connected = False
 
     def extend(self, value: Union[bytes, str]):
         """Extends a key in the Redis
@@ -81,6 +82,7 @@ class SessionManager:
         value
             Key to extend
         """
+        self.connect()
         if self.lifetime is not None:
             self.redis.expire(value, self.lifetime)
 
@@ -162,6 +164,7 @@ class SessionManager:
     def clear_stale(self, user: str):
         """Clears all stale user sessions
         """
+        self.connect()
         user_sessions = f"{USER_PREFIX}{user}"
         for session in self.redis.smembers(user_sessions):
             if not self.redis.exists(session):
@@ -170,6 +173,7 @@ class SessionManager:
     def get_sessions(self, user: str) -> List[Session]:
         """Gets all open user sessions
         """
+        self.connect()
         self.clear_stale(user)
         out = list()
         for session in self.redis.smembers(f"{USER_PREFIX}{user}"):

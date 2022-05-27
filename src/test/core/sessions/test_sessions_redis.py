@@ -109,3 +109,84 @@ def test_get_bad_session(mgr):
     with pytest.raises(ValueError) as e:
         mgr.get_session(encode(b"will-not-exist"))
     assert "invalid session" in str(e.value).lower()
+
+
+def test_disconnect_on_none():
+    mgr = SessionManager(redis_url="")
+    mgr.connected = True
+    assert mgr.redis is None
+    mgr.disconnect()
+    assert mgr.redis is None
+    assert not mgr.connected
+
+
+def test_none_lifetime():
+    mgr = SessionManager(redis_url="")
+    mgr.connected = True
+    mgr.redis = object()
+    mgr.lifetime = None
+    mgr.extend(b"adwadaw")  # Throws if null is not correctly handled
+
+
+def test_token_exists_retry():
+    class MockRedis:
+        cnt = 0
+
+        def exists(self, *_, **__):
+            MockRedis.cnt += 1
+            return MockRedis.cnt < 10
+
+        def smembers(self, *_, **__):
+            yield b"123"
+
+        def __getattr__(self, item):
+            return lambda *_, **__: None
+
+    mgr = SessionManager(redis_url="")
+    mgr.connected = True
+    mgr.redis = MockRedis()
+
+    s = Session(user="abcd", data=dict())
+    assert mgr.start_session(s) is not None
+    assert MockRedis.cnt >= 10
+
+
+def test_handle_none_end():
+    token = encode(b"123")
+
+    class MockRedis:
+        ok = True
+
+        def get(self, *_, **__):
+            return None
+
+        def srem(self, *_, **__):
+            MockRedis.ok = False
+
+        def __getattr__(self, item):
+            return lambda *_, **__: None
+
+    mgr = SessionManager(redis_url="")
+    mgr.connected = True
+    mgr.redis = MockRedis()
+    mgr.end_session(token)
+
+    assert MockRedis.ok  # Fails if rem is called
+
+
+def test_handle_none_in_gets():
+    class MockRedis:
+
+        def smembers(self, *_, **__):
+            yield b"123"
+
+        def get(self, *_, **__):
+            return None
+
+        def __getattr__(self, item):
+            return lambda *_, **__: None
+
+    mgr = SessionManager(redis_url="")
+    mgr.connected = True
+    mgr.redis = MockRedis()
+    assert mgr.get_sessions("a") == []  # Fails if none is appended
