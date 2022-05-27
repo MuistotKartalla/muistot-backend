@@ -3,6 +3,7 @@ import datetime
 import pytest
 from muistot.backend.api.publish import PUPOrder, BAD_TYPE, BAD_PARENTS_CNT, BAD_PARENTS
 from muistot.backend.models import SiteInfo, ProjectInfo, NewProject
+from muistot.backend.models.user import _UserBase
 from muistot.security import User
 from pydantic import ValidationError
 
@@ -143,3 +144,28 @@ def test_project_none_admins_raises():
             admins=None
         )
     assert "not iterable" in str(e.value)
+
+
+def test_user_country_validator_invalid_none():
+    with pytest.raises(ValidationError):
+        _UserBase(country="xx")
+
+
+def test_user_country_validator_alpha3_none():
+    with pytest.raises(ValidationError):
+        _UserBase(country="EAZ")
+
+
+def test_user_country_validator_alpha3():
+    b = _UserBase(country="FIN")
+    assert b.country == "FIN"
+
+
+def test_user_country_validator_alpha2():
+    b = _UserBase(country="FI")
+    assert b.country == "FIN"
+
+
+def test_user_country_subdiv_raise():
+    with pytest.raises(ValidationError):
+        _UserBase(country="Gb-bKm")

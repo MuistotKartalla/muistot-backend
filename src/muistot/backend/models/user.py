@@ -66,17 +66,13 @@ class _UserBase(BaseModel):
         if value is not None:
             import pycountry
             try:
-                if "-" not in value:
-                    if len(value) == 2:
-                        c = pycountry.countries.get(alpha_2=value)
-                    else:
-                        c = pycountry.countries.get(alpha_3=value)
+                if len(value) == 2:
+                    c = pycountry.countries.get(alpha_2=value)
                 else:
-                    c = pycountry.subdivisions.get(code=value)
-                if c.alpha_2 is not None:
-                    return c.alpha_2
+                    c = pycountry.countries.get(alpha_3=value)
+                return c.alpha_3
             except (LookupError, AttributeError):
-                assert False, "Country lookup failed"
+                raise ValueError("Not a valid ISO3316 (2,3) country")
         else:
             return None
 

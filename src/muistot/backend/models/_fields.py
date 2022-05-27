@@ -45,17 +45,17 @@ LANG_FIELD = Field(description="Language tag, supports ISO 639-1 format")
 
 COUNTRY = constr(
     min_length=2,
-    max_length=6,
-    regex=r"^(?:[a-zA-Z]{2,3}|[a-zA-Z]{2}-(?:[a-zA-Z]{1,3}|[0-9]{1,3}))",
+    max_length=3,
+    regex=r"^[a-zA-Z]{2,3}$",
 )
 """Country tag
 
 Notes
 -----
-Supports ISO3166-1 and ISO3316-2
+Supports ISO3166-1 and ISO3316-3
 """
 COUNTRY_FIELD = Field(
-    description="Country code of the selected country, supports ISO3166-1 and ISO3316-2"
+    description="Country code of the selected country, supports ISO3166-1 and ISO3316-3. Always returns v.3 or empty."
 )
 
 LAT = confloat(ge=-90, le=90)
