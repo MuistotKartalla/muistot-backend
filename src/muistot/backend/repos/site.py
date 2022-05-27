@@ -180,10 +180,6 @@ class SiteRepo(BaseRepo):
         else:
             where = "WHERE s.published"
         if n is not None and lat is not None and lon is not None:
-            if n < 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="negative n"
-                )
             values.update(lon=lon, lat=lat)
             out = [
                 await self.construct_site(m)

@@ -1,5 +1,7 @@
 from typing import Optional
 
+from pydantic import conint, confloat
+
 from ._imports import *
 
 router = make_router(tags=["Sites"])
@@ -27,9 +29,9 @@ caches = Cache("sites", evicts={"projects"})
 async def get_sites(
         r: Request,
         project: PID,
-        n: Optional[int] = None,
-        lat: Optional[float] = None,
-        lon: Optional[float] = None,
+        n: Optional[conint(ge=0)] = None,
+        lat: Optional[confloat(ge=0, le=90)] = None,
+        lon: Optional[confloat(ge=-180, le=180)] = None,
         db: Database = DEFAULT_DB,
 ) -> Sites:
     repo = SiteRepo(db, project)

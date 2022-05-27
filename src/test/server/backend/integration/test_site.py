@@ -429,3 +429,29 @@ async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
 
     assert s.creator == creator
     assert s.modifier == modifier
+
+
+def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
+    sites_data = []
+    for i in range(0, 5):
+        _id = genword(length=128)
+        _site = NewSite(
+            id=_id,
+            info=SiteInfo(lang="fi", name=genword(length=50)),
+            location=Point(lon=i * 10, lat=i * 10),
+        )
+        r = client.post(SITES.format(*setup), json=_site.dict(), headers=auth)
+        check_code(status.HTTP_201_CREATED, r)
+        sites_data.append(_site.id)
+
+    r = client.get(SITES.format(*setup) + "?n=3&lat=10&lon=10")
+    check_code(status.HTTP_200_OK, r)
+    sites = to(Sites, r)
+
+    assert len(sites.items) == 3
+    a, b, c = map(lambda o: o.id, sites.items)
+
+    assert a == sites_data[1]
+    assert b == sites_data[0] or b == sites_data[2]
+    assert c == sites_data[0] or c == sites_data[2]
+    assert b != a != c
