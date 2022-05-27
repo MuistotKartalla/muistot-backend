@@ -65,6 +65,21 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
 ---
 
+#### Coverage
+
+Measured with branches included Branch coverage disabled in a few lines in the following files:
+
+- [api/__init__.py](src/muistot/backend/api/__init__.py)
+    - Feature switch, marked with TODO
+- [api/publish.py](src/muistot/backend/api/publish.py)
+    - Exhaustive else-if without default branch
+- [backend/main.py](src/muistot/backend/main.py)
+    - Testing switch
+- [exists/decorators.py](src/muistot/backend/repos/exists/decorators.py)
+    - Possible bug in coverage for decorator function, marked with TODO
+- [cache/decorators.py](src/muistot/cache/decorator.py)
+    - Double-checked locking
+
 ## Default Config
 
 ```json
@@ -85,7 +100,6 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
   },
   "security": {
     "bcrypt_cost": 12,
-    "auto_publish": false,
     "oauth": {}
   },
   "sessions": {
@@ -95,7 +109,6 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
   },
   "files": {
     "location": "/opt/files",
-    "allow_anonymous": false,
     "allowed_filetypes": [
       "image/jpg",
       "image/jpeg",
@@ -110,8 +123,10 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
     "cache_ttl": 600
   },
   "mailer": {
-    "driver": ".logmailer",
-    "config": {}
+    "driver": "muistot_mailers",
+    "config": {
+      "driver": "dev-log"
+    }
   },
   "localization": {
     "default": "fi",
@@ -132,6 +147,8 @@ can be used to integrate with _Mailgun_, _Amazon SES_, _Local Server_, ...
 
 There was a plan to add OAuth from other provides, __but it is currently unfinished__.
 
+There is still support for password login.
+
 ##### Session Storage
 
 The sessions are stored in redis and the management is done with the [sessions](src/muistot/sessions) module. Sessions
@@ -142,7 +159,7 @@ the following way:
 - token => Session Data
 - user => Session Tokens
 
-Stale sessions are removed from the user pool on login.
+Stale sessions are removed from the user pool on login. Tokens are hashed before storage.
 
 ##### Databases
 
@@ -170,13 +187,13 @@ Also, all the error handlers are defined there.
 ##### httpheaders
 
 This `pypi`package provides convenient access to HTTP headers and was deemed useful enough to publish a package of.
-Although the package is used here it is not owned by the organization as the projects are not __actively__ maintained,
+Although the package is used here it is not owned by the organization as the projects are not _actively_ maintained,
 only as a part of student groups.
 
 ##### Repos
 
 This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data coming
-from and going into the database. The `base` contains the base definitions and checks for repos nad the `exists`
+from and going into the database. The `base` contains the base definitions and checks for repos and the `exists`
 module takes care of fetching resource status information. This status information is used for the repo decorations to
 manage access control.
 
@@ -236,6 +253,9 @@ Here is the general structure of the api and a description of actions available 
 
 ![[]](.github/images/api-structure.png)
 
+__NOTE:__ Latest description is in the swagger docs of the app, or partly
+at [Muistotkartalla - Api](https://muistotkartalla.fi/api/docs)
+
 #### Replacing databases
 
 This should do the trick if used in connection store
@@ -260,3 +280,40 @@ def create_connection(database):
         **database.driver_config
     )
 ```
+
+## Further Development
+
+#### Replacing Database module
+
+Have this use a ready-made async library.
+
+#### Improving Caching
+
+Add caching to queries.
+
+#### Implementing OAuth
+
+Add support for OAuth login methods.
+
+#### Convert Password login to OAuth module
+
+This would make removing passwords easier in the future as this is meant to be passwordless one day.
+
+#### Splitting the services
+
+The modules are already split per use-case and some further consolidation could be used to split the backend into
+multiple small microservices.
+
+#### Improving testing
+
+The testing speed is quite slow now, the tests could be split into smaller parts and run in parallel.
+
+#### Improving configuration and repo model
+
+The queries now fetch data for all requests and this is expensive. This could be refactored to use a caching service to
+fetch on interval instead.
+
+#### File Storage
+
+The files are now stored on disk in the docker image which is not that good. This should be abstracted behind an
+interface and be made to work with a Storage Bucket service.
