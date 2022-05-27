@@ -154,12 +154,12 @@ def exists(f):
 
     This way the method will only handle existing resources.
     """
-    return check(
+    return check(  # pragma: no branch
         Status.EXISTS,
         error_mapper=lambda self, s: HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"{_name(self)} not found"
         )
-    )(f)
+    )(f)  # TODO: Seems to be bugged in coverage, saying didn't jump?
 
 
 def not_exists(f):
@@ -172,13 +172,13 @@ def not_exists(f):
     exists:
         More documentation.
     """
-    return check(
+    return check(  # pragma: no branch
         Status.DOES_NOT_EXIST,
         error_mapper=lambda self, s: HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=f"{_name(self)} exists"
         ),
         force_exists=False
-    )(f)
+    )(f)  # TODO: Seems to be bugged in coverage, saying didn't jump?
 
 
 def parents(f):

@@ -139,7 +139,8 @@ class CachesMeta(type):
         if o is None:
             with CachesMeta.lock:
                 o = CachesMeta.instances.get(_type, None)
-                if o is None:
+                if o is None:  # pragma: no branch
+                    # This is a very unlikely race condition, double-checked
                     o = super(CachesMeta, cls).__call__(_type, **kwargs)
                     CachesMeta.instances[_type] = o
         return o
@@ -184,7 +185,8 @@ class Cache(metaclass=CachesMeta):
         if data is None:
             with self.lock:
                 data = r.get(key)
-                if data is None:
+                if data is None:  # pragma: no branch
+                    # This is a very unlikely race condition, double-checked
                     response_entity: BaseModel = await f(*args, **kwargs)
                     r.sadd(f"{prefix}all".encode("ascii"), key)
                     r.set(key, response_entity.json(), ex=TTL)
