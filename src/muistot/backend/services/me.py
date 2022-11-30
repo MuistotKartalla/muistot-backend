@@ -78,12 +78,13 @@ async def change_username(db: Database, username_old: str, username_new: str, mg
 
 async def update_personal_info(db: Database, username: str, model: PatchUser):
     data = model.dict(exclude_unset=True)
+    keys = [*data.keys()]
     await db.execute(
-        """
-        REPLACE INTO user_personal_data 
-        SET user_id = (SELECT id FROM users WHERE username = :user),
-        """
-        + ",".join(f"{k}=:{k}" for k in data),
+        f"""
+        INSERT INTO user_personal_data (user_id, {",".join(keys)})
+        VALUES ((SELECT id FROM users WHERE username = :user), {",".join(f":{k}" for k in keys)})
+        ON DUPLICATE KEY UPDATE {",".join(f"{k}=:{k}" for k in keys)}
+        """,
         values={"user": username, **data}
     )
 

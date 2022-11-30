@@ -125,7 +125,29 @@ def test_change_to_same_email(client, auth, user):
 
 
 def test_patch_country(client, auth):
+    import pycountry
+
     r = client.patch("/me", json=dict(country="fi"), headers=auth)
     assert r.status_code == 204
-    r = client.patch("/me", json=dict(country="fi"), headers=auth)
+    r = client.get("/me", headers=auth)
+    assert r.status_code == 200
+    assert r.json()["country"] == pycountry.countries.get(alpha_2="fi").alpha_3
+
+
+def test_patch_me_multiple_times(client, auth):
+    r = client.get("/me", headers=auth)
+    assert r.status_code == 200
+    assert r.json().get("first_name", None) is None
+
+    r = client.patch("/me", json=dict(first_name="test1", last_name="test_no_show"), headers=auth)
     assert r.status_code == 204
+
+    r = client.patch("/me", json=dict(last_name="test2"), headers=auth)
+    assert r.status_code == 204
+
+    r = client.get("/me", headers=auth)
+    assert r.status_code == 200
+
+    m = r.json()
+    assert m["first_name"] == "test1"
+    assert m["last_name"] == "test2"
