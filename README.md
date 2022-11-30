@@ -184,18 +184,32 @@ and _Depends_ parameters, but grouping them under one dependency is not really w
 There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/helpers.py) to replace the original errors.
 Also, all the error handlers are defined there.
 
-##### httpheaders
-
-This `pypi`package provides convenient access to HTTP headers and was deemed useful enough to publish a package of.
-Although the package is used here it is not owned by the organization as the projects are not _actively_ maintained,
-only as a part of student groups.
-
 ##### Repos
 
 This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data coming
 from and going into the database. The `base` contains the base definitions and checks for repos and the `exists`
 module takes care of fetching resource status information. This status information is used for the repo decorations to
 manage access control.
+
+_A bit more clarification on the inner workings of this:_
+
+```
+1. REQUEST                       -> REPO (init)
+2.         -> EXISTS (decorator) -> REPO (method)
+3.                               <- REPO (result)
+
+1. Call comes to an endpoint and repo is constructed
+  1.1. The repo is constructed
+  1.2. The configure method is called to add information available from the request
+  1.3. A fully functional repo is returned
+2. A repo method is called and the exist constructor on it intercepts it
+  2.1. The exists decorator queries the relevant exists helper for the repo class
+  2.2. The decorator method sets up any attributes fetched from the database on the repo
+  2.3. A Status is returned and injected into the repo method arguments if desired
+  2.4. The call proceeds to the fully initialized repo
+3. An entity is returned from the repo and it is mapped to a response
+   Usually the database fetch_one is returned and it gets serialized into the response body
+```
 
 ##### Security
 
@@ -280,6 +294,52 @@ def create_connection(database):
         **database.driver_config
     )
 ```
+
+## Developing the Project
+
+#### Getting up to speed
+
+The following steps should get you up to speed on the project structure:
+
+1. Read the previous section on developer notes
+2. Take a look at the _database/schemas_ folder
+    - See what is stored where
+    - How are entities related
+3. Take a look at the _muistot.backend_ module
+    - See the _api_ module for endpoints
+        - See the imports and what they provide
+        - Analyze the general endpoint file structure
+    - See the actual _models_ for the api
+    - Take a dive into the _repos_
+        - Look at the _base_ module
+            - Look at *\_\_init\_subclass\_\_* and *\_\_init\_\_*
+            - See the _files_ attribute
+        - Look at the _exists_ module
+            - *\_actual\_exists* in _decorators.py_
+            - *Exists#start* in _base.py*
+        - Take a look at the __repo__ and __exists__ for _comments_
+    - See the _services_ module for user edit
+
+#### Modifying the database schema
+
+Always create a new sql file under _database/schemas_ which goes alphabetically last in the file list and that can be applied on top of the old
+files. This should ideally be something that can be run as-is even on the live server.
+
+#### Creating new features
+
+If you need to develop new endpoints or features the following is suggested:
+
+1. Create a new endpoint file under _muistot.backend.api_
+    - `from ._imports import *`
+    - `router = make_router(tags=["Relevant feature(s) from main.py"])`
+    - Use Cache with caution if needed: `caches = Cache("memories", evicts={"sites"})`
+2. Decide if the feature requires existence checks and/or provides CRUD to a resource
+    - NO: new file under services
+    - YES: consider setting up a repo, evaluate which is easier
+3. Write service methods with Database as the first argument
+4. Remember `async def` and `await`
+5. Always write tests for the feature
+    - At least do happy path tests for the endpoints
 
 ## Further Development
 
