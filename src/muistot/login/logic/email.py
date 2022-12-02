@@ -10,12 +10,6 @@ async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, 
     token = token_urlsafe(150)
     await db.execute(
         """
-        DELETE FROM user_email_verifiers WHERE user_id = (SELECT id FROM users WHERE username = :user)
-        """,
-        values=dict(user=username),
-    )
-    await db.execute(
-        """
         INSERT INTO user_email_verifiers (user_id, verifier) 
             SELECT id, :token 
             FROM users
