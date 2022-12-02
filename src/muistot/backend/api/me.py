@@ -1,3 +1,5 @@
+from fastapi.responses import JSONResponse
+
 from ._imports import *
 from .utils._responses import UNAUTHENTICATED, UNAUTHORIZED
 from ..services.me import (
@@ -9,12 +11,13 @@ from ..services.me import (
     manager
 )
 
-router = make_router(tags=["Me"])
+router = make_router(tags=["Me"], default_response_class=Response)
 
 
 @router.get(
     "/me",
     response_model=UserData,
+    response_class=JSONResponse,
     responses={
         401: UNAUTHENTICATED,
         403: UNAUTHORIZED,
@@ -66,7 +69,6 @@ async def change_my_password(request: Request, password: str, db: Database = DEF
 @router.post(
     "/me/email",
     status_code=200,
-    response_class=Response,
     responses={
         401: UNAUTHENTICATED,
         403: UNAUTHORIZED,
@@ -91,7 +93,6 @@ async def change_my_email(request: Request, email: str, db: Database = DEFAULT_D
 @router.post(
     "/me/username",
     status_code=200,
-    response_class=Response,
     description="Changes username. If successful (204) the user is logged out of __ALL__ sessions.",
     responses={
         401: UNAUTHENTICATED,
