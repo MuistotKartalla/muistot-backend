@@ -37,7 +37,7 @@ def set_template_data(subject: str, title: str, button: str, link: str):
     )
 
 
-def get_eng_template(user: str, link: str):
+def get_fi_template(user: str, link: str):
     return set_template_data(
         "Muistotkartalla Kirjautuminen",
         f"Hei {user}! Tässä kirjautumislinkkisi muistotkartalla palveluun",
@@ -46,7 +46,7 @@ def get_eng_template(user: str, link: str):
     )
 
 
-def get_fi_template(user: str, link: str):
+def get_eng_template(user: str, link: str):
     return set_template_data(
         "Muistotkartalla Login",
         f"Hi {user}! Here is your muistotkartalla login link",
