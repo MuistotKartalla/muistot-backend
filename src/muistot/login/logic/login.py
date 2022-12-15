@@ -20,6 +20,12 @@ async def start_session(username: str, db: Database, sm: SessionManager) -> Resp
             data=await load_session_data(username, db)
         )
     )
+    await db.execute(
+        """
+        CALL log_login(:user)
+        """,
+        values=dict(user=username),
+    )
     return Response(
         status_code=status.HTTP_200_OK,
         headers={headers.AUTHORIZATION: f"bearer {token}"},

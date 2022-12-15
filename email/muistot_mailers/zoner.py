@@ -18,6 +18,7 @@ class MailerConfig(BaseModel):
     ssl: bool = True
     sender: str
     service_url: str
+    delay: int = 10
 
 
 with open(pathlib.Path(__file__).parent / "zoner_template.html", "r") as f:
@@ -81,7 +82,7 @@ class ZonerMailer(Mailer):
                         mail_order = self.queue.popleft()
                         self.handle_threaded(*mail_order)
             except IndexError:
-                time.sleep(10)
+                time.sleep(self.config.delay)
             finally:
                 if hasattr(self, "connection"):
                     del self.connection

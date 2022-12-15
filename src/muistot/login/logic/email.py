@@ -10,19 +10,19 @@ async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, 
     token = token_urlsafe(150)
     await db.execute(
         """
-        DELETE FROM user_email_verifiers WHERE user_id = (SELECT id FROM users WHERE username = :user)
+        INSERT INTO user_email_verifiers (user_id, verifier) 
+            SELECT id, :token 
+            FROM users
+            WHERE username = :user
+        ON DUPLICATE KEY UPDATE verifier = :token
         """,
-        values=dict(user=username)
+        values=dict(user=username, token=hash_token(token)),
     )
     m = await db.fetch_one(
         """
-        REPLACE INTO user_email_verifiers (user_id, verifier) 
-        SELECT id, :token 
-        FROM users
-        WHERE username = :user
-        RETURNING (SELECT email FROM users WHERE id=user_id), (SELECT verified FROM users WHERE id=user_id) 
+        SELECT email, verified FROM users WHERE username = :user
         """,
-        values=dict(user=username, token=hash_token(token)),
+        values=dict(user=username),
     )
     return m[0], token, m[1]
 
