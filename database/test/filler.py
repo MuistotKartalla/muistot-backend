@@ -172,8 +172,9 @@ async def make_project(i: int, db: T):
     print_status()
     _max = random.randint(10, 100)
     for j in range(0, _max):
-        async with db.transaction():
-            await make_site(db, project, admin)
+        # async with db.transaction():
+        await make_site(db, project, admin)
+        
         STATUS[i] = (j + 1) / _max * 100
         print_status()
 
