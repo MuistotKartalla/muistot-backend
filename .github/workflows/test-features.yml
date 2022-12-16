@@ -1,0 +1,19 @@
+name: Test Feature Branches
+
+on:
+  push:
+    branches-ignore:
+      - 'master'
+    paths:
+      - '.github/workflows/*.yml'
+      - 'src/**'
+      - 'database/*.sql'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Invoke Tests
+        run: /bin/bash ./scripts/run_tests.sh
