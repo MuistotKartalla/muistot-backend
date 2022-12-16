@@ -86,7 +86,7 @@ async def login_email(login: LoginQuery, db: Database, sm: SessionManager) -> Re
     )
 
 
-async def register_user(user: RegisterQuery, db: Database, send_mail=True) -> Response:
+async def register_user(user: RegisterQuery, db: Database, lang: str, send_mail: bool = True) -> Response:
     m = await db.fetch_one(
         "SELECT"
         "   EXISTS(SELECT 1 FROM users WHERE username=:uname), "
@@ -113,7 +113,7 @@ async def register_user(user: RegisterQuery, db: Database, send_mail=True) -> Re
             ),
         )
         if send_mail:
-            await send_confirm_email(user.username, db)
+            await send_confirm_email(user.username, db, lang)
         return Response(status_code=status.HTTP_201_CREATED)
 
 
@@ -149,7 +149,7 @@ async def handle_login_token(username: str, token: str, db: Database, sm: Sessio
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-async def try_create_user(email: EmailStr, db: Database) -> str:
+async def try_create_user(email: EmailStr, db: Database, lang: str) -> str:
     from secrets import token_urlsafe
     async with httpx.AsyncClient(base_url=Config.namegen.url) as client:
         for _ in range(0, 5):
@@ -166,6 +166,7 @@ async def try_create_user(email: EmailStr, db: Database) -> str:
                     ),
                     db,
                     send_mail=False,
+                    lang=lang,
                 )
                 return username
             except HTTPException as e:
@@ -185,13 +186,13 @@ async def confirm(username: str, code: str, db: Database, sm: SessionManager):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 
-async def email_login(email: EmailStr, db: Database) -> Response:
+async def email_login(email: EmailStr, db: Database, lang: str) -> Response:
     from .email import fetch_user_by_email, can_send_email, send_login_email
     username = await fetch_user_by_email(email, db)
     if username is None:
-        username = await try_create_user(email, db)
+        username = await try_create_user(email, db, lang)
     if await can_send_email(email, db):
-        await send_login_email(username, db)
+        await send_login_email(username, db, lang)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     else:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many emails")

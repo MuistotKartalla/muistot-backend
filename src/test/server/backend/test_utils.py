@@ -1,8 +1,10 @@
 import pytest
 from fastapi import HTTPException, status
 from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
-from muistot.backend.repos.base.utils import extract_language, check_language, not_implemented
 from starlette.authentication import UnauthenticatedUser
+
+from muistot.backend.repos.base.utils import extract_language, check_language, not_implemented
+from muistot.config import Config
 
 
 class MockRequest:
@@ -21,7 +23,7 @@ class MockRequest:
         ("en-US,en;q=0.5", "en"),
         ("az,bg,yf,en-US,en;q=0.5", "en"),
         ("az,bg,yf,fi-AA,en-US,en;q=0.5", "fi"),
-        (None, "fi"),
+        (None, Config.localization.default),
         ("", "fi"),
     ],
 )
@@ -73,3 +75,18 @@ async def test_not_implemented():
         await mock()
 
     assert e.value.status_code == status.HTTP_501_NOT_IMPLEMENTED
+
+
+def test_get_language_no_throw():
+    r = MockRequest()
+    r.method = "GET"
+    r.headers["Muistot-Language"] = "wDwwDWDDwDawdwa"
+
+    assert extract_language(r, default_on_invalid=True) == Config.localization.default
+
+    r = MockRequest()
+    r.method = "POST"
+
+    r.headers["Muistot-Language"] = "dwadwadwadwajdwadhwau"
+
+    assert extract_language(r, default_on_invalid=True) == Config.localization.default

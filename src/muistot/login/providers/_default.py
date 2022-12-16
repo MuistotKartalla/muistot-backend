@@ -4,6 +4,7 @@ from ..logic.login import register_user, confirm, password_login
 from ..logic.models import LoginQuery, RegisterQuery
 from ...database import Database, Databases
 from ...security import disallow_auth
+from ...backend.repos.base.utils import extract_language
 
 router = APIRouter()
 
@@ -36,8 +37,8 @@ async def default_login(r: Request, login: LoginQuery, db: Database = Depends(Da
     status_code=201,
 )
 @disallow_auth
-async def default_register(query: RegisterQuery, db: Database = Depends(Databases.default)):
-    return await register_user(query, db)
+async def default_register(r: Request, query: RegisterQuery, db: Database = Depends(Databases.default)):
+    return await register_user(query, db, lang=extract_language(r, default_on_invalid=True))
 
 
 @router.post(
