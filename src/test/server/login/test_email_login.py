@@ -3,15 +3,16 @@ from urllib.parse import urlencode
 import pytest
 from fastapi import HTTPException, status
 from headers import AUTHORIZATION
-from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
-from muistot.login.logic.email import send_login_email as send_email, hash_token
 
 from login_urls import EMAIL_LOGIN, STATUS, EMAIL_EXCHANGE
+from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
+from muistot.login.logic.email import send_login_email as send_email, hash_token
+from muistot.config import Config
 
 
 @pytest.mark.anyio
 async def test_email(mail, db, user):
-    await send_email(user.username, db)
+    await send_email(user.username, db, lang="en")
     email, data = mail.sends[0]
 
     assert email == user.email, f'{email}-{data}'
@@ -22,7 +23,7 @@ async def test_email(mail, db, user):
 
 @pytest.mark.anyio
 async def test_email_timeout(mail, db, user):
-    await send_email(user.username, db)
+    await send_email(user.username, db, lang="en")
     assert not await can_send_email(user.email, db)
     await db.execute(
         """
@@ -66,7 +67,7 @@ async def test_create_503(db, user):
     """
     from muistot.login.logic.login import try_create_user
     with pytest.raises(HTTPException) as e:
-        await try_create_user(user.email, db)
+        await try_create_user(user.email, db, lang="en")
     assert e.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
@@ -185,3 +186,18 @@ async def test_email_login_verified_ok(user, client, capture_mail, db):
     assert r.status_code == status.HTTP_200_OK
 
     assert await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("lang, expected", [
+    ("en-US,en;q=0.5", "en"),
+    ("fi", "fi"),
+    ("xwadwadwa", Config.localization.default),
+])
+async def test_email_templating_lang(user, client, capture_mail, lang, expected):
+    from headers import CONTENT_LANGUAGE
+
+    r = client.post(f"{EMAIL_LOGIN}?email={user.email}", headers={CONTENT_LANGUAGE: lang})
+    assert r.status_code == status.HTTP_204_NO_CONTENT
+
+    assert capture_mail[("login", user.email)]["lang"] == expected

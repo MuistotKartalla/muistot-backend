@@ -27,10 +27,17 @@ async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, 
     return m[0], token, m[1]
 
 
-async def send_login_email(username: str, db: Database):
+async def send_login_email(username: str, db: Database, lang: str):
     email, token, verified = await create_email_verifier(username, db)
     mailer = get_mailer()
-    await mailer.send_email(email, "login", user=username, token=token, verified=verified)
+    await mailer.send_email(
+        email,
+        "login",
+        user=username,
+        token=token,
+        verified=verified,
+        lang=lang,
+    )
 
 
 async def can_send_email(email: str, db: Database):
@@ -56,7 +63,7 @@ async def fetch_user_by_email(email: str, db: Database) -> Optional[str]:
     )
 
 
-async def send_confirm_email(username: str, db: Database):
+async def send_confirm_email(username: str, db: Database, lang: str):
     from ...mailer import get_mailer
 
     code = create_code()
@@ -77,7 +84,8 @@ async def send_confirm_email(username: str, db: Database):
         "register",
         user=username,
         token=code,
-        verified=False
+        verified=False,
+        lang=lang,
     )
 
 

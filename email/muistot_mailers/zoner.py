@@ -99,12 +99,13 @@ class ZonerMailer(Mailer):
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
 
-    ''' **** Needs to be updated, lang is not given as an argument, has to default to english ****'''
-
     def handle_login_data(self, user: str, token: str, verified: bool, lang: str = "en", **_):
         from urllib.parse import urlencode
-        url = urlencode(dict(user=user, token=token,
-                        verified=f'{bool(verified)}'.lower()))
+        url = urlencode(dict(
+            user=user,
+            token=token,
+            verified=f'{bool(verified)}'.lower()),
+        )
         url = f'{self.config.service_url}#email-login:{url}'
 
         if lang == "fi":
@@ -118,12 +119,13 @@ class ZonerMailer(Mailer):
 
         return subject, text, html
 
-    ''' **** Needs to be updated, lang is not given as an argument (?), has to default to english ****'''
-
     def handle_verify_data(self, user: str, token: str, verified: bool, lang: str = "en", **_):
         from urllib.parse import urlencode
-        url = urlencode(dict(user=user, token=token,
-                        verified=f'{bool(verified)}'.lower()))
+        url = urlencode(dict(
+            user=user,
+            token=token,
+            verified=f'{bool(verified)}'.lower()),
+        )
         url = f'{self.config.service_url}#verify-user:{url}'
 
         if lang == "fi":
