@@ -7,6 +7,7 @@ from ..logic.models import EmailStr
 from ..logic.utils import ratelimit_via_redis_host_and_key
 from ...database import Databases, Database
 from ...security import disallow_auth
+from ...backend.repos.base.utils import extract_language
 
 router = APIRouter(tags=["Auth"])
 
@@ -24,7 +25,7 @@ router = APIRouter(tags=["Auth"])
 @disallow_auth
 async def email_only_login(r: Request, email: EmailStr, db: Database = Depends(Databases.default)):
     ratelimit_via_redis_host_and_key(r, email)
-    return await email_login(email, db)
+    return await email_login(email, db, lang=extract_language(r, default_on_invalid=True))
 
 
 @router.post(

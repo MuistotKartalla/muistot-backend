@@ -37,7 +37,7 @@ def set_template_data(subject: str, title: str, button: str, link: str):
     )
 
 
-def get_eng_template(user: str, link: str):
+def get_fi_template(user: str, link: str):
     return set_template_data(
         "Muistotkartalla Kirjautuminen",
         f"Hei {user}! Tässä kirjautumislinkkisi muistotkartalla palveluun",
@@ -46,7 +46,7 @@ def get_eng_template(user: str, link: str):
     )
 
 
-def get_fi_template(user: str, link: str):
+def get_eng_template(user: str, link: str):
     return set_template_data(
         "Muistotkartalla Login",
         f"Hi {user}! Here is your muistotkartalla login link",
@@ -63,7 +63,8 @@ class ZonerMailer(Mailer):
         self.config = MailerConfig(**kwargs)
         self.queue = deque()
         self.flag = Event()
-        self.thread = Thread(name="Zoner Mailer", target=self.send_threaded, daemon=True)
+        self.thread = Thread(name="Zoner Mailer",
+                             target=self.send_threaded, daemon=True)
         self.thread.start()
 
     def __del__(self):
@@ -98,39 +99,36 @@ class ZonerMailer(Mailer):
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
 
-    def handle_login_data(self, user: str, token: str, verified: bool, lang: str = "fi", **_):
+    def handle_login_data(self, user: str, token: str, verified: bool, lang: str = "en", **_):
         from urllib.parse import urlencode
-        url = urlencode(dict(user=user, token=token, verified=f'{bool(verified)}'.lower()))
+        url = urlencode(dict(
+            user=user,
+            token=token,
+            verified=f'{bool(verified)}'.lower()),
+        )
         url = f'{self.config.service_url}#email-login:{url}'
 
-        if lang == "en":
-            subject = "Muistotkartalla Login"
-            html = get_eng_template(user, url)
-            text = f"Login link: {url}"
-        else:
+        if lang == "fi":
             subject = "Muistotkartalla Kirjautuminen"
             html = get_fi_template(user, url)
             text = f"Linkki kirjautumiseen: {url}"
+        else:
+            subject = "Muistotkartalla Login"
+            html = get_eng_template(user, url)
+            text = f"Login link: {url}"
 
         return subject, text, html
 
-    def handle_verify_data(self, user: str, token: str, verified: bool, lang: str = "fi", **_):
+    def handle_verify_data(self, user: str, token: str, verified: bool, lang: str = "en", **_):
         from urllib.parse import urlencode
-        url = urlencode(dict(user=user, token=token, verified=f'{bool(verified)}'.lower()))
+        url = urlencode(dict(
+            user=user,
+            token=token,
+            verified=f'{bool(verified)}'.lower()),
+        )
         url = f'{self.config.service_url}#verify-user:{url}'
 
-        if lang == "en":
-            subject = "Muistotkartalla Verification"
-            html = set_template_data(
-                "Muistotkartalla Verification",
-                f"Welcome {user}! Please take a moment to verify your account to start using muistotkartalla."
-                f" Click the button below or enter the code: {token}.",
-                "Verify Account",
-                url,
-            )
-            text = f"Verify link: {url}"
-
-        else:
+        if lang == "fi":
             subject = "Muistotkartalla Tilin Vahvistus"
             html = set_template_data(
                 "Muistotkartalla Tilin Vahvistus",
@@ -140,6 +138,17 @@ class ZonerMailer(Mailer):
                 url,
             )
             text = f"Linkki tilin vahvistamiseen: {url}"
+
+        else:
+            subject = "Muistotkartalla Verification"
+            html = set_template_data(
+                "Muistotkartalla Verification",
+                f"Welcome {user}! Please take a moment to verify your account to start using muistotkartalla."
+                f" Click the button below or enter the code: {token}.",
+                "Verify Account",
+                url,
+            )
+            text = f"Verify link: {url}"
 
         return subject, text, html
 
