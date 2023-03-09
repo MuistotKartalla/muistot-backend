@@ -20,20 +20,8 @@ class Database(BaseModel):
     # -----------------------------
     rollback: bool = False
     driver: str = "mysql+asyncmy"
-    driver_config: Dict = Field(default_factory=lambda: {
-        "min_size": 4,
-        "max_size": 30
-    })
-
-    # Custom Driver Options
-    # -----------------------
-    # workers:  Number of connection handler threads
-    # cpw:      Number of connections per thread
-    # max_wait: Seconds to wait for a free connection
-    # ------------------------
-    workers: int = 4
-    cpw: int = 4
-    max_wait: int = 2
+    pool_size: int = 32
+    pool_timeout_seconds: int = 10
 
     # Remote Database
     # -----------------------

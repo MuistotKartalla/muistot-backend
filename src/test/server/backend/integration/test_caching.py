@@ -19,89 +19,93 @@ def get_len(using_cache):
     yield lambda: len(list(using_cache.keys("*")))
 
 
-def test_projects_cache(setup, superuser, client, using_cache, get_len):
+@pytest.mark.anyio
+async def test_projects_cache(setup, superuser, client, using_cache, get_len):
     start = get_len()
     expected = 2
 
-    r = client.get(PROJECT.format(setup.project))
+    r = await client.get(PROJECT.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     p = to(Project, r)
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.get(PROJECT.format(setup.project))
+    r = await client.get(PROJECT.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     assert p == to(Project, r)
     assert get_len() - start == expected  # No change
 
-    r = client.get(PROJECTS)
+    r = await client.get(PROJECTS)
     check_code(status.HTTP_200_OK, r)
     expected += 1
     assert get_len() - start == expected  # Added one key and One set member
 
-    r = client.post(PUBLISH_PROJECT.format(setup.project, False))
+    r = await client.post(PUBLISH_PROJECT.format(setup.project, False))
     check_code(status.HTTP_401_UNAUTHORIZED, r)
     assert get_len() - start == expected  # No change
 
-    r = client.post(PUBLISH_PROJECT.format(setup.project, False), headers=superuser)
+    r = await client.post(PUBLISH_PROJECT.format(setup.project, False), headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
     assert get_len() == start  # Both keys deleted and set cleared
 
 
-def test_sites_evict_projects(setup, superuser, client, using_cache, get_len):
+@pytest.mark.anyio
+async def test_sites_evict_projects(setup, superuser, client, using_cache, get_len):
     start = get_len()
     expected = 2
 
-    r = client.get(PROJECT.format(setup.project))
+    r = await client.get(PROJECT.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     p = to(Project, r)
     assert p.sites_count >= 1
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.get(SITES.format(setup.project))
+    r = await client.get(SITES.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     expected += 2
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.post(PUBLISH_SITE.format(setup.project, setup.site, False), headers=superuser)
+    r = await client.post(PUBLISH_SITE.format(setup.project, setup.site, False), headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
     assert get_len() == start  # Evicted project and Site Caches
 
 
-def test_memories_evict_sites(setup, superuser, client, using_cache, get_len):
+@pytest.mark.anyio
+async def test_memories_evict_sites(setup, superuser, client, using_cache, get_len):
     start = get_len()
     expected = 2
 
-    r = client.get(PROJECT.format(setup.project))
+    r = await client.get(PROJECT.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.get(SITES.format(setup.project))
+    r = await client.get(SITES.format(setup.project))
     check_code(status.HTTP_200_OK, r)
     expected += 2
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.post(PUBLISH_MEMORY.format(setup.project, setup.site, setup.memory, False), headers=superuser)
+    r = await client.post(PUBLISH_MEMORY.format(setup.project, setup.site, setup.memory, False), headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
     expected -= 2
     assert get_len() - start == expected  # Evicted and Site Caches but not project
 
 
-def test_same_scopes_cache(setup, users, client, using_cache, get_len, superuser):
+@pytest.mark.anyio
+async def test_same_scopes_cache(setup, users, client, using_cache, get_len, superuser):
     start = get_len()
     expected = 2
 
-    auth1 = authenticate(client, users[1].username, users[1].password)
-    auth2 = authenticate(client, users[2].username, users[2].password)
+    auth1 = await authenticate(client, users[1].username, users[1].password)
+    auth2 = await authenticate(client, users[2].username, users[2].password)
 
-    r = client.get(PROJECT.format(setup.project), headers=auth1)
+    r = await client.get(PROJECT.format(setup.project), headers=auth1)
     check_code(status.HTTP_200_OK, r)
     assert get_len() - start == expected  # Added one key and One set
 
-    r = client.get(PROJECT.format(setup.project), headers=auth2)
+    r = await client.get(PROJECT.format(setup.project), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     assert get_len() - start == expected  # Nothing added with identical scopes
 
-    r = client.get(PROJECT.format(setup.project), headers=superuser)
+    r = await client.get(PROJECT.format(setup.project), headers=superuser)
     check_code(status.HTTP_200_OK, r)
     expected += 1
     assert get_len() - start == expected  # Added one key
@@ -128,24 +132,24 @@ async def test_cache_is_faster(setup, client, using_cache, db, repo_config, supe
         """,
         values=dict(user=users[2].username, name=setup.project)
     )
-    auth3 = authenticate(client, users[2].username, users[2].password)
+    auth3 = await authenticate(client, users[2].username, users[2].password)
 
     import time
 
     headers = [superuser, auth2, auth3]
 
-    def do_test():
+    async def do_test():
         start = time.time()
         for i in range(0, 10):
-            r = client.get(SITES.format(setup.project), headers=headers[i % 3])
+            r = await client.get(SITES.format(setup.project), headers=headers[i % 3])
             check_code(status.HTTP_200_OK, r)
         return time.time() - start
 
     try:
-        no_cache = do_test()
+        no_cache = await do_test()
     finally:
         client.app.state.FastStorage.redis = old
 
-    with_cache = do_test()
+    with_cache = await do_test()
 
     assert with_cache < no_cache

@@ -68,7 +68,7 @@ class NewProject(BaseModel):
     starts: Optional[datetime] = Field(description="Project Start Time.")
     ends: Optional[datetime] = Field(description="Project End Time.")
 
-    admins: Optional[List[UID]] = Field(default_factory=list, unique_items=True, description="Admins for the project.")
+    admins: Optional[List[UID]] = Field(unique_items=True, description="Admins for the project.")
     contact: Optional[ProjectContact] = Field(description="Project contact details if any are available.")
     admin_posting: bool = Field(default=False, description="True if only admins can post")
     auto_publish: bool = Field(default=False, description="True if children are automagically published")

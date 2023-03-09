@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from muistot import mailer
 from muistot.cache import register_redis_cache
 from muistot.database import Databases
@@ -50,7 +50,7 @@ def capture_mail():
 
 
 @pytest.fixture(scope="function")
-def client(db_instance):
+async def client(db_instance):
     app = FastAPI()
 
     async def mock_dep():
@@ -68,7 +68,10 @@ def client(db_instance):
     app.state.FastStorage.redis.flushdb()
     app.state.SessionManager.redis.flushdb()
 
-    yield TestClient(app)
+    client = AsyncClient(app=app, base_url="http://test")
+    client.app = app
+    async with client as c:
+        yield c
 
     app.state.FastStorage.redis.flushdb()
     app.state.SessionManager.redis.flushdb()

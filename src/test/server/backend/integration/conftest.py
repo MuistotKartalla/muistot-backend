@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from muistot.backend import main
 from muistot.database import Databases
 from muistot.security.password import hash_password
@@ -12,22 +12,24 @@ User = namedtuple('User', ('username', 'email', 'password'))
 
 
 @pytest.fixture(scope="session")
-def client(db_instance):
+async def client(db_instance):
     async def mock_dep():
         async with db_instance() as c:
             yield c
 
     main.app.dependency_overrides[Databases.default] = mock_dep
-    client = TestClient(main.app)
+    client = AsyncClient(app=main.app, base_url="http://test")
 
     class Mock:
 
         def __getattribute__(self, item):
             return lambda *_, **__: None
 
+    client.app = main.app
     client.app.state.FastStorage.redis = Mock()
 
-    yield client
+    async with client as c:
+        yield c
 
 
 @pytest.fixture(scope="function")
@@ -100,7 +102,7 @@ async def superuser(db, client, login):
         "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
         values=dict(user=login[0]),
     )
-    yield auth(client, login[0], login[2])
+    yield await auth(client, login[0], login[2])
     await db.execute(
         """
         DELETE su FROM superusers su JOIN users u ON u.id = su.user_id WHERE u.username = :user
@@ -110,21 +112,21 @@ async def superuser(db, client, login):
 
 
 @pytest.fixture(name="auth")
-def auth_fixture(client, _credentials):
+async def auth_fixture(client, _credentials):
     username, _, password = _credentials[0]
-    yield auth(client, username, password)
+    yield await auth(client, username, password)
 
 
 @pytest.fixture(name="auth2")
-def auth_fixture_2(client, _credentials):
+async def auth_fixture_2(client, _credentials):
     username, _, password = _credentials[1]
-    yield auth(client, username, password)
+    yield await auth(client, username, password)
 
 
 @pytest.fixture(name="auth3")
-def auth_fixture_3(client, _credentials):
+async def auth_fixture_3(client, _credentials):
     username, _, password = _credentials[2]
-    yield auth(client, username, password)
+    yield await auth(client, username, password)
 
 
 @pytest.fixture(scope="module")

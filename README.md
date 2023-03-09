@@ -270,31 +270,6 @@ Here is the general structure of the api and a description of actions available 
 __NOTE:__ Latest description is in the swagger docs of the app, or partly
 at [Muistotkartalla - Api](https://muistotkartalla.fi/api/docs)
 
-#### Replacing databases
-
-This should do the trick if used in connection store
-
-```python
-import databases
-
-Database = databases.Database
-
-
-def create_connection(database):
-    from urllib.parse import quote
-    return databases.Database(
-        url=(
-            f"{database.driver}://"
-            f"{quote(database.host)}:{database.port}/{quote(database.database)}"
-            f"?username={quote(database.user)}"
-            f"&password={quote(database.password)}"
-            f"&ssl={str(database.ssl).lower()}"
-        ),
-        force_rollback=database.rollback,
-        **database.driver_config
-    )
-```
-
 ## Developing the Project
 
 #### Getting up to speed
@@ -322,7 +297,8 @@ The following steps should get you up to speed on the project structure:
 
 #### Modifying the database schema
 
-Always create a new sql file under _database/schemas_ which goes alphabetically last in the file list and that can be applied on top of the old
+Always create a new sql file under _database/schemas_ which goes alphabetically last in the file list and that can be
+applied on top of the old
 files. This should ideally be something that can be run as-is even on the live server.
 
 #### Creating new features

@@ -257,7 +257,7 @@ async def publish(
         f"""
         UPDATE {TABLE_MAP[order.type]}
         SET published = {1 if order.publish else 0}
-        WHERE {ID_MAP[order.type]} = :id
+        WHERE {ID_MAP[order.type]} = :id AND published = {0 if order.publish else 1}
         """,
         values=dict(id=order.identifier),
     )

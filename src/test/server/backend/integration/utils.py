@@ -97,8 +97,8 @@ def create_site_info(lang: str) -> SiteInfo:
 async def create_site(pid: PID, db, config, **additional_properties) -> SID:
     out = (
         await SiteRepo(db, pid)
-            .configure(config)
-            .create(
+        .configure(config)
+        .create(
             NewSite(
                 id=genword(length=10),
                 info=create_site_info(Config.localization.default),
@@ -153,11 +153,11 @@ def mock_request(username):
     return cast(Request, MockRequest())
 
 
-def authenticate(client, username, password):
-    r = client.post(
+async def authenticate(client, username, password):
+    r = await client.post(
         LOGIN,
         json={"username": username, "password": password},
-        allow_redirects=True,
+        follow_redirects=True,
     )
     check_code(200, r)
     auth = r.headers[AUTHORIZATION]

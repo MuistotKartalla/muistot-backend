@@ -64,7 +64,7 @@ class SiteRepo(BaseRepo):
         if model is None:
             return False
         else:
-            await self.db.fetch_val(
+            await self.db.execute(
                 """
                 REPLACE INTO site_information (site_id, lang_id, name, abstract, description, modifier_id)
                 SELECT s.id,
@@ -293,7 +293,7 @@ class SiteRepo(BaseRepo):
         await self.db.execute(
             f'UPDATE sites r'
             f" SET r.published = {1 if publish else 0}"
-            f' WHERE r.name = :id',
+            f' WHERE r.name = :id AND r.published = {0 if publish else 1}',
             values=dict(id=site),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")

@@ -73,85 +73,92 @@ async def test_create_503(db, user):
 
 @pytest.mark.anyio
 async def test_email_login_timeout(non_existent_email, client, db):
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     await db.execute("DELETE FROM user_email_verifiers")
 
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
 
-def test_email_login_timeout_no_cache(non_existent_email, client):
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+@pytest.mark.anyio
+async def test_email_login_timeout_no_cache(non_existent_email, client):
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     client.app.state.FastStorage.redis.flushdb()
 
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
 
-def test_email_login_new_user(non_existent_email, client):
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+@pytest.mark.anyio
+async def test_email_login_new_user(non_existent_email, client):
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
 
-def test_email_login_full(non_existent_email, client, capture_mail):
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+@pytest.mark.anyio
+async def test_email_login_full(non_existent_email, client, capture_mail):
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT, r.text
 
     mail = capture_mail[("login", non_existent_email)]
     token = mail["token"]
     user = mail["user"]
 
-    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token))}")
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token))}")
     assert r.status_code == status.HTTP_200_OK
     assert AUTHORIZATION in r.headers
     auth = r.headers[AUTHORIZATION]
 
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_email_token_not_exists(client, non_existent_email, capture_mail):
-    r = client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+@pytest.mark.anyio
+async def test_email_token_not_exists(client, non_existent_email, capture_mail):
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     mail = capture_mail[("login", non_existent_email)]
     token = mail["token"]
     user = mail["user"]
 
-    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token[:-2]))}")
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token[:-2]))}")
     assert r.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_email_token_not_exists_not_unicode(client, user, capture_mail):
-    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token='ööööööääääää'))}")
+@pytest.mark.anyio
+async def test_email_token_not_exists_not_unicode(client, user, capture_mail):
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token='ööööööääääää'))}")
     assert r.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_namegen_no_more_names(client, user, non_existent_email, capture_mail):
+@pytest.mark.anyio
+async def test_namegen_no_more_names(client, user, non_existent_email, capture_mail):
     import httpx
     from muistot.config import Config
 
     with httpx.Client(base_url=Config.namegen.url) as c:
         c.post(f"/lock?{urlencode(dict(username=user.username))}")
         try:
-            r = client.post(f"{EMAIL_LOGIN}?{urlencode(dict(email=non_existent_email))}")
+            r = await client.post(f"{EMAIL_LOGIN}?{urlencode(dict(email=non_existent_email))}")
             assert r.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         finally:
             c.post("/lock")
 
 
-def test_namegen_failure(client, non_existent_email, capture_mail):
+@pytest.mark.anyio
+async def test_namegen_failure(client, non_existent_email, capture_mail):
     import httpx
     from muistot.config import Config
 
     with httpx.Client(base_url=Config.namegen.url) as c:
         c.post(f"/disable")
         try:
-            r = client.post(f"{EMAIL_LOGIN}?{urlencode(dict(email=non_existent_email))}")
+            r = await client.post(f"{EMAIL_LOGIN}?{urlencode(dict(email=non_existent_email))}")
             assert r.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         finally:
             c.post("/disable")
@@ -159,7 +166,7 @@ def test_namegen_failure(client, non_existent_email, capture_mail):
 
 @pytest.mark.anyio
 async def test_email_login_non_verified_verifies(user, client, capture_mail, db):
-    r = client.post(f"{EMAIL_LOGIN}?email={user.email}")
+    r = await client.post(f"{EMAIL_LOGIN}?email={user.email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     assert not await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
@@ -167,7 +174,7 @@ async def test_email_login_non_verified_verifies(user, client, capture_mail, db)
     mail = capture_mail[("login", user.email)]
     token = mail["token"]
 
-    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token=token))}")
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token=token))}")
     assert r.status_code == status.HTTP_200_OK
 
     assert await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
@@ -176,13 +183,13 @@ async def test_email_login_non_verified_verifies(user, client, capture_mail, db)
 @pytest.mark.anyio
 async def test_email_login_verified_ok(user, client, capture_mail, db):
     """Sanity check"""
-    r = client.post(f"{EMAIL_LOGIN}?email={user.email}")
+    r = await client.post(f"{EMAIL_LOGIN}?email={user.email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     await db.execute(f"UPDATE users SET verified = 1 WHERE id = {user.id}")
 
     token = capture_mail[("login", user.email)]["token"]
-    r = client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token=token))}")
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user.username, token=token))}")
     assert r.status_code == status.HTTP_200_OK
 
     assert await db.fetch_val(f"SELECT verified FROM users WHERE id = {user.id}")
@@ -197,7 +204,7 @@ async def test_email_login_verified_ok(user, client, capture_mail, db):
 async def test_email_templating_lang(user, client, capture_mail, lang, expected):
     from headers import CONTENT_LANGUAGE
 
-    r = client.post(f"{EMAIL_LOGIN}?email={user.email}", headers={CONTENT_LANGUAGE: lang})
+    r = await client.post(f"{EMAIL_LOGIN}?email={user.email}", headers={CONTENT_LANGUAGE: lang})
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     assert capture_mail[("login", user.email)]["lang"] == expected

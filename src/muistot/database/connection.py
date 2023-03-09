@@ -1,186 +1,75 @@
-import asyncio as aio
-import collections
-import concurrent.futures
 import contextlib
-import functools
-import re
-from typing import Mapping, Collection, Iterable, Any, Deque
+from typing import Mapping, Any
 
-import pymysql
+from sqlalchemy import exc, text, Result
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncConnection
 
-from .models import ResultSetCursor
+from .resultset import ResultSet
 from ..config.config import Database
 
-_PATTERN = re.compile(r":(\w+)")
-_REPLACE = r"%(\1)s"
+
+class DatabaseError(Exception):
+    pass
 
 
-@functools.lru_cache(maxsize=128)
-def named_to_pyformat(query: str):
-    """Converts from format preferred by Databases library
+class OperationalError(DatabaseError):
+    pass
 
-    For example:
-    - SELECT 1 FROM users WHERE username = :user
-    To:
-    - SELECT 1 FROM users WHERE username = %(user)s
 
-    This is for backwards compatibility.
-    Keep in mind the REGEX is quite simple replacing EVERYTHING :xyz with %(xyz)s
+class IntegrityError(OperationalError):
+    pass
 
-    The function calls are cached (max. 128) so that this won't be a bottleneck.
-    This does incur a warmup cost though on first invocation.
+
+class InterfaceError(DatabaseError):
+    pass
+
+
+class ConnectionWrapper:
+    """Wraps connection operations to something a bit more concise
     """
-    return _PATTERN.sub(_REPLACE, query)
+    connection: AsyncConnection
 
-
-def make_connection(config: Database):
-    """Reasonable defaults for a connection
-
-    Sets the cursor class to a custom one providing similar functionality to SQLAlchemy
-    where the spread operators and spreading the result to multiple variables works as intended
-    """
-    return pymysql.connect(
-        user=config.user,
-        password=config.password,
-        host=config.host,
-        port=config.port,
-        database=config.database,
-        compress=False,
-        charset="utf8mb4",
-        cursorclass=ResultSetCursor,
-        autocommit=False,
-        defer_connect=True,
-    )
-
-
-def allocate_fair(iterable):
-    """Puts connection executor connections into consecutive order
-
-    T2, T3, T4
-
-    --> T2.1, T3.1, T4.1, T2.2, T3.2 ...
-
-    This is completely fair allocation policy for the connections and does not care about their status
-    """
-    import itertools
-    return itertools.chain(*zip(*iterable))
-
-
-class ConnectionMaster:
-    """Further abstracts ConnectionExecutor to allows many connections per thread
-
-    One thread will be severely underutilized if only one connection is running on it.
-    This class sets up many connection on one ThreadPoolExecutor, essentially making a
-    single thread the owner of a bunch of threads.
-    """
-
-    def __init__(self, connections: Iterable[pymysql.Connection]):
-        super(ConnectionMaster, self).__init__()
-        self.worker = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix=f'connection_worker'
-        )
-        self.workers = list(ConnectionExecutor(c, self.worker) for c in connections)
-
-    def __iter__(self):
-        return self.workers.__iter__()
-
-    def __len__(self):
-        return self.workers.__len__()
-
-    def __del__(self):
-        self.worker.shutdown(wait=False, cancel_futures=True)
-
-
-class ConnectionExecutor:
-    """PyMySQL is not thread safe so confining all operations to a single thread.
-
-    Since everything is submitted to the Executor in order, the execution will happen in order
-    in the same thread preventing deadlocks and threading issues, but will free up aio to do more
-    processing in the meantime. This allows higher throughput especially if a query hangs or takes
-    very long.
-    """
-
-    IntegrityError = pymysql.err.IntegrityError
-    OperationalError = pymysql.err.OperationalError
-
-    def __init__(self, connection: pymysql.Connection, executor: concurrent.futures.ThreadPoolExecutor):
-        super(ConnectionExecutor, self).__init__()
-        self.worker = executor
+    def __init__(self, connection: AsyncConnection):
+        super(ConnectionWrapper, self).__init__()
         self.connection = connection
 
-    def submit(self, *args, **kwargs):
-        return self.worker.submit(*args, **kwargs)
-
-    @contextlib.contextmanager
-    def _query(self, query, args) -> ResultSetCursor:
-        args = None if args is None else dict(**args)
-        c = self.connection.cursor()
-        try:
-            c.execute(named_to_pyformat(query), args)
-            yield c
-        finally:
-            c.close()
-            del c
-
-    def _execute(self, query, args):
-        with self._query(query, args):
-            pass
-
-    def _fetch_val(self, query, args):
-        with self._query(query, args) as c:
-            res = c.fetchone()
-            # noinspection PyTypeChecker
-            # ResultSet accepts ints
-            return res[0] if res is not None else res
-
-    def _fetch_one(self, query, args):
-        with self._query(query, args) as c:
-            return c.fetchone()
-
-    def _fetch_all(self, query, args):
-        with self._query(query, args) as c:
-            res = c.fetchall()
-            return list(res) if res is not None else list()
+    @contextlib.asynccontextmanager
+    async def _query(self, query: str, values: Mapping[str, Any]) -> Result:
+        query = text(query)
+        if values:
+            result = await self.connection.execute(query, parameters=values)
+        else:
+            result = await self.connection.execute(query)
+        yield result
 
     async def execute(self, query: str, values: Mapping[str, Any] = None):
-        await aio.get_running_loop().run_in_executor(self, self._execute, query, values)
+        async with self._query(query, values):
+            pass
 
-    async def fetch_val(self, query: str, values: Mapping[str, Any] = None) -> Any:
-        return await aio.get_running_loop().run_in_executor(self, self._fetch_val, query, values)
+    async def fetch_val(self, query: str, values: Mapping[str, Any] = None):
+        async with self._query(query, values) as c:
+            res = c.fetchone()
+            return res[0] if res is not None else res
 
-    async def fetch_one(self, query: str, values: Mapping[str, Any] = None) -> Mapping:
-        return await aio.get_running_loop().run_in_executor(self, self._fetch_one, query, values)
+    async def fetch_one(self, query: str, values: Mapping[str, Any] = None):
+        async with self._query(query, values) as c:
+            res = c.mappings().fetchone()
+            if res:
+                return ResultSet(res.items())
 
-    async def fetch_all(self, query: str, values: Mapping[str, Any] = None) -> Collection[Mapping]:
-        return await aio.get_running_loop().run_in_executor(self, self._fetch_all, query, values)
+    async def fetch_all(self, query: str, values: Mapping[str, Any] = None):
+        async with self._query(query, values) as c:
+            rs = c.mappings().fetchall()
+            return [ResultSet(res.items()) for res in rs] if rs is not None else []
 
     async def iterate(self, query: str, values: Mapping[str, Any] = None):
-        data = await aio.get_running_loop().run_in_executor(self, self._fetch_all, query, values)
-        if data is not None:
-            for res in data:
-                yield res
-
-    async def rollback(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.rollback)
-
-    async def commit(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.commit)
-
-    async def begin(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.begin)
-
-    async def connect(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.connect)
-
-    async def close(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.close)
-
-    async def ping(self):
-        await aio.get_running_loop().run_in_executor(self, self.connection.ping, True)
+        async with self._query(query, values) as c:
+            rs = c.mappings()
+            for res in rs:
+                yield ResultSet(res.items())
 
 
-class DatabaseConnection:
+class DatabaseProvider:
     """Abstracts database connectivity
 
     This class takes care of assigning database resources for incoming calls.
@@ -189,77 +78,50 @@ class DatabaseConnection:
     The initial allocation aims to provide a fair starting point for the connections so that no single thread
     gets overloaded with requests.
     """
-    _connections: Deque[ConnectionExecutor]
-    OperationalError = pymysql.err.OperationalError
+    engine: AsyncEngine
 
     def __init__(self, config: Database):
         self.config = config
-        self._masters = list()
-        self._connections = collections.deque()
-        self._connected = False
 
-    def _wait_for_connection(self):
-        import time
-        start = time.time()
-        while time.time() - start < self.config.max_wait:
-            try:
-                return self._connections.popleft()
-            except IndexError:
-                time.sleep(1E-10)
-        raise DatabaseConnection.OperationalError() from TimeoutError()
-
-    @property
     def is_connected(self):
-        return self._connected
+        return hasattr(self, "engine")
 
     async def connect(self):
-        if self._connected:
-            return
-        self._masters.extend(
-            ConnectionMaster(make_connection(self.config) for _ in range(0, self.config.cpw))
-            for _ in range(0, self.config.workers)
+        config = self.config
+        self.engine = create_async_engine(
+            f"{config.driver}://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}",
+            pool_pre_ping=True,
+            pool_reset_on_return=True,
+            pool_size=config.pool_size,
+            pool_recycle=3600,
+            pool_logging_name="Muistot Database Pool",
+            pool_timeout=config.pool_timeout_seconds,
         )
-        self._connections.extend(allocate_fair(self._masters))
-        try:
-            for c in self._connections:
-                await c.connect()
-        except BaseException as e:
-            await self.disconnect()
-            raise e
-        self._connected = True
 
     async def disconnect(self):
-        for c in self._connections:
-            await c.close()
-        self._connections.clear()
-        del self._masters
-        self._masters = list()
-        self._connected = False
+        await self.engine.dispose(close=True)
+        del self.engine
 
     @contextlib.asynccontextmanager
     async def __call__(self):
         """Allocates a single connection
         """
-        if not self._connected:
-            raise DatabaseConnection.OperationalError('Database not Running')
+        if not self.is_connected():
+            raise OperationalError("Database not Running")
         try:
-            connection = self._connections.popleft()
-        except IndexError:
-            connection = self._wait_for_connection()
-        try:
-            await connection.ping()
-            try:
-                await connection.begin()
-                yield connection
-                await connection.commit()
-            except BaseException as e:
-                try:
-                    await connection.rollback()
-                except BaseException as ex:
-                    raise ex from e
-                raise e
-        finally:
-            self._connections.append(connection)
-
-
-Database = ConnectionExecutor
+            async with self.engine.connect() as connection:
+                async with connection.begin() as tsx:
+                    yield ConnectionWrapper(connection)
+                    if self.config.rollback:
+                        await tsx.rollback()
+                    else:
+                        await tsx.commit()
+        except exc.DBAPIError as e:
+            if isinstance(e, exc.IntegrityError):
+                raise IntegrityError() from e
+            elif isinstance(e, exc.OperationalError):
+                raise OperationalError() from e
+            elif isinstance(e, exc.InterfaceError):
+                raise InterfaceError() from e
+            else:
+                raise DatabaseError() from e

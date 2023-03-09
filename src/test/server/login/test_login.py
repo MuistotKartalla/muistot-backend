@@ -25,7 +25,8 @@ async def superuser(db, user):
     await db.execute(f"DELETE FROM superusers WHERE user_id = {user.id}")
 
 
-def test_query_model():
+@pytest.mark.anyio
+async def test_query_model():
     with pytest.raises(ValidationError) as e:
         LoginQuery(username=None, email=None, password="aaaaa")
     assert "Identifier Required" in str(e.value)
@@ -43,25 +44,28 @@ def test_query_model():
     LoginQuery(email="aaaaa@example.com", password="aaaaa")
 
 
-def test_status_not_logged_in(client):
-    r = client.get(STATUS)
+@pytest.mark.anyio
+async def test_status_not_logged_in(client):
+    r = await client.get(STATUS)
     assert r.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_register_double_not_allowed(client, non_existent_email):
+@pytest.mark.anyio
+async def test_register_double_not_allowed(client, non_existent_email):
     req = lambda: client.post(REGISTER, json={
         "email": non_existent_email,
         "username": "test_does_not_exists#1323",
         "password": "testtesttest@@@@11421321"
     })
-    r = req()
+    r = await req()
     assert r.status_code == status.HTTP_201_CREATED
-    r = req()
+    r = await req()
     assert r.status_code == status.HTTP_409_CONFLICT
 
 
-def test_register_confirm(client, non_existent_email, capture_mail):
-    r = client.post(REGISTER, json={
+@pytest.mark.anyio
+async def test_register_confirm(client, non_existent_email, capture_mail):
+    r = await client.post(REGISTER, json={
         "email": non_existent_email,
         "username": "test_does_not_exists#1323",
         "password": "testtesttest@@@@11421321"
@@ -71,41 +75,44 @@ def test_register_confirm(client, non_existent_email, capture_mail):
     # Check email and verify
     token = capture_mail[("register", non_existent_email)]["token"]
     user = capture_mail[("register", non_existent_email)]["user"]
-    r = client.post(f"{CONFIRM}?{urlencode(dict(user=user, token=token))}")
+    r = await client.post(f"{CONFIRM}?{urlencode(dict(user=user, token=token))}")
     assert r.status_code == status.HTTP_200_OK
     assert r.headers[AUTHORIZATION] is not None
 
     # Check status
     auth = r.headers[AUTHORIZATION]
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_login_username(client, verified_user):
+@pytest.mark.anyio
+async def test_login_username(client, verified_user):
     user = verified_user
-    r = client.post(PW_LOGIN, json={"username": user.username, "password": user.password})
+    r = await client.post(PW_LOGIN, json={"username": user.username, "password": user.password})
     assert r.status_code == status.HTTP_200_OK, r.text
 
     # Check status
     auth = r.headers[AUTHORIZATION]
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_login_email(client, verified_user):
+@pytest.mark.anyio
+async def test_login_email(client, verified_user):
     user = verified_user
-    r = client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
+    r = await client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
     assert r.status_code == status.HTTP_200_OK, r.text
 
     # Check status
     auth = r.headers[AUTHORIZATION]
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_login_both_fails(client, verified_user):
+@pytest.mark.anyio
+async def test_login_both_fails(client, verified_user):
     user = verified_user
-    r = client.post(PW_LOGIN, json={
+    r = await client.post(PW_LOGIN, json={
         "email": user.email,
         "username": user.username,
         "password": user.password
@@ -113,12 +120,13 @@ def test_login_both_fails(client, verified_user):
     assert r.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-def test_no_register_with_header(client, verified_user):
+@pytest.mark.anyio
+async def test_no_register_with_header(client, verified_user):
     user = verified_user
-    r = client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
+    r = await client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
     assert r.status_code == status.HTTP_200_OK, r.text
     auth = r.headers[AUTHORIZATION]
-    r = client.post(REGISTER, headers={AUTHORIZATION: auth}, json={
+    r = await client.post(REGISTER, headers={AUTHORIZATION: auth}, json={
         "email": "a@example.com",
         "username": "aaaaaaaaa",
         "password": "aaaaaaaaa"
@@ -126,11 +134,12 @@ def test_no_register_with_header(client, verified_user):
     assert r.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_login_scopes_admin_works(client, verified_user, admin):
+@pytest.mark.anyio
+async def test_login_scopes_admin_works(client, verified_user, admin):
     from muistot.security import scopes
 
     user = verified_user
-    r = client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
+    r = await client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
     assert r.status_code == status.HTTP_200_OK, r.text
     auth = r.headers[AUTHORIZATION]
 
@@ -139,15 +148,16 @@ def test_login_scopes_admin_works(client, verified_user, admin):
     assert len(s.data["projects"]) == 1
 
     # Check status
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_login_scopes_superuser_works(client, verified_user, superuser):
+@pytest.mark.anyio
+async def test_login_scopes_superuser_works(client, verified_user, superuser):
     from muistot.security import scopes
 
     user = verified_user
-    r = client.post(PW_LOGIN, json={"username": user.username, "password": user.password})
+    r = await client.post(PW_LOGIN, json={"username": user.username, "password": user.password})
     assert r.status_code == status.HTTP_200_OK, r.text
     auth = r.headers[AUTHORIZATION]
 
@@ -156,25 +166,29 @@ def test_login_scopes_superuser_works(client, verified_user, superuser):
     assert scopes.ADMIN in s.data["scopes"]
 
     # Check status
-    r = client.get(STATUS, headers={AUTHORIZATION: auth})
+    r = await client.get(STATUS, headers={AUTHORIZATION: auth})
     assert r.status_code == status.HTTP_200_OK
 
 
-def test_verify_token_not_exists(client, user, capture_mail):
-    r = client.post(f"{CONFIRM}?{urlencode(dict(user=user.username, token='ööööööääääää'))}")
+@pytest.mark.anyio
+async def test_verify_token_not_exists(client, user, capture_mail):
+    r = await client.post(f"{CONFIRM}?{urlencode(dict(user=user.username, token='ööööööääääää'))}")
     assert r.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_login_unverified_not_allowed(client, user):
-    r = client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
+@pytest.mark.anyio
+async def test_login_unverified_not_allowed(client, user):
+    r = await client.post(PW_LOGIN, json={"email": user.email, "password": user.password})
     assert r.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_login_not_exists_not_allowed(client, user):
-    r = client.post(PW_LOGIN, json={"email": "aaaa" + user.email, "password": user.password})
+@pytest.mark.anyio
+async def test_login_not_exists_not_allowed(client, user):
+    r = await client.post(PW_LOGIN, json={"email": "aaaa" + user.email, "password": user.password})
     assert r.status_code == status.HTTP_400_BAD_REQUEST
 
 
-def test_login_bad_password_not_allowed(client, user):
-    r = client.post(PW_LOGIN, json={"email": user.email, "password": "aaa" + user.password})
+@pytest.mark.anyio
+async def test_login_bad_password_not_allowed(client, user):
+    r = await client.post(PW_LOGIN, json={"email": user.email, "password": "aaa" + user.password})
     assert r.status_code == status.HTTP_400_BAD_REQUEST
