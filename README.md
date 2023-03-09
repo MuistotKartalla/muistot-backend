@@ -165,16 +165,9 @@ Stale sessions are removed from the user pool on login. Tokens are hashed before
 
 These are found under [database](src/muistot/database)
 
-The database connections are held inside a holder `Databases`. The connections used to be handled by the `databases`
-library, but it caused some weird and hard to track connection bugs at the end of the project deadline in Spring 2022,
-so this module was reworked in one day to handle all the connection needs for the application.
-
-If the `ContextVars` and connection bugs are fixed from `databases` the library could be used as a near drop-in
-replacement for the custom connection classes. For this it might be the best to wait until the library and at least one
-of the backends reaches maturity `>=1.0.0` and then swap to using it.
-
-The `:name` query parameters were originally used from `databases`, but the `pymysql` expects format `%(name)s`
-so they are just swapped with regex `:(\w+)` => `%(\1)s`.
+These are wrapped connections from a SQLAlchemy pool.
+Async support through SQLAlchemy and asyncmy.
+Some custom wrappers are used to retain backwards compatibility with the old custom implementation.
 
 ##### FastAPI
 
@@ -318,10 +311,6 @@ If you need to develop new endpoints or features the following is suggested:
     - At least do happy path tests for the endpoints
 
 ## Further Development
-
-#### Replacing Database module
-
-Have this use a ready-made async library.
 
 #### Improving Caching
 
