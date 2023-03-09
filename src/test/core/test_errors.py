@@ -3,6 +3,7 @@ Basically just tests these output the right stuff
 """
 import pytest
 from muistot.backend.models import ProjectInfo
+from muistot.database import OperationalError, IntegrityError, InterfaceError
 from muistot.errors import ApiError, ErrorResponse, Error
 from muistot.errors.helpers import db_error_handler, api_error_handler
 from muistot.errors.helpers import register_error_handlers, low_error_handler, modify_openapi
@@ -28,7 +29,6 @@ async def test_db_error():
 
 @pytest.mark.anyio
 async def test_db_integrity_error():
-    from pymysql.err import IntegrityError
     r = await db_error_handler(None, IntegrityError())
     assert isinstance(r, ErrorResponse)
     assert Error.parse_raw(r.body).error.code == 409
@@ -36,7 +36,6 @@ async def test_db_integrity_error():
 
 @pytest.mark.anyio
 async def test_db_interface_error():
-    from pymysql.err import InterfaceError
     r = await db_error_handler(None, InterfaceError())
     assert isinstance(r, ErrorResponse)
     assert Error.parse_raw(r.body).error.code == 503
@@ -44,7 +43,6 @@ async def test_db_interface_error():
 
 @pytest.mark.anyio
 async def test_db_operational_error():
-    from pymysql.err import OperationalError
     r = await db_error_handler(None, OperationalError())
     assert isinstance(r, ErrorResponse)
     assert Error.parse_raw(r.body).error.code == 503
@@ -128,7 +126,6 @@ def test_api_error_additional():
 
 @pytest.mark.anyio
 async def test_db_operational_error_2():
-    from pymysql.err import OperationalError
     e = OperationalError()
     e.__cause__ = TimeoutError()
     r = await db_error_handler(None, e)

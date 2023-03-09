@@ -287,7 +287,7 @@ class ProjectRepo(BaseRepo):
                 if k in data:
                     values[k] = data[k]
             if len(values) > 0:
-                await self.db.fetch_val(
+                await self.db.execute(
                     f"""
                     UPDATE projects p
                         LEFT JOIN users u ON u.username = :user
@@ -314,7 +314,7 @@ class ProjectRepo(BaseRepo):
         await self.db.execute(
             f'UPDATE projects r'
             f" SET r.published = {1 if publish else 0}"
-            f' WHERE r.name = :id',
+            f' WHERE r.name = :id AND r.published = {0 if publish else 1}',
             values=dict(id=project),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")

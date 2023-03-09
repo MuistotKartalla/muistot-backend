@@ -15,8 +15,8 @@ async def setup(repo_config, db, username):
 
 
 @pytest.fixture
-def admin(client, login):
-    yield authenticate(client, login[0], login[2])
+async def admin(client, login):
+    yield await authenticate(client, login[0], login[2])
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ async def pap(setup, db):
     yield
 
 
-def _create_site(**kwargs):
+async def _create_site(**kwargs):
     _id = genword(length=128)
     site = NewSite(
         id=_id,
@@ -48,60 +48,63 @@ def _create_site(**kwargs):
 #      \::/  /                      /:/  /       |:|  |
 #       \/__/                       \/__/         \|__|
 
-def test_create_and_publish(client, setup, db, admin, auth2):
+@pytest.mark.anyio
+async def test_create_and_publish(client, setup, db, admin, auth2):
     """Create and publish site
     """
     # Setup
-    _id, site = _create_site()
+    _id, site = await _create_site()
 
     # Create
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
     url = r.headers[LOCATION]
 
     # No-op
-    r = client.post(
+    r = await client.post(
         PUBLISH,
         json=PUPOrder(identifier=_id, type="site", publish=False, parents=dict(project=setup.project)).dict(),
         headers=admin,
     )
     check_code(status.HTTP_304_NOT_MODIFIED, r)
-    assert to(Site, client.get(url, headers=admin)).waiting_approval
+    assert to(Site, await client.get(url, headers=admin)).waiting_approval
 
     # Publish
-    check_code(status.HTTP_204_NO_CONTENT, client.post(
+    check_code(status.HTTP_204_NO_CONTENT, await client.post(
         PUBLISH,
         json=PUPOrder(identifier=_id, type="site", parents=dict(project=setup.project)).dict(),
         headers=admin,
     ))
 
 
-def test_modify_location(setup, client, auth, auto_publish):
+@pytest.mark.anyio
+async def test_modify_location(setup, client, auth, auto_publish):
     """Change site location
     """
-    _id, site = _create_site()
+    _id, site = await _create_site()
 
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
     url = r.headers[LOCATION]
 
-    r = client.patch(url, json={"location": Point(lat=10, lon=20).dict()}, headers=auth)
+    r = await client.patch(url, json={"location": Point(lat=10, lon=20).dict()}, headers=auth)
     check_code(status.HTTP_204_NO_CONTENT, r)
     url = r.headers[LOCATION]
 
-    assert to(Site, client.get(url)).location == Point(lat=10, lon=20)
+    assert to(Site, await client.get(url)).location == Point(lat=10, lon=20)
 
 
-def test_modify_location_same(setup, client, auth, auto_publish):
+@pytest.mark.anyio
+async def test_modify_location_same(setup, client, auth, auto_publish):
     """Change site location without actual change but return changed
     """
-    _id, site = _create_site()
+    _id, site = await _create_site()
 
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
     url = r.headers[LOCATION]
 
-    r = client.patch(url, json={"location": site.location.dict()}, headers=auth)
+    r = await client.patch(url, json={"location": site.location.dict()}, headers=auth)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
 
@@ -123,42 +126,44 @@ async def test_invalid_site_406_edge_case(client, login, db, setup):
         values=dict(name=name),
     )
     setup.site = name
-    check_code(status.HTTP_406_NOT_ACCEPTABLE, client.get(SITE.format(*setup)))
+    check_code(status.HTTP_406_NOT_ACCEPTABLE, await client.get(SITE.format(*setup)))
 
 
-def test_image(client, setup, db, auth, image, auto_publish):
+@pytest.mark.anyio
+async def test_image(client, setup, db, auth, image, auto_publish):
     """Test image upload and delete
     """
-    _id, site = _create_site(image=image)
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    _id, site = await _create_site(image=image)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
     # Created
     url = r.headers[LOCATION]
 
     # Check not null
-    s = to(Site, client.get(url))
+    s = to(Site, await client.get(url))
     assert s.image is not None
 
     # Found
-    r = client.get(IMAGE.format(s.image), allow_redirects=False)
+    r = await client.get(IMAGE.format(s.image), follow_redirects=False)
     check_code(status.HTTP_200_OK, r)
 
     # Modify to null
-    client.patch(url, json={"image": None}, headers=auth)
-    s = to(Site, client.get(url))
+    await client.patch(url, json={"image": None}, headers=auth)
+    s = to(Site, await client.get(url))
     assert s.image is None
 
 
-def test_image_equals(client, setup, db, auth, image, auto_publish):
+@pytest.mark.anyio
+async def test_image_equals(client, setup, db, auth, image, auto_publish):
     """Test image data stays unchanged
     """
-    _id, site = _create_site(image=image)
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    _id, site = await _create_site(image=image)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
     # Check data
-    r = client.get(IMAGE.format(to(Site, client.get(r.headers[LOCATION])).image))
+    r = await client.get(IMAGE.format(to(Site, await client.get(r.headers[LOCATION])).image))
     import base64
     assert image == base64.b64encode(r.content).decode('ascii')
 
@@ -167,43 +172,45 @@ def test_image_equals(client, setup, db, auth, image, auto_publish):
 async def test_pap_create(db, client, setup, pap, admin, auth2, superuser):
     """Only admins create
     """
-    _id, site = _create_site()
+    _id, site = await _create_site()
 
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_403_FORBIDDEN, r)
 
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
     check_code(status.HTTP_201_CREATED, r)
 
     await db.execute("DELETE FROM sites WHERE name = :s", values=dict(s=site.id))
 
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=superuser)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=superuser)
     check_code(status.HTTP_201_CREATED, r)
 
 
-def test_pap_modify(client, setup, pap, admin, auth2, superuser, auto_publish):
+@pytest.mark.anyio
+async def test_pap_modify(client, setup, pap, admin, auth2, superuser, auto_publish):
     """Only admins modify
     """
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
     check_code(status.HTTP_201_CREATED, r)
 
     loc = r.headers[LOCATION]
 
-    r = client.patch(loc, json=site.dict(), headers=auth2)
+    r = await client.patch(loc, json=site.dict(), headers=auth2)
     check_code(status.HTTP_403_FORBIDDEN, r)
 
     site.location = Point(lat=20, lon=20)
-    r = client.patch(loc, json=site.dict(), headers=admin)
+    r = await client.patch(loc, json=site.dict(), headers=admin)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
     site.location = Point(lat=30, lon=30)
-    r = client.patch(loc, json=site.dict(), headers=superuser)
+    r = await client.patch(loc, json=site.dict(), headers=superuser)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
 
-def test_bad_language(setup, client, admin):
-    r = client.post(SITES.format(*setup), json=NewSite(
+@pytest.mark.anyio
+async def test_bad_language(setup, client, admin):
+    r = await client.post(SITES.format(*setup), json=NewSite(
         id=genword(25),
         info=SiteInfo.construct(lang="az", name=genword(length=50)),
         location=Point(lon=10, lat=10)
@@ -211,71 +218,75 @@ def test_bad_language(setup, client, admin):
     check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
 
 
-def test_own_site(setup, client, admin, auth2, auto_publish):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+@pytest.mark.anyio
+async def test_own_site(setup, client, admin, auth2, auto_publish):
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
     check_code(status.HTTP_201_CREATED, r)
-    site = to(Site, client.get(r.headers[LOCATION], headers=admin))
+    site = to(Site, await client.get(r.headers[LOCATION], headers=admin))
     assert site.own
-    site = to(Site, client.get(r.headers[LOCATION], headers=auth2))
+    site = to(Site, await client.get(r.headers[LOCATION], headers=auth2))
     assert not site.own
 
 
-def test_modify_own_site(setup, client, auth2):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+@pytest.mark.anyio
+async def test_modify_own_site(setup, client, auth2):
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
     site.info.description = "awdwadawdiwuadiawuhjdiuawihdiuawhdiawuydawuiydhiuawydhuwhdwhdihawiudhawuidhuiawdhaw"
-    r = client.patch(SITE.format(*setup, _id), json=site.dict(), headers=auth2)
+    r = await client.patch(SITE.format(*setup, _id), json=site.dict(), headers=auth2)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
 
-def test_create_memory_for_site_not_change(setup, client, auth2, admin):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+@pytest.mark.anyio
+async def test_create_memory_for_site_not_change(setup, client, auth2, admin):
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
-    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    r = await client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert site.waiting_approval
 
-    client.post(
+    await client.post(
         PUBLISH,
         json=PUPOrder(parents={'project': setup.project}, identifier=_id, type='site').dict(),
         headers=admin
     )
 
-    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    r = await client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert not site.waiting_approval
 
-    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg").dict(), headers=auth2)
+    r = await client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg").dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    r = await client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert not site.waiting_approval
 
 
-def test_fetch_all(client, setup, auto_publish, admin):
+@pytest.mark.anyio
+async def test_fetch_all(client, setup, auto_publish, admin):
     for _ in range(0, 10):
-        _id, site = _create_site()
-        r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+        _id, site = await _create_site()
+        r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
         check_code(status.HTTP_201_CREATED, r)
-    c = to(Sites, client.get(SITES.format(setup.project)))
+    c = to(Sites, await client.get(SITES.format(setup.project)))
     assert len(c.items) == 10
 
 
 @pytest.mark.anyio
 async def test_unpublished_project_site(db, setup, client, admin, auth2, auto_publish):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
     check_code(status.HTTP_201_CREATED, r)
 
     await db.execute("UPDATE projects SET published = 0 WHERE name = :name", values=dict(name=setup.project))
-    r = client.get(SITE.format(*setup, _id))
+    r = await client.get(SITE.format(*setup, _id))
     assert r.status_code == status.HTTP_404_NOT_FOUND and "Project" in r.text
 
 
@@ -283,79 +294,85 @@ async def test_unpublished_project_site(db, setup, client, admin, auth2, auto_pu
 async def test_key_failure_project_site(db, setup, client, admin, auth2, auto_publish):
     await db.execute("SET FOREIGN_KEY_CHECKS=0")
     try:
-        _id, site = _create_site()
-        r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+        _id, site = await _create_site()
+        r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
         check_code(status.HTTP_201_CREATED, r)
         await db.execute("DELETE FROM projects WHERE name = :name", values=dict(name=setup.project))
-        r = client.get(SITE.format(*setup, _id))
+        r = await client.get(SITE.format(*setup, _id))
         assert r.status_code == status.HTTP_404_NOT_FOUND and "Project" in r.text
     finally:
         await db.execute("SET FOREIGN_KEY_CHECKS=1")
 
 
-def test_site_patch_image(client, setup, db, auth, image, auto_publish):
+@pytest.mark.anyio
+async def test_site_patch_image(client, setup, db, auth, image, auto_publish):
     """Test image upload and delete
     """
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.patch(SITE.format(*setup, _id), json=dict(image=f'data:image/png;base64,{image}'), headers=auth)
+    r = await client.patch(SITE.format(*setup, _id), json=dict(image=f'data:image/png;base64,{image}'), headers=auth)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
     # Check data
-    r = client.get(IMAGE.format(to(Site, client.get(r.headers[LOCATION])).image))
+    r = await client.get(IMAGE.format(to(Site, await client.get(r.headers[LOCATION])).image))
     import base64
     assert image == base64.b64encode(r.content).decode('ascii')
 
 
-def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+@pytest.mark.anyio
+async def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish):
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.patch(SITE.format(*setup, _id), json=dict(), headers=auth)
+    r = await client.patch(SITE.format(*setup, _id), json=dict(), headers=auth)
     check_code(status.HTTP_304_NOT_MODIFIED, r)
 
 
-def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish, using_cache):
+@pytest.mark.anyio
+async def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish, using_cache):
     """Test random assignment of image from memories
     """
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg", image=image).dict(), headers=auth2)
+    r = await client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg", image=image).dict(),
+                          headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    r = await client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert site.image
 
-    r = client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="eddede", image=image).dict(), headers=auth2)
+    r = await client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="eddede", image=image).dict(),
+                          headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.get(SITE.format(*setup, _id), headers=auth2)
+    r = await client.get(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_200_OK, r)
     site2 = to(Site, r)
     assert site2.image is not None
 
 
-def test_create_site_non_default_locale_creates_default_placeholder(setup, client, admin, auto_publish):
-    _id, site = _create_site()
+@pytest.mark.anyio
+async def test_create_site_non_default_locale_creates_default_placeholder(setup, client, admin, auto_publish):
+    _id, site = await _create_site()
     site.info.lang = "en"
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=admin)
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=admin)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "fi"})
+    r = await client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "fi"})
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert site.info.abstract is None
     assert site.info.description is None
     assert site.info.name == site.info.name
 
-    r = client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "en"})
+    r = await client.get(SITE.format(*setup, _id), headers={headers.ACCEPT_LANGUAGE: "en"})
     check_code(status.HTTP_200_OK, r)
     site = to(Site, r)
     assert site.dict() == site.dict()
@@ -363,11 +380,11 @@ def test_create_site_non_default_locale_creates_default_placeholder(setup, clien
 
 @pytest.mark.anyio
 async def test_site_delete_own(client, setup, db, auth2):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.delete(SITE.format(*setup, _id), headers=auth2)
+    r = await client.delete(SITE.format(*setup, _id), headers=auth2)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
     assert await db.fetch_val(
@@ -378,11 +395,11 @@ async def test_site_delete_own(client, setup, db, auth2):
 
 @pytest.mark.anyio
 async def test_site_delete_other_admin(client, setup, db, auth2, admin):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
     check_code(status.HTTP_201_CREATED, r)
 
-    r = client.delete(SITE.format(*setup, _id), headers=admin)
+    r = await client.delete(SITE.format(*setup, _id), headers=admin)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
     assert await db.fetch_val(
@@ -393,22 +410,22 @@ async def test_site_delete_other_admin(client, setup, db, auth2, admin):
 
 @pytest.mark.anyio
 async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
     info = ModifiedSite(info=SiteInfo(name="aaaa", description="a", abstract="a", lang="fi")).dict(exclude_unset=True)
 
-    r = client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
+    r = await client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
     check_code(status.HTTP_404_NOT_FOUND, r)
 
     await db.execute("UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=_id))
 
-    r = client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
+    r = await client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
     check_code(status.HTTP_204_NO_CONTENT, r)
 
-    creator = client.get("/me", headers=auth).json()["username"]
-    modifier = client.get("/me", headers=auth2).json()["username"]
+    creator = (await client.get("/me", headers=auth)).json()["username"]
+    modifier = (await client.get("/me", headers=auth2)).json()["username"]
 
     assert await db.fetch_val(
         """
@@ -421,7 +438,7 @@ async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
         values=dict(id=_id)
     ) == modifier
 
-    r = client.get(SITE.format(*setup, _id))
+    r = await client.get(SITE.format(*setup, _id))
     check_code(status.HTTP_200_OK, r)
     s = to(Site, r)
 
@@ -429,7 +446,8 @@ async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
     assert s.modifier == modifier
 
 
-def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
+@pytest.mark.anyio
+async def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
     sites_data = []
     for i in range(0, 5):
         _id = genword(length=128)
@@ -438,11 +456,11 @@ def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
             info=SiteInfo(lang="fi", name=genword(length=50)),
             location=Point(lon=i * 10, lat=i * 10),
         )
-        r = client.post(SITES.format(*setup), json=_site.dict(), headers=auth)
+        r = await client.post(SITES.format(*setup), json=_site.dict(), headers=auth)
         check_code(status.HTTP_201_CREATED, r)
         sites_data.append(_site.id)
 
-    r = client.get(SITES.format(*setup) + "?n=3&lat=10&lon=10")
+    r = await client.get(SITES.format(*setup) + "?n=3&lat=10&lon=10")
     check_code(status.HTTP_200_OK, r)
     sites = to(Sites, r)
 
@@ -457,13 +475,13 @@ def test_site_fetch_by_distance(client, setup, db, auth, auto_publish):
 
 @pytest.mark.anyio
 async def test_sites_include_memories(client, setup, db, auth, auto_publish, repo_config):
-    _id, site = _create_site()
-    r = client.post(SITES.format(*setup), json=site.dict(), headers=auth)
+    _id, site = await _create_site()
+    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
 
     await create_memory(setup.project, site.id, db, repo_config)
 
-    r = client.get(SITE.format(*setup, _id) + "?include_memories=true", json=dict(), headers=auth)
+    r = await client.get(SITE.format(*setup, _id) + "?include_memories=true", headers=auth)
     check_code(status.HTTP_200_OK, r)
     s = to(Site, r)
     assert len(s.memories) == 1
@@ -483,6 +501,7 @@ async def test_sites_include_memories(client, setup, db, auth, auto_publish, rep
     "?n=1&lat=10&lon=-190",
     "?n=1&lat=10&lon=190",
 ])
-def test_site_fetch_by_distance_bad_params(client, setup, q):
-    r = client.get(SITES.format(*setup) + q)
+@pytest.mark.anyio
+async def test_site_fetch_by_distance_bad_params(client, setup, q):
+    r = await client.get(SITES.format(*setup) + q)
     check_code(status.HTTP_422_UNPROCESSABLE_ENTITY, r)

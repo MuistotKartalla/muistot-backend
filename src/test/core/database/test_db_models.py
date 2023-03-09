@@ -1,4 +1,4 @@
-from muistot.database.models import ResultSet, ResultSetCursor
+from muistot.database.resultset import ResultSet
 
 
 def test_list_spread():
@@ -48,11 +48,6 @@ def test_str_repr():
     data = ResultSet(expected.items())
     assert data.__str__() == expected.__str__()
     assert data.__repr__() == expected.__repr__()
-
-
-def test_type():
-    c = ResultSetCursor.dict_type
-    assert c == ResultSet
 
 
 def test_format_string():

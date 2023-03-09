@@ -1,5 +1,5 @@
 import pytest
-from muistot.database import Databases, Database
+from muistot.database import Databases, Database, OperationalError, DatabaseProvider
 
 
 @pytest.fixture(scope="session")
@@ -8,13 +8,13 @@ def anyio_backend():
 
 
 @pytest.fixture(scope="session")
-async def db_instance(anyio_backend):
+async def db_instance(anyio_backend) -> DatabaseProvider:
     inst = Databases.default.database
     while True:
         try:
             await inst.connect()
             break
-        except inst.OperationalError:
+        except OperationalError:
             pass
     try:
         yield inst

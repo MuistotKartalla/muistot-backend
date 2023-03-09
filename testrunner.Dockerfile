@@ -10,6 +10,7 @@ COPY requirements*.txt ./
 RUN pip install -r requirements-dev.txt
 # Coverage
 COPY ./pytest.ini .
+COPY ./.coveragerc .
 # Source
 COPY ./src/ ./src/
 # Copy test oauth and mailer

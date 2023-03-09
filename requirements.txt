@@ -3,7 +3,8 @@ fastapi==0.75.*
 uvicorn==0.17.*
 
 # [DB]
-pymysql==1.0.*          # TODO: This could later be changed into databases
+sqlalchemy[asyncio]==2.0.*
+asyncmy==0.2.*
 redis==4.2.*
 
 # [Crypto]
@@ -14,4 +15,4 @@ httpx==0.22.*           # Async client for requests
 python-magic==0.4.25    # File format guessing
 email-validator==1.1.3  # Pydantic EmailStr
 pycountry==22.3.5       # Country and Language validation
-httpheaders==1.0.1      # Easy headers
+httpheaders>=2023.*     # Easy headers

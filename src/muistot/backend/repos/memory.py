@@ -184,7 +184,7 @@ class MemoryRepo(BaseRepo):
         await self.db.execute(
             f'UPDATE memories r'
             f" SET r.published = {1 if publish else 0}"
-            f' WHERE r.id = :id',
+            f' WHERE r.id = :id AND r.published = {0 if publish else 1}',
             values=dict(id=memory),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")

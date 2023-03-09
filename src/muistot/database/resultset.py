@@ -1,7 +1,5 @@
 from typing import Tuple, Iterable, Any, Union
 
-from pymysql.cursors import DictCursor
-
 
 class ResultSet:
     """Mapping for results from database
@@ -75,9 +73,3 @@ class ResultSet:
         """Returns a view of result columns
         """
         return self.dict.keys()
-
-
-class ResultSetCursor(DictCursor):
-    """Custom cursor for using ResultSet results
-    """
-    dict_type = ResultSet

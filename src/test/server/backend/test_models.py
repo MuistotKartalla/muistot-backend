@@ -136,14 +136,12 @@ def test_project_dates():
     assert "end before start" in str(e.value)
 
 
-def test_project_none_admins_raises():
-    with pytest.raises(ValidationError) as e:
-        NewProject(
-            id="aaaaaa",
-            info=ProjectInfo(name="aaaa", lang="fi"),
-            admins=None
-        )
-    assert "not iterable" in str(e.value)
+def test_project_none_admins_at_init():
+    p = NewProject(
+        id="aaaaaa",
+        info=ProjectInfo(name="aaaa", lang="fi"),
+    )
+    assert p.admins is None
 
 
 def test_user_country_validator_invalid_none():

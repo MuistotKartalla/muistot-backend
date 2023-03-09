@@ -126,7 +126,7 @@ class CommentRepo(BaseRepo):
 
     @check.own
     async def modify(self, comment: CID, model: ModifiedComment) -> bool:
-        await self.db.fetch_val(
+        await self.db.execute(
             """
             UPDATE comments 
             SET comment=:comment, published=DEFAULT
@@ -138,7 +138,7 @@ class CommentRepo(BaseRepo):
 
     @check.own_or_admin
     async def delete(self, comment: CID):
-        await self.db.fetch_val(
+        await self.db.execute(
             """
             DELETE FROM comments WHERE id = :id
             """,
@@ -150,7 +150,7 @@ class CommentRepo(BaseRepo):
         await self.db.execute(
             f'UPDATE comments r'
             f" SET r.published = {1 if publish else 0}"
-            f' WHERE r.id = :id',
+            f' WHERE r.id = :id AND r.published = {0 if publish else 1}',
             values=dict(id=comment),
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")

@@ -1,12 +1,12 @@
 from typing import Dict, Iterator
 
+from .connection import DatabaseProvider
 from ..config import Config
 from ..logging import log
 
 
 def create_connection(database):
-    from .connection import DatabaseConnection
-    return DatabaseConnection(database)
+    return DatabaseProvider(database)
 
 
 class DatabaseDependency:

@@ -21,10 +21,10 @@ async def _check(n: int, url: str, table: str, identifier: str, model, db, clien
     ids = list(map(lambda o: f"'{o}'" if isinstance(o, str) else f"{o}", ids))
 
     await db.execute(f"UPDATE {table} SET published = 0 WHERE {identifier} IN ({','.join(ids)})")
-    assert getattr(to(model, client.get(url)), f"{table}_count") == 0
+    assert getattr(to(model, await client.get(url)), f"{table}_count") == 0
 
     await db.execute(f"UPDATE {table} SET published = 1 WHERE {identifier} IN ({','.join(ids)})")
-    assert getattr(to(model, client.get(url)), f"{table}_count") == n
+    assert getattr(to(model, await client.get(url)), f"{table}_count") == n
 
 
 #        ___           ___           ___           ___           ___
