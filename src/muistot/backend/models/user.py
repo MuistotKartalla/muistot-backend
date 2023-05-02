@@ -4,32 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, validator
 
 from ._fields import *
-from .comment import Comment
 from .memory import Memory
-
-
-class UserComment(Comment):
-    """
-    Comment model for user specific listings
-    """
-
-    project: PID = Field(description="Project the comment connects to")
-    site: SID = Field(description="Site the comment connects to")
-    memory: MID = Field(description="Memory the comment connects to")
-
-    class Config:
-        __examples__ = {
-            "basic": {
-                "summary": "Basic",
-                "value": {
-                    "project": "muistotkartalla",
-                    "site": "sample-site",
-                    "memory": 1,
-                    **Comment.Config.__examples__["own"],
-                },
-                "description": "It is possible to query comments per user."
-            }
-        }
 
 
 class UserMemory(Memory):

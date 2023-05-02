@@ -20,7 +20,6 @@ class Setup:
     project: PID
     site: SID
     memory: MID
-    comment: CID
 
     def __init__(self, *args):
         length = len(args)
@@ -28,8 +27,6 @@ class Setup:
             self.project, self.site, self.memory = args
         elif length == 2:
             self.project, self.site = args
-        elif length == 4:
-            self.project, self.site, self.memory, self.comment = args
         else:
             self.project = args[0]
 
@@ -75,13 +72,6 @@ async def create_memory(pid: PID, sid: SID, db, config, **additional_properties)
     )
     assert out is not None
     await db.execute("UPDATE memories SET published = 1 WHERE id = :id", values=dict(id=out))
-    return out
-
-
-async def create_comment(pid: PID, sid: SID, mid: MID, db, config) -> CID:
-    out = await CommentRepo(db, pid, sid, mid).configure(config).create(NewComment(comment=genword(length=500)))
-    assert out is not None
-    await db.execute("UPDATE comments SET published = 1 WHERE id = :id", values=dict(id=out))
     return out
 
 

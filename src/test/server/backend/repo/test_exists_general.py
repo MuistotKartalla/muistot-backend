@@ -1,6 +1,5 @@
 import pytest
 from fastapi import HTTPException
-from muistot.backend.repos.exists.comment import CommentExists
 from muistot.backend.repos.exists.memory import MemoryExists
 from muistot.backend.repos.exists.site import SiteExists
 
@@ -47,7 +46,6 @@ MockDB.NULL = _n
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
     SiteExists,
 ])
@@ -59,7 +57,6 @@ async def test_none_result(cls):
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
 ])
 @pytest.mark.anyio
@@ -72,20 +69,6 @@ async def test_site_not_found_result(cls):
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
-])
-@pytest.mark.anyio
-async def test_memory_not_found_result(cls):
-    with pytest.raises(HTTPException) as e:
-        await exists(cls)(MockDB(
-            site_published=True,
-            memory_published=None,
-        ), MockUser()).exists()
-    assert "Memory" in e.value.detail
-
-
-@pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
     SiteExists,
 ])
@@ -102,7 +85,6 @@ async def test_project_not_published_result(cls):
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
 ])
 @pytest.mark.anyio
@@ -117,21 +99,6 @@ async def test_site_not_published_result(cls):
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
-])
-@pytest.mark.anyio
-async def test_memory_not_published_result(cls):
-    with pytest.raises(HTTPException) as e:
-        await exists(cls)(MockDB(
-            site_published=True,
-            memory_published=False,
-            project_published=True
-        ), MockUser()).exists()
-    assert "Memory" in e.value.detail
-
-
-@pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
     SiteExists,
 ])
@@ -149,7 +116,6 @@ async def test_own_early_return(cls):
 
 
 @pytest.mark.parametrize("cls", [
-    CommentExists,
     MemoryExists,
     SiteExists,
 ])
@@ -164,23 +130,3 @@ async def test_admin_early_return(cls):
     ), MockUser(is_authenticated=True)).exists()
     assert not s.own
     assert s.admin
-
-
-@pytest.mark.parametrize("cls", [
-    CommentExists,
-    MemoryExists,
-    SiteExists,
-])
-@pytest.mark.anyio
-async def test_admin_early_return(cls):
-    for lang in ["en", "fi", "test"]:
-        e = exists(cls)(MockDB(
-            site_published=False,
-            memory_published=False,
-            project_published=False,
-            is_admin=True,
-            comment_published=False,
-            default_language=lang,
-        ), MockUser(is_authenticated=True))
-        await e.exists()
-        assert e.default_language == lang

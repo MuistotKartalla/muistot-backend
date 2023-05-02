@@ -15,19 +15,17 @@ ID_MAP = {
     "project": "name",
     "site": "name",
     "memory": "id",
-    "comment": "id"
 }
 
 TABLE_MAP = {
     "project": "projects",
     "site": "sites",
     "memory": "memories",
-    "comment": "comments",
 }
 
 
 class OrderBase(BaseModel):
-    type: Literal["site", "memory", "comment", "project"]
+    type: Literal["site", "memory", "project"]
     parents: Optional[Dict[Literal["site", "memory", "project"], Union[SID, MID, PID]]]
     identifier: Union[PID, SID, MID, CID]
 
@@ -43,15 +41,10 @@ class OrderBase(BaseModel):
             assert issubclass(SID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 1, BAD_PARENTS_CNT
             assert "project" in parents_, BAD_PARENTS
-        elif type_ == "memory":
+        elif type_ == "memory": # pragma: no branch
             assert issubclass(MID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 2, BAD_PARENTS_CNT
             assert "project" in parents_ and "site" in parents_, BAD_PARENTS
-        elif type_ == "comment":  # pragma: no branch
-            # This is exhaustive so marking no branch
-            assert issubclass(CID, type(id_)), f"{BAD_TYPE} identifier"
-            assert len(parents_) == 3, BAD_PARENTS_CNT
-            assert "project" in parents_ and "site" in parents_ and "memory" in parents_, BAD_PARENTS
         if parents_ is not None:
             for k, t in [("project", PID), ("site", SID), ("memory", MID)]:
                 if k in parents_:
@@ -71,7 +64,6 @@ async def check_exists(
         pid=order.identifier if order.type == "project" else order.parents.get("project", None),
         sid=order.identifier if order.type == "site" else order.parents.get("site", None),
         mid=order.identifier if order.type == "memory" else order.parents.get("memory", None),
-        cid=order.identifier if order.type == "comment" else None,
         user=username,
     )
 
@@ -86,9 +78,6 @@ async def check_exists(
             ISNULL(m.id)    AS mid,
             NOT m.published AS memory_not_published,
             
-            ISNULL(c.id)    AS cid,
-            NOT c.published AS comment_not_published,
-            
             NOT (
                 ISNULL(pa.user_id) 
                 AND 
@@ -99,8 +88,6 @@ async def check_exists(
                 AND s.name = :sid
             LEFT JOIN memories m ON s.id = m.site_id
                 AND m.id = :mid
-            LEFT JOIN comments c ON m.id = c.memory_id
-                AND c.id = :cid
             LEFT JOIN users u_super
                     JOIN superusers su ON su.user_id = u_super.id  
                 ON u_super.username = :user
@@ -121,8 +108,6 @@ async def check_exists(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nsite")
     if (order.parents.get("memory", None) or order.type == "memory") and m["mid"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nmemory")
-    if order.type == "comment" and m["cid"]:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\ncomment")
 
     if not admin:
         if (
@@ -137,8 +122,6 @@ async def check_exists(
                 order.parents.get("memory", None) or (check_published and order.type == "memory")
         ) and m["memory_not_published"]:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\nmemory")
-        if check_published and order.type == "comment" and m["comment_not_published"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found\ncomment")
 
 
 class PUPOrder(OrderBase):
@@ -180,26 +163,6 @@ class PUPOrder(OrderBase):
                     },
                     "identifier": 1234,
                     "publish": False,
-                },
-            },
-            "comment": {
-                "summary": "Publishing a Comment",
-                "description": dedent(
-                    """
-                    A Comment needs to supply both parents.
-                    
-                    In case the backend is not able to recognize the comment an error is returned.
-                    """
-                ),
-                "value": {
-                    "type": "comment",
-                    "parents": {
-                        "project": "my-awesome-project",
-                        "site": "my_site",
-                        "memory": 34,
-                    },
-                    "identifier": 1,
-                    "publish": True,
                 },
             },
         }

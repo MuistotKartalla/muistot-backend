@@ -135,7 +135,7 @@ class SiteRepo(BaseRepo):
             """
             SELECT l.lang
             FROM projects p 
-                JOIN languages l on p.default_language_id = l.id
+                JOIN languages l ON p.default_language_id = l.id
             WHERE p.name = :project
             """,
             values=dict(project=self.project)
@@ -146,9 +146,9 @@ class SiteRepo(BaseRepo):
         images = list(map(lambda m: m[0], await self.db.fetch_all(
             """
             SELECT i.file_name FROM  sites s
-                JOIN memories m on s.id = m.site_id
+                JOIN memories m ON s.id = m.site_id
                     AND m.published
-                JOIN images i on m.image_id = i.id
+                JOIN images i ON m.image_id = i.id
             WHERE s.name = :site
             ORDER BY RAND()
             LIMIT 1
@@ -218,7 +218,7 @@ class SiteRepo(BaseRepo):
             )
         out = await self.construct_site(m)
         if include_memories:
-            out.memories = await MemoryRepo(self.db, self.project, out.id).from_repo(self).all(include_comments=False)
+            out.memories = await MemoryRepo(self.db, self.project, out.id).from_repo(self).all()
         return out
 
     @check.not_exists
@@ -244,7 +244,7 @@ class SiteRepo(BaseRepo):
             values=dict(
                 name=model.id,
                 image=image_id,
-                published=self.auto_publish,
+                published=Status.AUTO_PUBLISH in _status,
                 lon=model.location.lon,
                 lat=model.location.lat,
                 project=self.project,

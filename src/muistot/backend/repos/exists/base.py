@@ -87,7 +87,6 @@ class Exists(ABC):
     """
     _plain: str
     _authenticated: str
-    _lang: str
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -152,12 +151,7 @@ class Exists(ABC):
             On failure to meet prerequisites
         """
 
-    @property
-    def default_language(self):
-        return getattr(self, "_lang", "fi")
-
     def start(self, m: Mapping, tag: str) -> Status:
-        self._lang = m["default_language"]
         if self.authenticated:
             return Status.start(m[tag]) \
                 .add_published(m, tag) \

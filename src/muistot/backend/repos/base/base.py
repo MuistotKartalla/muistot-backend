@@ -20,6 +20,7 @@ class BaseRepo(ABC):
     These classes provide data to endpoints.
     Throwing HTTPExceptions is a good way to propagate exceptions.
     """
+    lang: str
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -47,8 +48,6 @@ class BaseRepo(ABC):
             setattr(self, k, v)
         self._kwargs = dict(**kwargs)
         self._user: Union[User] = User.null()
-        self.lang = None  # Late init from exists
-        self.auto_publish = False  # Late init from exists
 
     def configure(self, r: Request) -> "BaseRepo":
         """

@@ -1,5 +1,4 @@
 from .base import *
-from .comment import CommentRepo
 from .exists import Status, check
 
 
@@ -13,8 +12,7 @@ class MemoryRepo(BaseRepo):
                IF(m.deleted, '-', m.story)      AS story,
                IF(m.deleted, '-', u.username)   AS user,
                IF(m.deleted, NULL, i.file_name) AS image,
-               m.modified_at,
-               COUNT(c.id)                      AS comments_count
+               m.modified_at
         FROM memories m
                  JOIN sites s ON m.site_id = s.id
             AND s.name = :site
@@ -22,8 +20,6 @@ class MemoryRepo(BaseRepo):
             AND p.name = :project
                  JOIN users u ON m.user_id = u.id
                  LEFT JOIN images i ON m.image_id = i.id
-                 LEFT JOIN comments c ON m.id = c.memory_id
-                    AND c.published
         WHERE m.published {}
         GROUP BY m.id
         """
@@ -35,7 +31,6 @@ class MemoryRepo(BaseRepo):
                IF(m.deleted, '-', u.username)                   AS user,
                IF(m.deleted, NULL, i.file_name)                 AS image,
                m.modified_at,               
-               COUNT(c.id)                                      AS comments_count,
                IF(u2.id IS NOT NULL, NOT m.published, NULL)     AS waiting_approval,
                u.username = :user                               AS own
         FROM memories m
@@ -45,8 +40,6 @@ class MemoryRepo(BaseRepo):
             AND p.name = :project
                  JOIN users u ON m.user_id = u.id
                  LEFT JOIN images i ON m.image_id = i.id
-                 LEFT JOIN comments c ON m.id = c.memory_id
-            AND c.published
                  LEFT JOIN users u2 ON u2.id = m.user_id
                     AND u2.username = :user
         WHERE (m.published OR u2.id IS NOT NULL) {}
@@ -60,7 +53,6 @@ class MemoryRepo(BaseRepo):
                IF(m.deleted, '-', u.username)                   AS user,
                IF(m.deleted, NULL, i.file_name)                 AS image,
                m.modified_at,               
-               COUNT(c.id)                                      AS comments_count,
                IF(m.published, NULL, 1)                         AS waiting_approval,
                u.username = :user                               AS own
         FROM memories m
@@ -70,8 +62,6 @@ class MemoryRepo(BaseRepo):
             AND p.name = :project
                  JOIN users u ON m.user_id = u.id
                  LEFT JOIN images i ON m.image_id = i.id
-                 LEFT JOIN comments c ON m.id = c.memory_id
-            AND c.published
         WHERE TRUE {}
         GROUP BY m.id
         """
@@ -84,7 +74,7 @@ class MemoryRepo(BaseRepo):
         return Memory(**m)
 
     @check.parents
-    async def all(self, include_comments: bool = False, *, _status: Status) -> List[Memory]:
+    async def all(self, *, _status: Status) -> List[Memory]:
         values = dict(site=self.site, project=self.project)
         if _status.admin:
             sql = self._select_for_admin
@@ -99,15 +89,10 @@ class MemoryRepo(BaseRepo):
             async for m in self.db.iterate(sql.format(""), values=values)
             if m is not None
         ]
-        if include_comments:
-            for m in out:
-                m.comments = await CommentRepo(
-                    self.db, self.project, self.site, m.id
-                ).all()
         return out
 
     @check.published_or_admin
-    async def one(self, memory: MID, include_comments: bool = False, *, _status: Status) -> Memory:
+    async def one(self, memory: MID, *, _status: Status) -> Memory:
         values = dict(memory=memory, site=self.site, project=self.project)
         if _status.admin:
             sql = self._select_for_admin
@@ -122,13 +107,10 @@ class MemoryRepo(BaseRepo):
             await self.db.fetch_one(sql.format("AND m.id = :memory"), values=values)
         )
 
-        if include_comments:
-            out.comments = await CommentRepo(self.db, self.project, self.site, out.id).from_repo(self).all()
-
         return out
 
     @check.parents
-    async def create(self, model: NewMemory) -> MID:
+    async def create(self, model: NewMemory, _status: Status) -> MID:
         if model.image is not None:
             image_id = await self.files.handle(model.image)
         else:
@@ -148,7 +130,7 @@ class MemoryRepo(BaseRepo):
                 story=model.story,
                 site=self.site,
                 user=self.identity,
-                published=self.auto_publish,
+                published=Status.AUTO_PUBLISH in _status,
             ),
         )
 

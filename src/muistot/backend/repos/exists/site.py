@@ -15,12 +15,10 @@ class SiteExists(Exists):
         SELECT p.published              AS project_published,
                p.admin_posting,
                p.auto_publish,
-               l.lang                   AS default_language,
                NOT ISNULL(pa.user_id)   AS is_admin,
                s.published              AS site_published,
                uc.username = :user      AS is_creator
         FROM projects p
-            JOIN languages l on p.default_language_id = l.id
                 LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
                 LEFT JOIN project_admins pa
@@ -37,10 +35,8 @@ class SiteExists(Exists):
         SELECT p.published              AS project_published,
                p.admin_posting,
                p.auto_publish,
-               l.lang                   AS default_language,
                s.published              AS site_published
         FROM projects p
-            JOIN languages l on p.default_language_id = l.id
                  LEFT JOIN sites s ON p.id = s.project_id
             AND s.name = :site
         WHERE p.name = :project

@@ -56,11 +56,6 @@ async def _actual_exists(repo: BaseRepo, arg: Any) -> Status:
     kwargs[_name(repo).lower()] = arg
     service = _import_service(repo)(user=repo.user, db=repo.db, **kwargs)
     out = await service.exists()
-
-    repo.auto_publish = Status.AUTO_PUBLISH in out
-    if repo.lang is None:
-        repo.lang = service.default_language
-
     return out | Status.SUPER if repo.superuser else out
 
 
