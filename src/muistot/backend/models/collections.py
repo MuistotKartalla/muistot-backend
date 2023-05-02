@@ -3,7 +3,6 @@ from typing import List, Type
 
 from pydantic import BaseModel, create_model, BaseConfig
 
-from .comment import Comment
 from .memory import Memory
 from .project import Project
 from .site import Site
@@ -27,27 +26,8 @@ def make_collection(model_cls: Type[BaseModel]):
 Projects = make_collection(Project)
 Sites = make_collection(Site)
 Memories = make_collection(Memory)
-Comments = make_collection(Comment)
 
-Comments.Config.__examples__ = {
-    "normal": dict(
-        map(
-            lambda e: e if e[0] != "value" else ("value", {"items": [e[1]]}),
-            Comment.Config.__examples__["normal"].items(),
-        )
-    ),
-    "own": dict(
-        map(
-            lambda e: e
-            if e[0] != "value"
-            else (
-                "value",
-                {"items": [e[1], Comment.Config.__examples__["normal"]["value"]]},
-            ),
-            Comment.Config.__examples__["own"].items(),
-        )
-    ),
-}
+
 
 Projects.Config.__examples__ = {
     "missing": {

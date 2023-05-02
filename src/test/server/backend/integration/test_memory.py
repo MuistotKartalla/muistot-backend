@@ -49,8 +49,6 @@ async def test_create_and_publish(client, setup, auth, title: str, story: str, a
 
     # Check props
     m = to(Memory, r)
-    assert m.comments_count == 0
-    assert m.comments is None
     assert m.user == username, "Wrong user"
     assert m.title == title
     assert m.story == story
@@ -317,24 +315,3 @@ async def test_fetch_all_privileged(client, setup, auth2, admin):
     c = to(Memories, await client.get(MEMORIES.format(*setup), headers=admin))
     assert len(c.items) == 10
     assert all(map(lambda o: o.waiting_approval, c.items))
-
-
-@pytest.mark.anyio
-async def test_fetch_with_comments(client, setup, auth, auto_publish):
-    m = NewMemory(title=f"Test title not published").dict()
-    r = await client.post(MEMORIES.format(*setup), json=m, headers=auth)
-    check_code(status.HTTP_201_CREATED, r)
-
-    url = r.headers[LOCATION]
-
-    for i in range(0, 10):
-        m = NewComment(comment=f"Test comment {i}").dict()
-        r = await client.post(url + "/comments", json=m, headers=auth)
-        check_code(status.HTTP_201_CREATED, r)
-
-    m = to(Memories, await client.get(MEMORIES.format(*setup) + "?include_comments=true"))
-    assert len(m.items[0].comments) == 10
-
-    m = to(Memory, await client.get(url + "?include_comments=true"))
-    assert len(m.comments) == 10
-    assert m.comments_count == 10

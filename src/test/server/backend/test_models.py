@@ -43,9 +43,6 @@ def test_user():
         dict(project="aaaa", memory=1),
         dict(site="aaaa", memory=1),
     ]),
-    ("comment", 1, [
-        None,
-    ]),
 ])
 def test_pup_parents_wrong(item_type, item_id, parent_tests):
     for parents in parent_tests:
@@ -63,10 +60,6 @@ def test_pup_parents_wrong(item_type, item_id, parent_tests):
     ("memory", 1, [
         dict(project="aaaa", site="aaaa", memory=1),
         dict(site="aaaa"),
-    ]),
-    ("comment", 1, [
-        dict(project="aaaa"),
-        dict(site="aaaa", project="aaaa"),
     ]),
     ("project", "aaaa", [
         dict(project="aaaa")
@@ -88,17 +81,6 @@ def test_pup_parents_wrong_cnt(item_type, item_id, parent_tests):
         dict(project=1, site="aaaa"),
         dict(project=1, site=1),
     ]),
-    ("comment", 1, [
-        dict(project=1, site="aaaa", memory=1),  # bad project id type
-        dict(project="aaaa", site=1, memory=1),  # bad site id type
-        dict(project="aaaa", site="aaaa", memory="aaaa"),  # bad memory id type
-
-        dict(project=1, site=1, memory=1),  # Bad project and site
-        dict(project=1, site="aaaa", memory="aaaa"),  # Bad project and memory
-        dict(project="aaaa", site=1, memory="aaaa"),  # Bad site and memory
-
-        dict(project=1, site=1, memory="aaaa"),  # Bad all
-    ]),
     ("project", 1, [  # Bad project id type
         None
     ]),
@@ -107,9 +89,6 @@ def test_pup_parents_wrong_cnt(item_type, item_id, parent_tests):
     ]),
     ("site", 1, [  # Bad site id type
         dict(project="aaaa")
-    ]),
-    ("comment", "aaaa", [  # Bad comment id type
-        dict(project="aaaa", site="aaaa", memory=1)
     ]),
 ])
 def test_pup_parent_types(item_type, item_id, parent_tests):
@@ -120,7 +99,6 @@ def test_pup_parent_types(item_type, item_id, parent_tests):
 
 
 def test_good_pup():
-    PUPOrder(type="comment", parents={"memory": 1, "site": "aaaa", "project": "aaaa"}, identifier=1)
     PUPOrder(type="project", parents={}, identifier="aaaa")
     PUPOrder(type="project", parents=None, identifier="aaaa")
 

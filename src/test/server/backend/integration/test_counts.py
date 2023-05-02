@@ -39,25 +39,6 @@ async def _check(n: int, url: str, table: str, identifier: str, model, db, clien
 #      \::/  /                      /:/  /       |:|  |
 #       \/__/                       \/__/         \|__|
 
-@pytest.mark.anyio
-@pytest.mark.parametrize("n", [1, 7, 100])
-async def test_comment_count(client, db, setup, n, repo_config):
-    """Test that comment count shows up correctly
-    """
-    mid = await create_memory(setup.project, setup.site, db, repo_config)
-    setup.memory = mid
-
-    await _check(
-        n,
-        MEMORY.format(*setup),
-        "comments",
-        "id",
-        Memory,
-        db,
-        client,
-        partial(create_comment, setup.project, setup.site, mid, db, repo_config),
-    )
-
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("n", [1, 7, 100])

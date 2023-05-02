@@ -20,12 +20,11 @@ async def test_project_not_found():
 
     with pytest.raises(HTTPException) as e:
         await check_exists(OrderBase(
-            type="comment",
+            type="memory",
             identifier=1,
             parents={
                 "project": "test",
                 "site": "test",
-                "memory": 1,
             }
         ), "test", Mock())
     assert "project" in e.value.detail
@@ -175,109 +174,13 @@ async def test_memory_not_published_order():
 
 
 @pytest.mark.anyio
-async def test_memory_not_found_parent():
-    with pytest.raises(HTTPException) as e:
-        await check_exists(OrderBase(
-            type="comment",
-            identifier=1,
-            parents=dict(
-                project="aaaa",
-                site="aaaa",
-                memory=1
-            )
-        ), "test", MockRepo(
-            project_not_published=False,
-            pid=False,
-            site_not_published=False,
-            sid=False,
-            mid=True,
-            admin=False
-        ), True)
-    assert "memory" in e.value.detail
-
-
-@pytest.mark.anyio
-async def test_memory_not_published_parent():
-    with pytest.raises(HTTPException) as e:
-        await check_exists(OrderBase(
-            type="comment",
-            identifier=1,
-            parents=dict(
-                project="aaaa",
-                site="aaaa",
-                memory=1
-            )
-        ), "test", MockRepo(
-            project_not_published=False,
-            pid=False,
-            site_not_published=False,
-            sid=False,
-            memory_not_published=True,
-            mid=False,
-            cid=False,
-            admin=False
-        ), True)
-    assert "memory" in e.value.detail
-
-
-@pytest.mark.anyio
-async def test_comment_not_found_order():
-    with pytest.raises(HTTPException) as e:
-        await check_exists(OrderBase(
-            type="comment",
-            identifier=1,
-            parents=dict(
-                project="aaaa",
-                site="aaaa",
-                memory=1
-            )
-        ), "test", MockRepo(
-            project_not_published=False,
-            pid=False,
-            site_not_published=False,
-            sid=False,
-            memory_not_published=False,
-            mid=False,
-            cid=True,
-            admin=False
-        ), True)
-    assert "comment" in e.value.detail
-
-
-@pytest.mark.anyio
-async def test_comment_not_published_order():
-    with pytest.raises(HTTPException) as e:
-        await check_exists(OrderBase(
-            type="comment",
-            identifier=1,
-            parents=dict(
-                project="aaaa",
-                site="aaaa",
-                memory=1
-            )
-        ), "test", MockRepo(
-            project_not_published=False,
-            pid=False,
-            site_not_published=False,
-            sid=False,
-            memory_not_published=False,
-            mid=False,
-            comment_not_published=True,
-            cid=False,
-            admin=False
-        ), True)
-    assert "comment" in e.value.detail
-
-
-@pytest.mark.anyio
 async def test_not_published_order_admin_bypass():
     assert await check_exists(OrderBase(
-        type="comment",
+        type="memory",
         identifier=1,
         parents=dict(
             project="aaaa",
             site="aaaa",
-            memory=1
         )
     ), "test", MockRepo(
         project_not_published=True,
@@ -286,8 +189,6 @@ async def test_not_published_order_admin_bypass():
         sid=False,
         memory_not_published=True,
         mid=False,
-        comment_not_published=True,
-        cid=False,
         admin=True
     ), True) is None
 
@@ -295,12 +196,11 @@ async def test_not_published_order_admin_bypass():
 @pytest.mark.anyio
 async def test_ok():
     assert await check_exists(OrderBase(
-        type="comment",
+        type="memory",
         identifier=1,
         parents=dict(
             project="aaaa",
             site="aaaa",
-            memory=1
         )
     ), "test", MockRepo(
         project_not_published=False,
@@ -309,7 +209,5 @@ async def test_ok():
         sid=False,
         memory_not_published=False,
         mid=False,
-        comment_not_published=False,
-        cid=False,
         admin=False
     ), True) is None

@@ -1,6 +1,5 @@
 from ._fields import PID, SID, MID, CID, UID
 from .collections import *
-from .comment import *
 from .memory import *
 from .project import *
 from .site import *
@@ -11,11 +10,6 @@ __all__ = [
     "UserData",
     "PatchUser",
     "UserMemory",
-    "UserComment",
-    # Comment
-    "Comment",
-    "NewComment",
-    "ModifiedComment",
     # Memory,
     "Memory",
     "NewMemory",
@@ -36,7 +30,6 @@ __all__ = [
     "Projects",
     "Sites",
     "Memories",
-    "Comments",
     # Types
     "PID",
     "SID",

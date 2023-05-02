@@ -16,17 +16,16 @@ caches = Cache("memories", evicts={"sites"})
     ),
     responses=rex.gets(Memories),
 )
-@caches.args("project", "site", "include_comments")
+@caches.args("project", "site")
 async def get_memories(
         r: Request,
         project: PID,
         site: SID,
         db: Database = DEFAULT_DB,
-        include_comments: bool = False,
 ) -> Memories:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    return Memories(items=await repo.all(include_comments=include_comments))
+    return Memories(items=await repo.all())
 
 
 @router.get(
@@ -41,18 +40,17 @@ async def get_memories(
     ),
     responses=rex.get(Memory),
 )
-@caches.args("project", "site", "memory", "include_comments")
+@caches.args("project", "site", "memory")
 async def get_memory(
         r: Request,
         project: PID,
         site: SID,
         memory: MID,
         db: Database = DEFAULT_DB,
-        include_comments: bool = False,
 ) -> Memory:
     repo = MemoryRepo(db, project, site)
     repo.configure(r)
-    return await repo.one(memory, include_comments=include_comments)
+    return await repo.one(memory)
 
 
 @router.post(

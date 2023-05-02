@@ -10,13 +10,11 @@
 #      \::/  /                      /:/  /       |:|  |
 #       \/__/                       \/__/         \|__|
 
-from .comment import CommentRepo
 from .memory import MemoryRepo
 from .project import ProjectRepo
 from .site import SiteRepo
 
 __all__ = [
-    "CommentRepo",
     "MemoryRepo",
     "ProjectRepo",
     "SiteRepo",

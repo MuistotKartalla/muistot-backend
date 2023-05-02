@@ -1,8 +1,5 @@
-import os
-
 from fastapi import APIRouter
 
-from .comments import router as comment_router
 from .common import router as common_paths
 from .files import router as file_router
 from .me import router as me_router
@@ -15,9 +12,6 @@ router = APIRouter()
 router.include_router(project_router)
 router.include_router(site_router)
 router.include_router(memory_router)
-if os.getenv("MUISTOT_DISABLE_COMMENTS") is None:  # pragma: no branch
-    # TODO: Remove this someday
-    router.include_router(comment_router)
 router.include_router(file_router)
 router.include_router(admin_router)
 router.include_router(me_router)

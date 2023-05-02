@@ -1,20 +1,5 @@
 USE muistot;
 
-DROP TABLE IF EXISTS audit_comments;
-CREATE TABLE IF NOT EXISTS audit_comments
-(
-    comment_id INTEGER NOT NULL,
-    user_id    INTEGER NOT NULL,
-
-    PRIMARY KEY pk_ac (comment_id, user_id),
-    CONSTRAINT FOREIGN KEY fg_ac_comment (comment_id) REFERENCES comments (id)
-        ON UPDATE RESTRICT
-        ON DELETE CASCADE,
-    CONSTRAINT FOREIGN KEY fg_ac_user (user_id) REFERENCES users (id)
-        ON UPDATE RESTRICT
-        ON DELETE CASCADE
-);
-
 DROP TABLE IF EXISTS audit_memories;
 CREATE TABLE IF NOT EXISTS audit_memories
 (
@@ -50,16 +35,6 @@ DELIMITER $$
 DROP PROCEDURE IF EXISTS hide_reported_things;
 CREATE PROCEDURE hide_reported_things()
 BEGIN
-    # Comments
-    UPDATE comments c
-        JOIN (
-            SELECT comment_id,
-                   COUNT(*) AS report_count
-            FROM audit_comments
-            GROUP BY comment_id
-        ) audit ON audit.comment_id = c.id
-    SET c.published = 0
-    WHERE audit.report_count > 10;
     # Memories
     UPDATE memories m
         JOIN (

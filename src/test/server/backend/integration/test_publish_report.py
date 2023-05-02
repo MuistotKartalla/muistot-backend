@@ -9,8 +9,7 @@ async def setup(repo_config, db, login):
     pid = await create_project(db, repo_config)
     sid = await create_site(pid, db, repo_config)
     mid = await create_memory(pid, sid, db, repo_config)
-    cid = await create_comment(pid, sid, mid, db, repo_config)
-    yield Setup(pid, sid, mid, cid)
+    yield Setup(pid, sid, mid)
     await db.execute("DELETE FROM projects WHERE name = :project", dict(project=pid))
 
 
@@ -55,19 +54,6 @@ async def test_report_memory(client, auth, setup, auto_publish, db):
 
 
 @pytest.mark.anyio
-async def test_report_comment(client, auth, setup, auto_publish, db):
-    assert await db.fetch_val("SELECT COUNT(*) FROM audit_comments") == 0
-    order = ReportOrder(type="comment", identifier=setup.comment, parents=dict(
-        project=setup.project,
-        site=setup.site,
-        memory=setup.memory,
-    ))
-    r = await client.post(REPORT, json=order.dict(), headers=auth)
-    assert r.status_code == 204, r.content
-    assert await db.fetch_val("SELECT COUNT(*) FROM audit_comments") == 1
-
-
-@pytest.mark.anyio
 async def test_report_site_double(client, auth, setup, auto_publish):
     order = ReportOrder(type="site", identifier=setup.site, parents=dict(project=setup.project))
     r = await client.post(REPORT, json=order.dict(), headers=auth)
@@ -108,62 +94,6 @@ async def test_report_memory_resource(client, auth, setup, auto_publish, db):
     ), headers=auth)
     assert r.status_code == 204, r.content
     assert await db.fetch_val("SELECT COUNT(*) FROM audit_memories") == 1
-
-
-@pytest.mark.anyio
-async def test_report_comment_resource(client, auth, setup, auto_publish, db):
-    assert await db.fetch_val("SELECT COUNT(*) FROM audit_comments") == 0
-    r = await client.put(REPORT_COMMENT.format(
-        setup.project,
-        setup.site,
-        setup.memory,
-        setup.comment,
-    ), headers=auth)
-    assert r.status_code == 204, r.content
-    r = await client.put(REPORT_COMMENT.format(
-        setup.project,
-        setup.site,
-        setup.memory,
-        setup.comment,
-    ), headers=auth)
-    assert r.status_code == 204, r.content
-    assert await db.fetch_val("SELECT COUNT(*) FROM audit_comments") == 1
-
-
-@pytest.mark.anyio
-async def test_publish_comment_resource(client, admin, setup, auto_publish, db):
-    r = await client.post(PUBLISH_COMMENT.format(
-        setup.project,
-        setup.site,
-        setup.memory,
-        setup.comment,
-        False,
-    ), headers=admin)
-    assert r.status_code == 204, r.content
-
-    r = await client.post(PUBLISH_COMMENT.format(
-        setup.project,
-        setup.site,
-        setup.memory,
-        setup.comment,
-        False,
-    ), headers=admin)
-    assert r.status_code == 304, r.content
-
-    r = await client.get(COMMENT.format(setup.project, setup.site, setup.memory, setup.comment))
-    assert r.status_code == 404, r.content
-
-    r = await client.post(PUBLISH_COMMENT.format(
-        setup.project,
-        setup.site,
-        setup.memory,
-        setup.comment,
-        True,
-    ), headers=admin)
-    assert r.status_code == 204, r.content
-
-    r = await client.get(COMMENT.format(setup.project, setup.site, setup.memory, setup.comment))
-    assert r.status_code == 200, r.content
 
 
 @pytest.mark.anyio

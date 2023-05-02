@@ -185,26 +185,3 @@ CREATE TABLE IF NOT EXISTS memories
         ON UPDATE RESTRICT
         ON DELETE SET NULL
 ) COMMENT 'Only modify own memories.';
-
-CREATE TABLE IF NOT EXISTS comments
-(
-    id          INTEGER  NOT NULL AUTO_INCREMENT,
-    memory_id   INTEGER  NOT NULL COMMENT 'fk',
-    user_id     INTEGER  NOT NULL COMMENT 'fk',
-    comment     TEXT,
-
-    published   BOOLEAN  NOT NULL DEFAULT FALSE,
-    modified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    PRIMARY KEY pk_comments (id),
-    INDEX idx_comments_per_user (published, user_id),
-    INDEX idx_comments_published (published, memory_id) COMMENT 'Hopefully shares first part with the other index',
-
-    CONSTRAINT FOREIGN KEY fk_comments_user (user_id) REFERENCES users (id)
-        ON UPDATE RESTRICT
-        ON DELETE CASCADE,
-    CONSTRAINT FOREIGN KEY fk_comments_memory (memory_id) REFERENCES memories (id)
-        ON UPDATE RESTRICT
-        ON DELETE CASCADE
-) COMMENT 'Comments on memories. Only modify own comments.';
