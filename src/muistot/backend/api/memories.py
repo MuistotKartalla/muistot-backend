@@ -1,7 +1,6 @@
 from ._imports import *
 
 router = make_router(tags=["Memories"])
-caches = Cache("memories", evicts={"sites"})
 
 
 @router.get(
@@ -16,7 +15,6 @@ caches = Cache("memories", evicts={"sites"})
     ),
     responses=rex.gets(Memories),
 )
-@caches.args("project", "site")
 async def get_memories(
         r: Request,
         project: PID,
@@ -40,7 +38,6 @@ async def get_memories(
     ),
     responses=rex.get(Memory),
 )
-@caches.args("project", "site", "memory")
 async def get_memory(
         r: Request,
         project: PID,
@@ -64,7 +61,6 @@ async def get_memory(
     responses=rex.create(),
 )
 @require_auth(scopes.AUTHENTICATED)
-@caches.evict
 async def new_memory(
         r: Request,
         project: PID,
@@ -93,7 +89,6 @@ async def new_memory(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED)
-@caches.evict
 async def modify_memory(
         r: Request,
         project: PID,
@@ -121,7 +116,6 @@ async def modify_memory(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
-@caches.evict
 async def delete_memory(
         r: Request,
         project: PID,
@@ -146,7 +140,6 @@ async def delete_memory(
     responses=rex.modify(),
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
-@caches.evict
 async def publish_memory(
         r: Request,
         project: PID,
@@ -172,7 +165,6 @@ async def publish_memory(
     responses=rex.delete(),
 )
 @require_auth(scopes.AUTHENTICATED)
-@caches.evict
 async def report_memory(
         r: Request,
         project: PID,

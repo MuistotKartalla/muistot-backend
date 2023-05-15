@@ -1,13 +1,16 @@
 from collections import namedtuple
 
 import pytest
+import redis
 from fastapi import FastAPI
 from httpx import AsyncClient
+
 from muistot import mailer
-from muistot.cache import register_redis_cache
+from muistot.config import Config
 from muistot.database import Databases
 from muistot.login import register_login
 from muistot.mailer import Mailer, Result
+from muistot.middleware import RedisMiddleware
 from muistot.sessions import register_session_manager
 
 User = namedtuple("User", ["username", "email"])
@@ -58,14 +61,13 @@ async def client(db_instance):
             yield c
 
     app.dependency_overrides[Databases.default] = mock_dep
+
     register_login(app)
-    register_redis_cache(app)
     register_session_manager(app)
 
-    app.state.FastStorage.connect()
-    app.state.SessionManager.connect()
+    app.add_middleware(RedisMiddleware, url=Config.cache.redis_url)
 
-    app.state.FastStorage.redis.flushdb()
+    app.state.SessionManager.connect()
     app.state.SessionManager.redis.flushdb()
 
     client = AsyncClient(app=app, base_url="http://test")
@@ -73,11 +75,10 @@ async def client(db_instance):
     async with client as c:
         yield c
 
-    app.state.FastStorage.redis.flushdb()
     app.state.SessionManager.redis.flushdb()
-
-    app.state.FastStorage.disconnect()
     app.state.SessionManager.disconnect()
+
+    redis.from_url(Config.cache.redis_url).flushdb()
 
 
 @pytest.fixture

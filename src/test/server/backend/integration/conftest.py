@@ -2,10 +2,10 @@ from collections import namedtuple
 
 import pytest
 from httpx import AsyncClient
+
 from muistot.backend import main
 from muistot.database import Databases
 from muistot.security.password import hash_password
-
 from utils import authenticate as auth, mock_request, genword
 
 User = namedtuple('User', ('username', 'email', 'password'))
@@ -18,29 +18,10 @@ async def client(db_instance):
             yield c
 
     main.app.dependency_overrides[Databases.default] = mock_dep
-    client = AsyncClient(app=main.app, base_url="http://test")
 
-    class Mock:
-
-        def __getattribute__(self, item):
-            return lambda *_, **__: None
-
-    client.app = main.app
-    client.app.state.FastStorage.redis = Mock()
-
-    async with client as c:
-        yield c
-
-
-@pytest.fixture(scope="function")
-def using_cache(client):
-    old = client.app.state.FastStorage.redis
-    client.app.state.FastStorage.redis = None
-    client.app.state.FastStorage.connect()
-    yield client.app.state.FastStorage.redis
-    client.app.state.FastStorage.redis.flushdb()
-    client.app.state.FastStorage.disconnect()
-    client.app.state.FastStorage.redis = old
+    async with AsyncClient(app=main.app, base_url="http://test") as client:
+        client.app = main.app
+        yield client
 
 
 @pytest.fixture(scope="module")

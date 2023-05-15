@@ -6,11 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import common_paths, api_paths
-from ..cache import register_redis_cache
 from ..config import Config
 from ..database import register_databases
 from ..errors import register_error_handlers, modify_openapi
 from ..login import register_login
+from ..middleware import RedisMiddleware
 from ..sessions import register_session_manager
 
 description = textwrap.dedent(
@@ -111,8 +111,9 @@ register_databases(app)
 #
 # Currently it works like adding layers to an onion.
 # The latest gets executed first.
-register_redis_cache(app)
 register_session_manager(app)
+
+app.add_middleware(RedisMiddleware, url=Config.cache.redis_url)
 
 if Config.testing:  # pragma: no branch
     # Only applied in testing

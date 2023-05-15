@@ -332,7 +332,7 @@ async def test_site_empty_modify_no_change(client, setup, db, auth, auto_publish
 
 
 @pytest.mark.anyio
-async def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish, using_cache):
+async def test_create_memory_for_site_has_image(setup, client, auth2, admin, image, auto_publish):
     """Test random assignment of image from memories
     """
     _id, site = await _create_site()

@@ -6,7 +6,6 @@ from typing import List, Any, NoReturn, Union, Optional, Dict
 from fastapi import Request, HTTPException, status
 
 from .utils import extract_language
-from ....cache import FastStorage
 from ....database import Database
 from ....files import Files
 from ....logging import log
@@ -39,8 +38,6 @@ class BaseRepo(ABC):
         for name in [f"construct_{resource}"]:
             if name not in funcs:
                 log.warning(f"No {name} declared in repo {cls.__name__}")
-
-    _cache: FastStorage
 
     def __init__(self, db: Database, **kwargs):
         self.db = db

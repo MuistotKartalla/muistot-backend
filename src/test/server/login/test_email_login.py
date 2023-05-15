@@ -5,9 +5,9 @@ from fastapi import HTTPException, status
 from headers import AUTHORIZATION
 
 from login_urls import EMAIL_LOGIN, STATUS, EMAIL_EXCHANGE
+from muistot.config import Config
 from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
 from muistot.login.logic.email import send_login_email as send_email, hash_token
-from muistot.config import Config
 
 
 @pytest.mark.anyio
@@ -78,17 +78,7 @@ async def test_email_login_timeout(non_existent_email, client, db):
 
     await db.execute("DELETE FROM user_email_verifiers")
 
-    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
-    assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
-
-
-@pytest.mark.anyio
-async def test_email_login_timeout_no_cache(non_existent_email, client):
-    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
-    assert r.status_code == status.HTTP_204_NO_CONTENT
-
-    client.app.state.FastStorage.redis.flushdb()
-
+    # Check cache reate limits the request
     r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
