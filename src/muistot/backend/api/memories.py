@@ -1,4 +1,13 @@
-from ._imports import *
+from textwrap import dedent
+
+from fastapi import Request, Response
+
+from .access_databases import DEFAULT_DB
+from .utils import make_router, rex, deleted, modified, created, sample
+from ..models import Memory, Memories, SID, PID, MID, NewMemory, ModifiedMemory
+from ..repos import MemoryRepo
+from ...database import Database
+from ...security import require_auth, scopes
 
 router = make_router(tags=["Memories"])
 

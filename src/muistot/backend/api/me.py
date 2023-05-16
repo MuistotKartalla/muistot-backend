@@ -1,8 +1,12 @@
-from fastapi.responses import JSONResponse
-from pydantic import EmailStr
+from textwrap import dedent
 
-from ._imports import *
-from .utils._responses import UNAUTHENTICATED, UNAUTHORIZED
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
+
+from .access_databases import DEFAULT_DB
+from .utils import make_router, d
+from .utils.common_responses import UNAUTHENTICATED, UNAUTHORIZED
+from ..models import EmailStr, UID, UserData, PatchUser
 from ..services.me import (
     get_user_data,
     update_personal_info,
@@ -10,7 +14,9 @@ from ..services.me import (
     change_username,
     manager
 )
+from ...database import Database
 from ...login.logic.session import start_session
+from ...security import require_auth, scopes
 
 router = make_router(tags=["Me"], default_response_class=Response)
 

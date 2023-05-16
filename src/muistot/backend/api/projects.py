@@ -1,6 +1,14 @@
 from itertools import chain
+from textwrap import dedent
 
-from ._imports import *
+from fastapi import Request, Response
+
+from .access_databases import DEFAULT_DB
+from .utils import make_router, rex, deleted, modified, created, sample, d
+from ..models import PID, Project, Projects, NewProject, ModifiedProject, UID
+from ..repos import ProjectRepo
+from ...database import Database
+from ...security import require_auth, scopes
 
 router = make_router(tags=["Projects"])
 

@@ -3,8 +3,8 @@ from typing import Callable
 from fastapi import Response, status, APIRouter
 from headers import LOCATION
 
-from . import _responses as rex
-from ._doctils import d, sample
+from . import common_responses as rex
+from .documentation_utilities import d, sample
 
 
 def created(url: str) -> Response:
