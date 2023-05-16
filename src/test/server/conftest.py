@@ -1,8 +1,10 @@
+from asyncio import sleep
+
 import pytest
 import redis
 
 from muistot.config import Config
-from muistot.database import Database, DatabaseProvider
+from muistot.database import Database, DatabaseProvider, OperationalError
 
 
 @pytest.fixture(scope="session")
@@ -13,6 +15,18 @@ def anyio_backend():
 @pytest.fixture(scope="session")
 async def db_instance(anyio_backend) -> DatabaseProvider:
     inst = DatabaseProvider(Config.database["default"])
+    i = 10
+    while True:
+        try:
+            async with inst():
+                break
+        except OperationalError:
+            """Database not ready
+            """
+            i -= 1
+            if i <= 0:
+                pytest.fail("Database not available")
+            await sleep(1)
     try:
         yield inst
     finally:

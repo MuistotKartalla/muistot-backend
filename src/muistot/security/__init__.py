@@ -7,7 +7,6 @@ __all__ = [
     "User",
     "scopes",
     "require_auth",
-    "disallow_auth",
     "Session",
     "SessionManager",
 ]
