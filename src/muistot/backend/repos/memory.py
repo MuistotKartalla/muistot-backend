@@ -8,10 +8,10 @@ class MemoryRepo(BaseRepo):
 
     _select = """
         SELECT m.id,
-               IF(m.deleted, '-', m.title)      AS title,
-               IF(m.deleted, '-', m.story)      AS story,
-               IF(m.deleted, '-', u.username)   AS user,
-               IF(m.deleted, NULL, i.file_name) AS image,
+               m.title                                          AS title,
+               m.story                                          AS story,
+               u.username                                       AS user,
+               i.file_name                                      AS image,
                m.modified_at
         FROM memories m
                  JOIN sites s ON m.site_id = s.id
@@ -26,10 +26,10 @@ class MemoryRepo(BaseRepo):
 
     _select_for_user = """
         SELECT m.id,
-               IF(m.deleted, '-', m.title)                      AS title,
-               IF(m.deleted, '-', m.story)                      AS story,
-               IF(m.deleted, '-', u.username)                   AS user,
-               IF(m.deleted, NULL, i.file_name)                 AS image,
+               m.title                                          AS title,
+               m.story                                          AS story,
+               u.username                                       AS user,
+               i.file_name                                      AS image,
                m.modified_at,               
                IF(u2.id IS NOT NULL, NOT m.published, NULL)     AS waiting_approval,
                u.username = :user                               AS own
@@ -48,10 +48,10 @@ class MemoryRepo(BaseRepo):
 
     _select_for_admin = """
         SELECT m.id,
-               IF(m.deleted, '-', m.title)                      AS title,
-               IF(m.deleted, '-', m.story)                      AS story,
-               IF(m.deleted, '-', u.username)                   AS user,
-               IF(m.deleted, NULL, i.file_name)                 AS image,
+               m.title                                          AS title,
+               m.story                                          AS story,
+               u.username                                       AS user,
+               i.file_name                                      AS image,
                m.modified_at,               
                IF(m.published, NULL, 1)                         AS waiting_approval,
                u.username = :user                               AS own
