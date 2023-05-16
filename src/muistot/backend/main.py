@@ -9,8 +9,8 @@ from .api import common_paths, api_paths
 from ..config import Config
 from ..database import register_databases
 from ..errors import register_error_handlers, modify_openapi
-from ..login import register_login
-from ..middleware import RedisMiddleware
+from ..login import login_router
+from ..middleware import RedisMiddleware, LanguageMiddleware
 from ..sessions import register_session_manager
 
 description = textwrap.dedent(
@@ -100,9 +100,9 @@ register_error_handlers(app)
 # ROUTERS
 app.include_router(common_paths)
 app.include_router(api_paths)
+app.include_router(login_router, prefix="/auth")
 
 # ADDITIONAL COMPONENTS
-register_login(app)
 register_databases(app)
 
 # MIDDLEWARE
@@ -113,7 +113,15 @@ register_databases(app)
 # The latest gets executed first.
 register_session_manager(app)
 
-app.add_middleware(RedisMiddleware, url=Config.cache.redis_url)
+app.add_middleware(
+    RedisMiddleware,
+    url=Config.cache.redis_url,
+)
+app.add_middleware(
+    LanguageMiddleware,
+    default_language=Config.localization.default,
+    languages=Config.localization.supported,
+)
 
 if Config.testing:  # pragma: no branch
     # Only applied in testing

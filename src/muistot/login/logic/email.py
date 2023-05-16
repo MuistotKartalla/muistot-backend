@@ -1,13 +1,24 @@
-from secrets import token_urlsafe
 from typing import Tuple, Optional
 
-from .data import hash_token, create_code
+from .data import hash_token, create_token
 from ...database import Database
-from ...mailer import get_mailer
+
+
+async def fetch_verifier(username: str, db: Database) -> str:
+    return await db.fetch_val(
+        """
+        SELECT uev.verifier
+        FROM user_email_verifiers uev 
+            JOIN users u ON uev.user_id = u.id
+                AND u.username = :user
+        WHERE TIMESTAMPDIFF(MINUTE, uev.created_at, CURRENT_TIMESTAMP) < 10
+        """,
+        values=dict(user=username),
+    )
 
 
 async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, bool]:
-    token = token_urlsafe(150)
+    token = create_token()
     await db.execute(
         """
         INSERT INTO user_email_verifiers (user_id, verifier) 
@@ -27,26 +38,13 @@ async def create_email_verifier(username: str, db: Database) -> Tuple[str, str, 
     return m[0], token, m[1]
 
 
-async def send_login_email(username: str, db: Database, lang: str):
-    email, token, verified = await create_email_verifier(username, db)
-    mailer = get_mailer()
-    await mailer.send_email(
-        email,
-        "login",
-        user=username,
-        token=token,
-        verified=verified,
-        lang=lang,
-    )
-
-
 async def can_send_email(email: str, db: Database):
     return bool(await db.fetch_val(
         """
         SELECT NOT EXISTS(
             SELECT 1
             FROM user_email_verifiers uev 
-                JOIN users u on uev.user_id = u.id 
+                JOIN users u ON uev.user_id = u.id 
             WHERE u.email = :email AND TIMESTAMPDIFF(MINUTE, uev.created_at, CURRENT_TIMESTAMP) < 5
         )
         """,
@@ -63,35 +61,29 @@ async def fetch_user_by_email(email: str, db: Database) -> Optional[str]:
     )
 
 
-async def send_confirm_email(username: str, db: Database, lang: str):
-    from ...mailer import get_mailer
-
-    code = create_code()
-    email = await db.fetch_val(
+async def is_verified(username: str, db: Database) -> bool:
+    return await db.fetch_val(
         """
-        REPLACE INTO user_email_verifiers (user_id, verifier) 
-            SELECT id, :verifier 
-            FROM users 
-            WHERE username = :user
-        RETURNING (SELECT email FROM users WHERE username = :user)
+        SELECT verified FROM users WHERE username = :user
         """,
-        values=dict(user=username, verifier=hash_token(code))
-    )
-
-    mailer = get_mailer()
-    await mailer.send_email(
-        email,
-        "register",
-        user=username,
-        token=code,
-        verified=False,
-        lang=lang,
+        values=dict(user=username)
     )
 
 
-__all__ = [
-    "send_login_email",
-    "can_send_email",
-    "fetch_user_by_email",
-    "send_confirm_email"
-]
+async def verify(username: str, db: Database):
+    await db.execute(
+        """
+        UPDATE users SET verified = 1 WHERE username = :user
+        """,
+        values=dict(user=username)
+    )
+
+
+async def delete_verifiers(username: str, db: Database):
+    await db.execute(
+        """
+        DELETE FROM user_email_verifiers 
+        WHERE user_id = (SELECT id FROM users WHERE username = :user)
+        """,
+        values=dict(user=username),
+    )

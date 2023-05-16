@@ -1,6 +1,6 @@
 import pytest
 from fastapi import status
-from headers import LOCATION, ACCEPT_LANGUAGE
+from headers import ACCEPT_LANGUAGE
 
 from utils import *
 
@@ -206,11 +206,11 @@ async def test_project_localize_new(setup, client, superuser):
 
 
 @pytest.mark.anyio
-async def test_porject_unknown_locale(setup, client):
-    """Test unsupported locale
+async def test_project_unknown_locale_defaults(setup, client):
+    """Test unsupported locale defaults to default locale
     """
     r = await client.get(PROJECT.format(setup.project), headers={ACCEPT_LANGUAGE: "az"})
-    check_code(status.HTTP_406_NOT_ACCEPTABLE, r)
+    check_code(status.HTTP_200_OK, r)
 
 
 @pytest.mark.anyio
@@ -225,10 +225,10 @@ async def test_project_bad_language(client, superuser):
 
 
 @pytest.mark.anyio
-async def test_project_publish_admin_another_project_fails(db, pid, client, setup, users):
+async def test_project_publish_admin_another_project_fails(db, pid, client, setup, credentials, authenticate):
     """All admin calls go through to publish but should reject if admin is not from current project
     """
-    user = users[1]
+    user = credentials[1]
 
     _id = await db.fetch_val(
         """
@@ -243,7 +243,7 @@ async def test_project_publish_admin_another_project_fails(db, pid, client, setu
         values=dict(pid=_id, user=user.username)
     )
 
-    auth_header = await authenticate(client, user.username, user.password)
+    auth_header = await authenticate(user)
 
     r = await client.post(
         PUBLISH,
@@ -286,22 +286,22 @@ async def test_project_double_publish_no_change(pid, client, superuser, db):
 
 
 @pytest.mark.anyio
-async def test_admin_sees_unpublished(pid, client, superuser, users):
-    u2 = users[2]
+async def test_admin_sees_unpublished(pid, client, superuser, credentials, authenticate):
+    u2 = credentials[2]
     await make_project(pid, client, superuser, admins=[u2.username])
 
-    aauth = await authenticate(client, u2.username, u2.password)
+    aauth = await authenticate(u2)
     r = await client.get(PROJECT.format(pid), headers=aauth)
     check_code(status.HTTP_200_OK, r)
     assert any(map(lambda prj: prj.id == pid, to(Projects, await client.get(PROJECTS, headers=aauth)).items))
 
 
 @pytest.mark.anyio
-async def test_user_does_not_see_unpublished(pid, client, superuser, users):
-    u2 = users[2]
+async def test_user_does_not_see_unpublished(pid, client, superuser, credentials, authenticate):
+    u2 = credentials[2]
     await make_project(pid, client, superuser)
 
-    aauth = await authenticate(client, u2.username, u2.password)
+    aauth = await authenticate(u2)
     r = await client.get(PROJECT.format(pid), headers=aauth)
     check_code(status.HTTP_404_NOT_FOUND, r)
     assert all(map(lambda prj: prj.id != pid, to(Projects, await client.get(PROJECTS, headers=aauth)).items))

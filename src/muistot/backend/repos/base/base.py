@@ -3,9 +3,8 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, Any, NoReturn, Union, Optional, Dict
 
-from fastapi import Request, HTTPException, status
+from fastapi import Request
 
-from .utils import extract_language
 from ....database import Database
 from ....files import Files
 from ....logging import log
@@ -56,12 +55,7 @@ class BaseRepo(ABC):
         - Language
         """
         self._user = r.user
-        try:
-            self.lang = extract_language(r)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Can not localize"
-            )
+        self.lang = r.state.language
         return self
 
     def from_repo(self, repo: "BaseRepo") -> "BaseRepo":

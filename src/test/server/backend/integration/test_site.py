@@ -1,9 +1,8 @@
 import headers
 import pytest
 from fastapi import status
-from headers import LOCATION
-from muistot.backend.api.publish import PUPOrder
 
+from muistot.backend.api.publish import PUPOrder
 from utils import *
 
 
@@ -15,8 +14,8 @@ async def setup(repo_config, db, username):
 
 
 @pytest.fixture
-async def admin(client, login):
-    yield await authenticate(client, login[0], login[2])
+async def admin(client, login, authenticate):
+    yield await authenticate(login)
 
 
 @pytest.fixture
@@ -431,9 +430,9 @@ async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
         """
         SELECT u.username 
         FROM site_information si 
-            JOIN sites s on si.site_id = s.id 
+            JOIN sites s ON si.site_id = s.id 
                 AND s.name = :id
-            JOIN users u on si.modifier_id = u.id
+            JOIN users u ON si.modifier_id = u.id
         """,
         values=dict(id=_id)
     ) == modifier

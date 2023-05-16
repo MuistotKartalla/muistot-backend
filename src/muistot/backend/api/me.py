@@ -5,11 +5,11 @@ from .utils._responses import UNAUTHENTICATED, UNAUTHORIZED
 from ..services.me import (
     get_user_data,
     update_personal_info,
-    change_password,
     change_email,
     change_username,
     manager
 )
+from ...login.logic.session import start_session
 
 router = make_router(tags=["Me"], default_response_class=Response)
 
@@ -55,17 +55,6 @@ async def update_me(request: Request, model: PatchUser, db: Database = DEFAULT_D
     await update_personal_info(db, request.user.identity, model)
 
 
-@router.put(
-    "/me/password",
-    status_code=200,
-    response_class=Response,
-    description="Changes password. The user is logged out of __ALL__ sessions."
-)
-@require_auth(scopes.AUTHENTICATED)
-async def change_my_password(request: Request, password: str, db: Database = DEFAULT_DB):
-    await change_password(db, request.user.identity, password, manager(request))
-
-
 @router.post(
     "/me/email",
     status_code=200,
@@ -84,7 +73,6 @@ async def change_my_password(request: Request, password: str, db: Database = DEF
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_email(request: Request, email: str, db: Database = DEFAULT_DB):
     if await change_email(db, request.user.identity, email, manager(request)):
-        from ...login import start_session
         return await start_session(request.user.identity, db, manager(request))
     else:
         return Response(status_code=304)
@@ -109,7 +97,6 @@ async def change_my_email(request: Request, email: str, db: Database = DEFAULT_D
 @require_auth(scopes.AUTHENTICATED)
 async def change_my_username(request: Request, username: str, db: Database = DEFAULT_DB):
     if await change_username(db, request.user.identity, username, manager(request)):
-        from ...login import start_session
         return await start_session(username, db, manager(request))
     else:
         return Response(status_code=304)

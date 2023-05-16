@@ -1,14 +1,12 @@
-from collections import namedtuple
-
 import pytest
 from httpx import AsyncClient
 
 from muistot.backend import main
+from muistot.backend.models import NewProject
 from muistot.database import Databases
-from muistot.security.password import hash_password
-from utils import authenticate as auth, mock_request, genword
-
-User = namedtuple('User', ('username', 'email', 'password'))
+from muistot.login.logic.session import load_session_data
+from muistot.sessions import Session
+from utils import mock_request, genword, User
 
 
 @pytest.fixture(scope="session")
@@ -22,37 +20,30 @@ async def client(db_instance):
     async with AsyncClient(app=main.app, base_url="http://test") as client:
         client.app = main.app
         yield client
+        client.app.state.SessionManager.redis.flushdb()
 
 
 @pytest.fixture(scope="module")
-def _credentials():
-    """collection of username, email, password
+def credentials():
+    """collection of username, email
     """
     out = []
     usernames = set()
     while len(out) != 3:
         length = 12
-        username, password = genword(length=length) + "#1234", genword(length=length)
+        username = genword(length=length) + "#1234"
         if username not in usernames:
             email = f"{username}@example.com"
-            out.append((username, email, password))
+            out.append(User(username, email))
             usernames.add(username)
     yield out
 
 
-@pytest.fixture(scope="module")
-def users(_credentials):
-    data = list()
-    for c in _credentials:
-        data.append(User(username=c[0], email=c[1], password=c[2]))
-    yield data
-
-
 @pytest.fixture(autouse=True, scope="module")
-async def delete_users(db_instance, _credentials):
+async def delete_users(db_instance, credentials):
     yield
     async with db_instance() as db:
-        for username, _, _ in _credentials:
+        for username, _ in credentials:
             await db.execute("DELETE FROM users WHERE username = :un", values=dict(un=username))
             assert (
                        await db.fetch_val(
@@ -62,62 +53,60 @@ async def delete_users(db_instance, _credentials):
                    ) == 0
 
 
-@pytest.fixture(name="login", autouse=True, scope="module")
-async def create_users(db_instance, _credentials):
+@pytest.fixture(autouse=True, scope="module")
+async def create_users(db_instance, credentials):
     async with db_instance() as db:
-        for username, email, password in _credentials:
+        for username, email in credentials:
             await db.execute(
-                "INSERT INTO users (email, username, password_hash, verified) "
-                "VALUE (:email, :username, :password, 1) ",
+                "INSERT INTO users (email, username, verified) "
+                "VALUE (:email, :username, 1) ",
                 values=dict(
-                    password=hash_password(password=password), username=username, email=email
+                    username=username,
+                    email=email,
                 ),
             )
-    username, email, password = _credentials[0]
-    yield username, email, password
 
 
-@pytest.fixture(name="superuser")
-async def superuser(db, client, login):
-    await db.execute(
-        "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
-        values=dict(user=login[0]),
-    )
-    yield await auth(client, login[0], login[2])
-    await db.execute(
-        """
-        DELETE su FROM superusers su JOIN users u ON u.id = su.user_id WHERE u.username = :user
-        """,
-        values=dict(user=login[0])
-    )
+@pytest.fixture
+def authenticate(client, db):
+    async def authenticator(user: User):
+        data = await load_session_data(user.username, db)
+        session = Session(user.username, data)
+        return {'Authorization': f"Bearer {client.app.state.SessionManager.start_session(session)}"}
+
+    yield authenticator
 
 
-@pytest.fixture(name="auth")
-async def auth_fixture(client, _credentials):
-    username, _, password = _credentials[0]
-    yield await auth(client, username, password)
-
-
-@pytest.fixture(name="auth2")
-async def auth_fixture_2(client, _credentials):
-    username, _, password = _credentials[1]
-    yield await auth(client, username, password)
-
-
-@pytest.fixture(name="auth3")
-async def auth_fixture_3(client, _credentials):
-    username, _, password = _credentials[2]
-    yield await auth(client, username, password)
-
-
-@pytest.fixture(scope="module")
-def repo_config(_credentials):
-    yield mock_request(_credentials[0][0])
+@pytest.fixture
+def login(credentials):
+    yield User(*credentials[0])
 
 
 @pytest.fixture
 def username(login):
-    yield login[0]
+    yield login.username
+
+
+@pytest.fixture
+def repo_config(username):
+    """Configure a repo from request with all privileges
+    """
+    yield mock_request(username)
+
+
+@pytest.fixture
+async def auth(client, credentials, authenticate):
+    yield await authenticate(credentials[0])
+
+
+@pytest.fixture
+async def auth2(client, credentials, authenticate):
+    yield await authenticate(credentials[1])
+
+
+@pytest.fixture
+async def auth3(client, credentials, authenticate):
+    yield await authenticate(credentials[2])
 
 
 @pytest.fixture
@@ -148,7 +137,6 @@ async def auto_publish(db):
     await db.execute("ALTER TABLE projects MODIFY COLUMN auto_publish BOOLEAN NOT NULL DEFAULT TRUE")
     await db.execute("ALTER TABLE projects MODIFY COLUMN published BOOLEAN NOT NULL DEFAULT TRUE")
 
-    from muistot.backend.models import NewProject
     f = NewProject.__fields__["auto_publish"]
     old = f.default
 
@@ -162,3 +150,18 @@ async def auto_publish(db):
 
     await db.execute("ALTER TABLE projects MODIFY COLUMN auto_publish BOOLEAN NOT NULL DEFAULT FALSE")
     await db.execute("ALTER TABLE projects MODIFY COLUMN published BOOLEAN NOT NULL DEFAULT FALSE")
+
+
+@pytest.fixture
+async def superuser(db, client, login, authenticate):
+    await db.execute(
+        "INSERT INTO superusers (user_id) SELECT id FROM users WHERE username=:user",
+        values=dict(user=login.username),
+    )
+    yield await authenticate(login)
+    await db.execute(
+        """
+        DELETE su FROM superusers su JOIN users u ON u.id = su.user_id WHERE u.username = :user
+        """,
+        values=dict(user=login.username)
+    )

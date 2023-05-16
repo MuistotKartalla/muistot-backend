@@ -8,9 +8,9 @@ from httpx import AsyncClient
 from muistot import mailer
 from muistot.config import Config
 from muistot.database import Databases
-from muistot.login import register_login
+from muistot.login import login_router
 from muistot.mailer import Mailer, Result
-from muistot.middleware import RedisMiddleware
+from muistot.middleware import RedisMiddleware, LanguageMiddleware
 from muistot.sessions import register_session_manager
 
 User = namedtuple("User", ["username", "email"])
@@ -52,7 +52,7 @@ def capture_mail():
     mailer.instance = old
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def client(db_instance):
     app = FastAPI()
 
@@ -62,10 +62,17 @@ async def client(db_instance):
 
     app.dependency_overrides[Databases.default] = mock_dep
 
-    register_login(app)
+    app.include_router(login_router, prefix="/auth")
     register_session_manager(app)
 
     app.add_middleware(RedisMiddleware, url=Config.cache.redis_url)
+    app.add_middleware(
+        LanguageMiddleware,
+        default_language=Config.localization.default,
+        languages=Config.localization.supported,
+    )
+
+    redis.from_url(Config.cache.redis_url).flushdb()
 
     app.state.SessionManager.connect()
     app.state.SessionManager.redis.flushdb()

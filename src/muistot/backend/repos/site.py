@@ -224,7 +224,6 @@ class SiteRepo(BaseRepo):
     @check.not_exists
     async def create(self, model: NewSite, _status: Status) -> SID:
         SiteRepo._check_pap(_status)
-        check_language(model.info.lang)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
             """

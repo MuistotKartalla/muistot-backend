@@ -1,19 +1,25 @@
 import random
+from collections import namedtuple
+from secrets import choice
+from string import ascii_letters, digits
+from types import SimpleNamespace
 from typing import TypeVar, Type
 from typing import cast
 from urllib.parse import quote
 
 from fastapi import Request
-from headers import AUTHORIZATION
+from headers import LOCATION
+
 from muistot.backend.models import *
 from muistot.backend.repos import *
 from muistot.config import Config
-from muistot.security.auth import User
+from muistot.security.auth import User as APIUser
 from muistot.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
-
 from urls import *
 
 T = TypeVar('T')
+
+User = namedtuple('User', ('username', 'email'))
 
 
 class Setup:
@@ -56,8 +62,6 @@ class Setup:
 
 
 def genword(length=10):
-    from secrets import choice
-    from string import ascii_letters, digits
     pool = ascii_letters + digits + "-_"
     return ''.join(choice(pool) for _ in range(0, length))
 
@@ -131,7 +135,7 @@ async def create_project(db, config, **additional_properties) -> PID:
 def mock_request(username):
     uid = username
 
-    u = User()
+    u = APIUser()
     u.username = uid
     u.scopes.update({SUPERUSER, AUTHENTICATED, ADMIN})
 
@@ -139,19 +143,9 @@ def mock_request(username):
         method = "GET"
         headers = dict()
         user = u
+        state = SimpleNamespace(language="en")
 
     return cast(Request, MockRequest())
-
-
-async def authenticate(client, username, password):
-    r = await client.post(
-        LOGIN,
-        json={"username": username, "password": password},
-        follow_redirects=True,
-    )
-    check_code(200, r)
-    auth = r.headers[AUTHORIZATION]
-    return {AUTHORIZATION: auth}
 
 
 def to(model: Type[T], r) -> T:
@@ -168,5 +162,4 @@ def check_code(code: int, r):
 def extract_id(r, _type=int):
     """Extract entity id from response
     """
-    from headers import LOCATION
     return _type(r.headers[LOCATION].removesuffix("/").split("/")[-1])

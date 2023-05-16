@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 from fastapi import Request, HTTPException, status
+
 from muistot.backend.models import ModifiedProject, ProjectContact, NewProject, ProjectInfo
 from muistot.backend.repos import ProjectRepo
 from muistot.security import User, scopes
@@ -61,6 +62,7 @@ def create_request(*required_scopes, token=b"1234", projects=None):
     r.user.scopes.add(scopes.AUTHENTICATED)
     r.user.admin_projects = projects or list()
     r.user.token = token
+    r.state.language = "en"
     return r
 
 
