@@ -15,7 +15,6 @@ from ..middleware import (
     RedisMiddleware,
     LanguageMiddleware,
     TimingMiddleware,
-    UnauthenticatedCacheMiddleware,
     SessionMiddleware,
     DatabaseMiddleware,
 )
@@ -105,11 +104,6 @@ middlewares = [
     Middleware(
         DatabaseMiddleware,
         databases=Config.database,
-    ),
-    Middleware(
-        UnauthenticatedCacheMiddleware,
-        url=Config.cache.redis_url,
-        ttl=Config.cache.cache_ttl,
     ),
     Middleware(
         RedisMiddleware,
