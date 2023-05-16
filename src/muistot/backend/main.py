@@ -2,16 +2,23 @@ import os
 import textwrap
 
 from fastapi import FastAPI
+from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import common_paths, api_paths
 from ..config import Config
-from ..database import register_databases
-from ..errors import register_error_handlers, modify_openapi
+from ..errors import exception_handlers, modify_openapi
+from ..logging import log
 from ..login import login_router
-from ..middleware import RedisMiddleware, LanguageMiddleware
-from ..sessions import register_session_manager
+from ..middleware import (
+    RedisMiddleware,
+    LanguageMiddleware,
+    TimingMiddleware,
+    UnauthenticatedCacheMiddleware,
+    SessionMiddleware,
+    DatabaseMiddleware,
+)
 
 description = textwrap.dedent(
     """
@@ -25,7 +32,6 @@ description = textwrap.dedent(
     - Project
     - Site
     - Memory
-    - Comment
     
     All model relations are described clearly by the URL convention.
     The content is safe to be cached, if any parent node is deleted all children can be assumed gone as well.
@@ -83,6 +89,53 @@ tags = [
     {"name": "Me", "description": "Authenticated user specific endpoints"},
 ]
 
+# MIDDLEWARE
+#
+# THE ORDER IS VERY IMPORTANT
+#
+# It works like adding layers to an onion.
+# The latest gets executed first.
+middlewares = [
+    Middleware(
+        SessionMiddleware,
+        url=Config.sessions.redis_url,
+        token_bytes=Config.sessions.token_bytes,
+        lifetime=Config.sessions.token_lifetime,
+    ),
+    Middleware(
+        DatabaseMiddleware,
+        databases=Config.database,
+    ),
+    Middleware(
+        UnauthenticatedCacheMiddleware,
+        url=Config.cache.redis_url,
+        ttl=Config.cache.cache_ttl,
+    ),
+    Middleware(
+        RedisMiddleware,
+        url=Config.cache.redis_url,
+    ),
+    Middleware(
+        LanguageMiddleware,
+        default_language=Config.localization.default,
+        languages=Config.localization.supported,
+    ),
+    *([] if not Config.testing else [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods={"GET", "POST", "PATCH", "PUT", "DELETE"},
+            allow_headers=["*"],
+            expose_headers=["*"],
+        ),
+        Middleware(
+            TimingMiddleware,
+            logger=log,
+        ),
+    ])
+]
+
+# APP
 app = FastAPI(
     title="Muistotkartalla",
     description=description,
@@ -92,62 +145,15 @@ app = FastAPI(
     default_response_class=JSONResponse,
     openapi_tags=tags,
     root_path=os.getenv("PROXY_ROOT", ""),
+    middleware=middlewares,
+    exception_handlers=exception_handlers,
 )
-
-# ERROR HANDLERS
-register_error_handlers(app)
 
 # ROUTERS
 app.include_router(common_paths)
 app.include_router(api_paths)
 app.include_router(login_router, prefix="/auth")
 
-# ADDITIONAL COMPONENTS
-register_databases(app)
-
-# MIDDLEWARE
-#
-# THE ORDER IS VERY IMPORTANT
-#
-# Currently it works like adding layers to an onion.
-# The latest gets executed first.
-register_session_manager(app)
-
-app.add_middleware(
-    RedisMiddleware,
-    url=Config.cache.redis_url,
-)
-app.add_middleware(
-    LanguageMiddleware,
-    default_language=Config.localization.default,
-    languages=Config.localization.supported,
-)
-
-if Config.testing:  # pragma: no branch
-    # Only applied in testing
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods={"GET", "POST", "PATCH", "PUT", "DELETE"},
-        allow_headers=["*"],
-        expose_headers=["*"],
-    )
-
-
-    @app.middleware("http")
-    async def timed(r, cn):
-        from ..logging import log
-        from time import time_ns
-
-        start = time_ns()
-        try:
-            return await cn(r)
-        finally:
-            log.info(
-                f"{r.method} request to {r.url} took {(time_ns() - start) / 1E6:.3f} millis"
-            )
-
-# END
 # This call goes last
 # Modifies openapi definitions
 # This needs to be done only after everything is loaded and registered

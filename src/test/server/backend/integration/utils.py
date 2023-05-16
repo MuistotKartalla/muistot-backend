@@ -133,10 +133,8 @@ async def create_project(db, config, **additional_properties) -> PID:
 
 
 def mock_request(username):
-    uid = username
-
     u = APIUser()
-    u.username = uid
+    u.username = username
     u.scopes.update({SUPERUSER, AUTHENTICATED, ADMIN})
 
     class MockRequest:

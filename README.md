@@ -174,7 +174,7 @@ Some custom wrappers are used to retain backwards compatibility with the old cus
 The dependency and callsite clutter are quite annying at places. The callsites of many functions are polluted by request
 and _Depends_ parameters, but grouping them under one dependency is not really worth it. This could be improved later.
 
-There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/helpers.py) to replace the original errors.
+There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/handlers.py) to replace the original errors.
 Also, all the error handlers are defined there.
 
 ##### Repos

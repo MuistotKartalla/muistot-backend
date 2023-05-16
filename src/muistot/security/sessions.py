@@ -9,7 +9,7 @@ import secrets
 from hashlib import sha256
 from typing import Optional, Dict, NoReturn, Union, List
 
-import redis
+from redis import Redis
 
 ALT = b":-"
 USER_PREFIX = "user:"
@@ -37,42 +37,30 @@ class SessionManager:
     """Manages Session in Redis
     """
 
-    redis: Optional[redis.Redis]
+    redis: Redis
 
     def __init__(
-            self, *, redis_url: str, token_bytes: int = 64, lifetime: Optional[int] = None
+            self,
+            *,
+            redis: Redis,
+            token_bytes: int = 64,
+            lifetime: Optional[int] = None,
     ):
         """Create a new SessionManager
 
         Parameters
         ----------
-        redis_url
-            Redis recognized url e.g.
+        redis
+            Redis instance
         token_bytes
             Amount of bytes in token
         lifetime
             Session Token expiry time in seconds
         """
         super(SessionManager, self).__init__()
-        self.url = redis_url
         self.bytes = token_bytes
-        self.connected = False
-        self.redis = None
+        self.redis = redis
         self.lifetime = lifetime
-
-    def connect(self) -> NoReturn:
-        """Connects the instance
-        """
-        if not self.connected:
-            self.redis = redis.from_url(self.url)
-            self.connected = True
-
-    def disconnect(self) -> NoReturn:
-        """Disconnect the instance
-        """
-        if self.redis is not None:
-            self.redis.close()
-        self.connected = False
 
     def extend(self, value: Union[bytes, str]):
         """Extends a key in the Redis
@@ -82,7 +70,6 @@ class SessionManager:
         value
             Key to extend
         """
-        self.connect()
         if self.lifetime is not None:
             self.redis.expire(value, self.lifetime)
 
@@ -103,7 +90,6 @@ class SessionManager:
         ValueError
             On failure to resolve session
         """
-        self.connect()
         token = decode(token)
         self.extend(token)
         data = self.redis.get(token)
@@ -114,7 +100,6 @@ class SessionManager:
     def start_session(self, session: Session) -> str:
         """Returns a session id for given user and stores session data
         """
-        self.connect()
         self.clear_stale(session.user)
         while True:
             token = TOKEN_PREFIX + secrets.token_bytes(nbytes=self.bytes)
@@ -133,7 +118,6 @@ class SessionManager:
         token
             Session token
         """
-        self.connect()
         token = decode(token)
         data = self.redis.get(token)
         self.redis.delete(token)
@@ -148,7 +132,6 @@ class SessionManager:
         user
             Username of user for which the sessions should be cleared
         """
-        self.connect()
         key = f"{USER_PREFIX}{user}"
         tokens = self.redis.smembers(key)
         self.redis.delete(key)
@@ -158,13 +141,11 @@ class SessionManager:
     def clear_all_sessions(self) -> NoReturn:
         """Clears all sessions in the database
         """
-        self.connect()
         self.redis.flushdb()
 
     def clear_stale(self, user: str):
         """Clears all stale user sessions
         """
-        self.connect()
         user_sessions = f"{USER_PREFIX}{user}"
         for session in self.redis.smembers(user_sessions):
             if not self.redis.exists(session):
@@ -173,7 +154,6 @@ class SessionManager:
     def get_sessions(self, user: str) -> List[Session]:
         """Gets all open user sessions
         """
-        self.connect()
         self.clear_stale(user)
         out = list()
         for session in self.redis.smembers(f"{USER_PREFIX}{user}"):
@@ -183,4 +163,7 @@ class SessionManager:
         return out
 
 
-__all__ = ["SessionManager", "Session"]
+__all__ = [
+    "SessionManager",
+    "Session",
+]

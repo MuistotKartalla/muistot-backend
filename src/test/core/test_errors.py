@@ -2,14 +2,15 @@
 Basically just tests these output the right stuff
 """
 import pytest
+from pydantic import ValidationError
+
 from muistot.backend.models import ProjectInfo
 from muistot.database import OperationalError, IntegrityError, InterfaceError
 from muistot.errors import ApiError, ErrorResponse, Error
-from muistot.errors.helpers import db_error_handler, api_error_handler
-from muistot.errors.helpers import register_error_handlers, low_error_handler, modify_openapi
-from muistot.errors.helpers import validation_error_handler_2, validation_error_handler
+from muistot.errors import exception_handlers, modify_openapi
+from muistot.errors.handlers import db_error_handler, api_error_handler, low_error_handler
+from muistot.errors.handlers import validation_error_handler_2, request_validation_error_handler
 from muistot.errors.models import HTTPValidationError
-from pydantic import ValidationError
 
 
 @pytest.mark.anyio
@@ -59,7 +60,7 @@ async def test_validation_err_2():
 async def test_validation_err():
     with pytest.raises(ValidationError) as e:
         ProjectInfo(lang="ggg", name="a")
-    r = await validation_error_handler(None, e.value)
+    r = await request_validation_error_handler(None, e.value)
     r = HTTPValidationError.parse_raw(r.body)
     assert r.error.code == 422
     assert len(r.error.errors) == 1
@@ -67,14 +68,14 @@ async def test_validation_err():
 
 @pytest.mark.anyio
 async def test_validation_err_fail_parsing():
-    r = await validation_error_handler(None, None)
+    r = await request_validation_error_handler(None, None)
     r = Error.parse_raw(r.body)
     assert r.error.code == 422
     assert "request" in r.error.message
 
 
 @pytest.mark.parametrize("handler", [
-    validation_error_handler,
+    request_validation_error_handler,
     validation_error_handler_2,
     db_error_handler,
     api_error_handler,
@@ -82,8 +83,7 @@ async def test_validation_err_fail_parsing():
 ])
 def test_register(handler):
     from fastapi import FastAPI
-    app = FastAPI()
-    register_error_handlers(app)
+    app = FastAPI(exception_handlers=exception_handlers)
     assert handler in app.exception_handlers.values()
 
 

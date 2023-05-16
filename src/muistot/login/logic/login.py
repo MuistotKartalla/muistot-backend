@@ -18,7 +18,7 @@ from .session import load_session_data
 from ...config import Config
 from ...database import Database
 from ...mailer import get_mailer
-from ...sessions import SessionManager, Session
+from ...security import SessionManager, Session
 
 
 async def start_session(username: str, db: Database, sm: SessionManager) -> Response:

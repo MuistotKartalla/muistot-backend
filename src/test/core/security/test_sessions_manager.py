@@ -1,27 +1,19 @@
 import json
 
 import pytest
-from muistot.sessions.helpers import register_session_manager
-from muistot.sessions.manager import SessionManager, Session, USER_PREFIX, TOKEN_PREFIX, decode, encode
+import redis
+
+from muistot.config import Config
+from muistot.security.sessions import SessionManager, Session, USER_PREFIX, TOKEN_PREFIX, decode, encode
 
 
 @pytest.fixture
 def mgr() -> SessionManager:
-    class State:
-        SessionManager = None
-
-    class App:
-        state = State
-
-        def add_middleware(self, *_, **__):
-            pass
-
-    register_session_manager(App)
-    manager: SessionManager = App.state.SessionManager
-    manager.connect()
-    yield manager
-    manager.disconnect()
-    del manager
+    yield SessionManager(
+        redis=redis.from_url(Config.sessions.redis_url),
+        token_bytes=Config.sessions.token_bytes,
+        lifetime=Config.sessions.token_lifetime,
+    )
 
 
 def test_extend_nonexistent_noop(mgr):
@@ -111,24 +103,7 @@ def test_get_bad_session(mgr):
     assert "invalid session" in str(e.value).lower()
 
 
-def test_disconnect_on_none():
-    mgr = SessionManager(redis_url="")
-    mgr.connected = True
-    assert mgr.redis is None
-    mgr.disconnect()
-    assert mgr.redis is None
-    assert not mgr.connected
-
-
-def test_none_lifetime():
-    mgr = SessionManager(redis_url="")
-    mgr.connected = True
-    mgr.redis = object()
-    mgr.lifetime = None
-    mgr.extend(b"adwadaw")  # Throws if null is not correctly handled
-
-
-def test_token_exists_retry():
+def test_token_exists_retry(mgr):
     class MockRedis:
         cnt = 0
 
@@ -142,8 +117,7 @@ def test_token_exists_retry():
         def __getattr__(self, item):
             return lambda *_, **__: None
 
-    mgr = SessionManager(redis_url="")
-    mgr.connected = True
+    del mgr.redis
     mgr.redis = MockRedis()
 
     s = Session(user="abcd", data=dict())
@@ -151,7 +125,7 @@ def test_token_exists_retry():
     assert MockRedis.cnt >= 10
 
 
-def test_handle_none_end():
+def test_handle_none_end(mgr):
     token = encode(b"123")
 
     class MockRedis:
@@ -166,15 +140,14 @@ def test_handle_none_end():
         def __getattr__(self, item):
             return lambda *_, **__: None
 
-    mgr = SessionManager(redis_url="")
-    mgr.connected = True
+    del mgr.redis
     mgr.redis = MockRedis()
     mgr.end_session(token)
 
     assert MockRedis.ok  # Fails if rem is called
 
 
-def test_handle_none_in_gets():
+def test_handle_none_in_gets(mgr):
     class MockRedis:
 
         def smembers(self, *_, **__):
@@ -186,7 +159,6 @@ def test_handle_none_in_gets():
         def __getattr__(self, item):
             return lambda *_, **__: None
 
-    mgr = SessionManager(redis_url="")
-    mgr.connected = True
+    del mgr.redis
     mgr.redis = MockRedis()
     assert mgr.get_sessions("a") == []  # Fails if none is appended

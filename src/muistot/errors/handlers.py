@@ -1,34 +1,15 @@
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from ..database import OperationalError, DatabaseError, IntegrityError, InterfaceError
 from starlette.exceptions import HTTPException as LowHTTPException
 
 from .models import *
+from ..database import OperationalError, IntegrityError, InterfaceError, DatabaseError
 from ..logging import log
 
 
-def modify_openapi(app: FastAPI):
-    from pydantic.schema import schema
-
-    # BECAUSE Fastapi does this on first request only
-    if app.root_path is not None and app.root_path != "":
-        app.servers.insert(0, {"url": app.root_path})
-
-    openapi = app.openapi()
-    openapi["components"]["schemas"].update(
-        schema([HTTPValidationError], ref_prefix="#/components/schemas/")[
-            "definitions"
-        ]
-    )
-    app.openapi_schema = openapi
-
-
-async def validation_error_handler(
-        _: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def request_validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     try:
         return JSONResponse(
             status_code=422,
@@ -75,12 +56,10 @@ async def db_error_handler(_: Request, exc) -> ErrorResponse:
         return ErrorResponse(ApiError(code=500, message="Error in database Communication"))
 
 
-def register_error_handlers(app: FastAPI):
-    app.exception_handler(ApiError)(api_error_handler)
-    app.exception_handler(RequestValidationError)(validation_error_handler)
-    app.exception_handler(LowHTTPException)(low_error_handler)
-    app.exception_handler(ValidationError)(validation_error_handler_2)
-    app.exception_handler(DatabaseError)(db_error_handler)
-
-
-__all__ = ["register_error_handlers", "modify_openapi"]
+exception_handlers = {
+    ApiError: api_error_handler,
+    RequestValidationError: request_validation_error_handler,
+    LowHTTPException: low_error_handler,
+    ValidationError: validation_error_handler_2,
+    DatabaseError: db_error_handler,
+}

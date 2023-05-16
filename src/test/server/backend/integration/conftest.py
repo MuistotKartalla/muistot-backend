@@ -2,25 +2,35 @@ import pytest
 from httpx import AsyncClient
 
 from muistot.backend import main
+from muistot.backend.api._imports import _default_db
 from muistot.backend.models import NewProject
-from muistot.database import Databases
 from muistot.login.logic.session import load_session_data
-from muistot.sessions import Session
+from muistot.middleware import UnauthenticatedCacheMiddleware
+from muistot.security import Session, SessionManager
 from utils import mock_request, genword, User
 
 
 @pytest.fixture(scope="session")
-async def client(db_instance):
+async def client(db_instance, cache_redis, session_redis):
     async def mock_dep():
         async with db_instance() as c:
             yield c
 
-    main.app.dependency_overrides[Databases.default] = mock_dep
+    main.app.dependency_overrides[_default_db] = mock_dep
+
+    # Rebuild deps after removing caching
+    main.app.user_middleware = [
+        middleware
+        for middleware in main.app.user_middleware
+        if middleware.cls != UnauthenticatedCacheMiddleware
+    ]
+    main.app.middleware_stack = main.app.build_middleware_stack()
 
     async with AsyncClient(app=main.app, base_url="http://test") as client:
-        client.app = main.app
         yield client
-        client.app.state.SessionManager.redis.flushdb()
+
+    cache_redis.flushdb()
+    session_redis.flushdb()
 
 
 @pytest.fixture(scope="module")
@@ -68,11 +78,12 @@ async def create_users(db_instance, credentials):
 
 
 @pytest.fixture
-def authenticate(client, db):
+def authenticate(client, db, session_redis):
     async def authenticator(user: User):
         data = await load_session_data(user.username, db)
+        manager = SessionManager(redis=session_redis)
         session = Session(user.username, data)
-        return {'Authorization': f"Bearer {client.app.state.SessionManager.start_session(session)}"}
+        return {'Authorization': f"Bearer {manager.start_session(session)}"}
 
     yield authenticator
 

@@ -1,6 +1,6 @@
 import pytest
 from muistot.config import Config
-from muistot.config.config import Mailer
+from muistot.config.models import Mailer
 from muistot.mailer import _derive_default
 
 

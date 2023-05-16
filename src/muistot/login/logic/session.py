@@ -4,8 +4,8 @@ import headers
 from fastapi import Response, status
 
 from ...database import Database
+from ...security import Session, SessionManager
 from ...security.scopes import SUPERUSER, ADMIN
-from ...sessions import Session, SessionManager
 
 
 async def is_superuser(username: str, db: Database) -> bool:

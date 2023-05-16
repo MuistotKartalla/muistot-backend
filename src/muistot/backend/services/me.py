@@ -4,7 +4,7 @@ from fastapi import HTTPException, status, Request
 
 from ..models import PatchUser, UserData
 from ...database import Database, IntegrityError
-from ...sessions import SessionManager
+from ...security import SessionManager
 
 
 async def check_username_not_exists(db: Database, username: Optional[str]):
@@ -103,4 +103,4 @@ async def get_user_data(db: Database, username: str) -> UserData:
 
 
 def manager(r: Request) -> SessionManager:
-    return r.state.manager
+    return r.state.sessions

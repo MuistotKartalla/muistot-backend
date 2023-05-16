@@ -5,23 +5,27 @@ from sqlalchemy import exc, text, Result
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncConnection
 
 from .resultset import ResultSet
-from ..config.config import Database
+from ..config.models import Database
 
 
 class DatabaseError(Exception):
-    pass
+    """Database Error Base
+    """
 
 
 class OperationalError(DatabaseError):
-    pass
+    """Database Error when something goes badly wrong
+    """
 
 
 class IntegrityError(OperationalError):
-    pass
+    """Database Error on Duplicate Keys and Foreign Keys failing
+    """
 
 
 class InterfaceError(DatabaseError):
-    pass
+    """Database Error when something goes badly wrong in a different way
+    """
 
 
 class ConnectionWrapper:
@@ -82,32 +86,23 @@ class DatabaseProvider:
 
     def __init__(self, config: Database):
         self.config = config
-
-    def is_connected(self):
-        return hasattr(self, "engine")
-
-    async def connect(self):
-        config = self.config
-        self.engine = create_async_engine(
-            f"{config.driver}://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}",
-            pool_pre_ping=True,
-            pool_reset_on_return=True,
-            pool_size=config.pool_size,
-            pool_recycle=3600,
-            pool_logging_name="Muistot Database Pool",
-            pool_timeout=config.pool_timeout_seconds,
-        )
-
-    async def disconnect(self):
-        await self.engine.dispose(close=True)
-        del self.engine
+        try:
+            self.engine = create_async_engine(
+                f"{config.driver}://{config.user}:{config.password}@{config.host}:{config.port}/{config.database}",
+                pool_pre_ping=True,
+                pool_reset_on_return=True,
+                pool_size=config.pool_size,
+                pool_recycle=3600,
+                pool_logging_name="Muistot Database Pool",
+                pool_timeout=config.pool_timeout_seconds,
+            )
+        except exc.DBAPIError as e:
+            raise OperationalError(f"{config.driver}://{config.host}:{config.port}/{config.database}") from e
 
     @contextlib.asynccontextmanager
     async def __call__(self):
         """Allocates a single connection
         """
-        if not self.is_connected():
-            raise OperationalError("Database not Running")
         try:
             async with self.engine.connect() as connection:
                 async with connection.begin() as tsx:
