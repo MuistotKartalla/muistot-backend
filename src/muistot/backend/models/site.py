@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, validator
 
-from ._fields import *
+from .datatypes import *
 from .memory import Memory
 
 

@@ -1,6 +1,6 @@
 from textwrap import dedent
 
-from ._doctils import d, get_samples
+from .documentation_utilities import d, get_samples
 
 URL_FAILURE = d("Failed to parse the URL parameter(s)")
 URL_FAILURE_CREATE_MODIFY = d(
@@ -84,6 +84,3 @@ def gets(model):
         401: UNAUTHENTICATED,
         403: UNAUTHORIZED,
     }
-
-
-__all__ = ["create", "modify", "delete", "gets", "get"]

@@ -107,22 +107,6 @@ def require_auth(*required_scopes: str):
     return actual_auth_thingy
 
 
-def disallow_auth(f):
-    from fastapi import HTTPException
-
-    @wraps(f)
-    async def wrapper(*args, **kwargs):
-        r = kwargs.pop(REQUEST_HELPER)
-        if r.user.is_authenticated:
-            raise HTTPException(status_code=403, detail="Already signed-in")
-        return await f(*args, **kwargs)
-
-    _add_request_param(wrapper)
-
-    return wrapper
-
-
 __all__ = [
     "require_auth",
-    "disallow_auth",
 ]

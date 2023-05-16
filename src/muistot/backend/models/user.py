@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, validator
 
-from ._fields import *
+from .datatypes import *
 from .memory import Memory
 
 

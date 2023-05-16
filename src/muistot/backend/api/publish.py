@@ -1,9 +1,15 @@
+from textwrap import dedent
 from typing import Literal, Optional, Dict, Union
 
 from fastapi import HTTPException, status
+from fastapi import Request, Response
 from pydantic import BaseModel, root_validator
 
-from ._imports import *
+from .access_databases import DEFAULT_DB
+from .utils import make_router, sample, d
+from ..models import SID, PID, MID
+from ...database import Database
+from ...security import require_auth, scopes
 
 router = make_router(tags=["Admin"])
 
@@ -27,7 +33,7 @@ TABLE_MAP = {
 class OrderBase(BaseModel):
     type: Literal["site", "memory", "project"]
     parents: Optional[Dict[Literal["site", "memory", "project"], Union[SID, MID, PID]]]
-    identifier: Union[PID, SID, MID, CID]
+    identifier: Union[PID, SID, MID]
 
     @root_validator(skip_on_failure=True, pre=False)
     def validate_composition(cls, values):
@@ -41,7 +47,7 @@ class OrderBase(BaseModel):
             assert issubclass(SID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 1, BAD_PARENTS_CNT
             assert "project" in parents_, BAD_PARENTS
-        elif type_ == "memory": # pragma: no branch
+        elif type_ == "memory":  # pragma: no branch
             assert issubclass(MID, type(id_)), f"{BAD_TYPE} identifier"
             assert len(parents_) == 2, BAD_PARENTS_CNT
             assert "project" in parents_ and "site" in parents_, BAD_PARENTS

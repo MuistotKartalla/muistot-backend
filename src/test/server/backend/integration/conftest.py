@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from muistot.backend import main
-from muistot.backend.api._imports import _default_db
+from muistot.backend.api.access_databases import default_database
 from muistot.backend.models import NewProject
 from muistot.login.logic.session import load_session_data
 from muistot.middleware import UnauthenticatedCacheMiddleware
@@ -16,7 +16,7 @@ async def client(db_instance, cache_redis, session_redis):
         async with db_instance() as c:
             yield c
 
-    main.app.dependency_overrides[_default_db] = mock_dep
+    main.app.dependency_overrides[default_database] = mock_dep
 
     # Rebuild deps after removing caching
     main.app.user_middleware = [
@@ -144,7 +144,7 @@ async def auto_publish(db):
 
     But will not probably work in all cases
     """
-    await db.execute("UPDATE projects SET auto_publish = TRUE, published = TRUE")
+    await db.execute("UPDATE projects SET auto_publish = TRUE, published = TRUE WHERE TRUE")
     await db.execute("ALTER TABLE projects MODIFY COLUMN auto_publish BOOLEAN NOT NULL DEFAULT TRUE")
     await db.execute("ALTER TABLE projects MODIFY COLUMN published BOOLEAN NOT NULL DEFAULT TRUE")
 
@@ -171,6 +171,7 @@ async def superuser(db, client, login, authenticate):
     )
     yield await authenticate(login)
     await db.execute(
+        # language=mariadb
         """
         DELETE su FROM superusers su JOIN users u ON u.id = su.user_id WHERE u.username = :user
         """,

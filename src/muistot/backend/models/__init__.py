@@ -1,4 +1,4 @@
-from ._fields import PID, SID, MID, CID, UID
+from .datatypes import PID, SID, MID, UID
 from .collections import *
 from .memory import *
 from .project import *
@@ -34,6 +34,7 @@ __all__ = [
     "PID",
     "SID",
     "MID",
-    "CID",
     "UID",
+    # Email
+    "EmailStr",
 ]

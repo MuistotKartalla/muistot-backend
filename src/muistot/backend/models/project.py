@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from pydantic import BaseModel, validator, EmailStr, root_validator
 
-from ._fields import *
+from .datatypes import *
 
 
 class ProjectInfo(BaseModel):
