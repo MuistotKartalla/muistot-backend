@@ -1,4 +1,8 @@
+from fastapi import HTTPException
+from pycountry import languages
 from pydantic import constr, conint, confloat, Field
+
+from ...config import Config
 
 IMAGE_TXT = "Image file name to be fetched from the image endpoint."
 IMAGE_NEW = "Image data in base64."
@@ -68,11 +72,13 @@ LONG_TEXT = constr(strip_whitespace=True, min_length=0, max_length=100_000)
 
 
 def validate_language(lang: str) -> str:
-    from pycountry import languages
     try:
         if len(lang) == 3:
-            return languages.get(alpha_3=lang).alpha_2
+            lang = languages.get(alpha_3=lang).alpha_2
         else:
-            return languages.get(alpha_2=lang).alpha_2
+            lang = languages.get(alpha_2=lang).alpha_2
+        if lang not in Config.localization.supported:
+            raise HTTPException(status_code=406, detail='Unsupported language')
+        return lang
     except (AttributeError, LookupError):
         raise ValueError("No ISO639-1 ID Found")

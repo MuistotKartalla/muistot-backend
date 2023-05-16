@@ -1,6 +1,5 @@
 import pytest
 from fastapi import status
-from headers import LOCATION
 
 from utils import *
 
@@ -14,8 +13,8 @@ async def setup(repo_config, db, login):
 
 
 @pytest.fixture
-async def admin(client, login):
-    yield await authenticate(client, login[0], login[2])
+async def admin(client, login, authenticate):
+    yield await authenticate(login)
 
 
 #        ___           ___           ___           ___           ___

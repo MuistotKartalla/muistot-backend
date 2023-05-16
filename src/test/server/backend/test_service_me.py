@@ -1,5 +1,7 @@
 import pytest
+
 from muistot.backend.services.me import *
+from muistot.database import IntegrityError
 
 
 class MockManager:
@@ -41,7 +43,7 @@ async def test_email_conflict():
 
 
 @pytest.mark.anyio
-async def test_email_late_conflict():
+async def test_change_email_handles_integrity_error():
     class MockDB:
         cnt = 0
         IntegrityError = RuntimeError
@@ -52,7 +54,7 @@ async def test_email_late_conflict():
 
         async def execute(self, *_, **__):
             MockDB.cnt += 1
-            raise RuntimeError()
+            raise IntegrityError()
 
     with pytest.raises(HTTPException) as e:
         await change_email(MockDB(), "", "", MockManager())
@@ -62,7 +64,7 @@ async def test_email_late_conflict():
 
 
 @pytest.mark.anyio
-async def test_username_late_conflict():
+async def test_change_username_handles_integrity_error():
     class MockDB:
         cnt = 0
         IntegrityError = RuntimeError
@@ -73,7 +75,7 @@ async def test_username_late_conflict():
 
         async def execute(self, *_, **__):
             MockDB.cnt += 1
-            raise RuntimeError()
+            raise IntegrityError()
 
     with pytest.raises(HTTPException) as e:
         await change_username(MockDB(), "old", "new", MockManager())

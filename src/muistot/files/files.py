@@ -112,6 +112,8 @@ class Files:
         @staticmethod
         @lru_cache(maxsize=64)
         def get(item: str) -> 'Files.Image':
+            """Careful with the path this is sensitive to injection if not sanitized
+            """
             import os
             path = Files.path(item)
             if item in Files.Images.SYSTEM_IMAGES or os.path.exists(path):

@@ -1,6 +1,6 @@
 import pytest
-from muistot.backend.api.publish import *
 
+from muistot.backend.api.publish import *
 from utils import *
 
 
@@ -14,7 +14,7 @@ async def setup(repo_config, db, login):
 
 
 @pytest.fixture
-async def admin(setup, db, login, client):
+async def admin(setup, db, login, client, authenticate):
     await db.execute(
         """
         INSERT INTO project_admins (project_id, user_id)
@@ -22,7 +22,7 @@ async def admin(setup, db, login, client):
         """,
         values=dict(p=setup.project, user=login[0])
     )
-    yield await authenticate(client, login[0], login[2])
+    yield await authenticate(login)
 
 
 @pytest.mark.anyio

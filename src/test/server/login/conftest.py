@@ -1,83 +1,64 @@
 from collections import namedtuple
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+
 from muistot import mailer
-from muistot.cache import register_redis_cache
-from muistot.database import Databases
-from muistot.login import register_login
-from muistot.mailer import Mailer, Result
-from muistot.sessions import register_session_manager
+from muistot.config import Config
+from muistot.login import login_router
+from muistot.middleware import SessionMiddleware, LanguageMiddleware
 
-User = namedtuple("User", ["username", "email"])
+User = namedtuple("User", ["username", "email", "id"])
 
 
-@pytest.fixture
-def mail():
-    class Mock(Mailer):
-
-        def __init__(self):
-            self.sends = list()
-            self.verifys = list()
-
-        async def send_email(self, email: str, email_type: str, **data) -> Result:
-            self.sends.append((email, data))
-            return Result(success=True)
-
-    i = Mock()
-    old = mailer.instance
-    mailer.instance = i
-    yield i
-    mailer.instance = old
-
-
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def capture_mail():
-    from muistot import mailer
-    captured_data = dict()
+    captured_data = {}
 
     class Capturer(mailer.Mailer):
 
-        async def send_email(self, email: str, email_type: str, **data) -> mailer.Result:
-            captured_data[(email_type, email)] = dict(**data)
+        async def send_email(self, email: str, email_type: str, **data: dict) -> mailer.Result:
+            captured_data[(email_type, email)] = data
             return mailer.Result(success=True)
 
-    old = mailer.instance
+    old_instance = mailer.instance
     mailer.instance = Capturer()
     yield captured_data
-    mailer.instance = old
+    mailer.instance = old_instance
 
 
-@pytest.fixture(scope="function")
-async def client(db_instance):
+@pytest.fixture
+async def client(db_instance, cache_redis):
     app = FastAPI()
+    app.include_router(login_router, prefix="/auth")
 
-    async def mock_dep():
-        async with db_instance() as c:
-            yield c
+    app.add_middleware(
+        SessionMiddleware,
+        url=Config.sessions.redis_url,
+        token_bytes=Config.sessions.token_bytes,
+        lifetime=Config.sessions.token_lifetime,
+    )
 
-    app.dependency_overrides[Databases.default] = mock_dep
-    register_login(app)
-    register_redis_cache(app)
-    register_session_manager(app)
+    app.add_middleware(
+        LanguageMiddleware,
+        default_language=Config.localization.default,
+        languages=Config.localization.supported,
+    )
 
-    app.state.FastStorage.connect()
-    app.state.SessionManager.connect()
-
-    app.state.FastStorage.redis.flushdb()
-    app.state.SessionManager.redis.flushdb()
+    # Replaces redis and databases
+    @app.middleware("http")
+    async def _(request, call_next):
+        request.state.redis = cache_redis
+        request.state.databases = SimpleNamespace(default=db_instance)
+        return await call_next(request)
 
     client = AsyncClient(app=app, base_url="http://test")
-    client.app = app
-    async with client as c:
-        yield c
+    async with client as client_session:
+        yield client_session
 
-    app.state.FastStorage.redis.flushdb()
-    app.state.SessionManager.redis.flushdb()
-
-    app.state.FastStorage.disconnect()
-    app.state.SessionManager.disconnect()
+    cache_redis.flushdb()
 
 
 @pytest.fixture
@@ -89,20 +70,15 @@ async def non_existent_email(db, client):
 
 @pytest.fixture
 async def user(db, client):
-    from muistot.security.password import hash_password
-    from collections import namedtuple
     email = "login_test_123213123213u21389213u21321@example.com"
     username = "test_login_user#9013"
-    password = "test_user"
-    pwd_hash = hash_password(password=password)
     _id = await db.fetch_val(
         """
-        INSERT INTO users (username, email, password_hash) VALUE (:u, :e, :p) RETURNING id
+        INSERT INTO users (username, email) VALUE (:u, :e) RETURNING id
         """,
-        values=dict(u=username, e=email, p=pwd_hash)
+        values=dict(u=username, e=email)
     )
-    User = namedtuple("User", ["username", "email", "password", "id"])
-    yield User(username=username, password=password, email=email, id=_id)
+    yield User(username=username, email=email, id=_id)
     await db.execute(
         """
         DELETE FROM users WHERE id = :id

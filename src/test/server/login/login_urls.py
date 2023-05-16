@@ -1,8 +1,0 @@
-AUTH_PREFIX = "/auth"
-STATUS = AUTH_PREFIX + "/status"
-PW_LOGIN = AUTH_PREFIX + "/password"
-EMAIL_LOGIN = AUTH_PREFIX + "/email"
-EMAIL_EXCHANGE = AUTH_PREFIX + "/email/exchange"
-OAUTH_BASE = AUTH_PREFIX + "/oauth"
-REGISTER = AUTH_PREFIX + "/register"
-CONFIRM = AUTH_PREFIX + "/confirm"

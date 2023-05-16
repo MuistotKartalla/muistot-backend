@@ -1,29 +1,15 @@
 import pytest
-from muistot.security.auth import _add_auth_params, require_auth, AUTH_HELPER, REQUEST_HELPER, _add_request_param, \
-    disallow_auth
+
+from muistot.security.auth import (
+    _add_auth_params,
+    require_auth,
+    AUTH_HELPER,
+    REQUEST_HELPER,
+    _add_request_param,
+    disallow_auth,
+)
 from muistot.security.auth_helper import auth_helper
 from muistot.security.password import hash_password, check_password
-
-
-def test_manager_add():
-    from muistot.sessions import register_session_manager
-    from muistot.sessions.middleware import SessionManagerMiddleware
-    from starlette.middleware.authentication import AuthenticationMiddleware
-
-    class State:
-        SessionManager = None
-
-    class Mock:
-        state = State
-
-        @staticmethod
-        def add_middleware(middleware, **opts):
-            assert middleware == AuthenticationMiddleware
-            assert type(opts["backend"]) == SessionManagerMiddleware
-            assert "on_error" in opts
-
-    register_session_manager(Mock)
-    assert State.SessionManager is not None
 
 
 @pytest.mark.anyio

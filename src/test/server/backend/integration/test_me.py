@@ -4,29 +4,22 @@ import pytest
 from fastapi import status
 from headers import AUTHORIZATION
 
-from utils import authenticate
-
-
-@pytest.fixture
-def user(users):
-    yield users[0]
-
 
 @pytest.fixture(autouse=True)
-async def backup(db, user):
+async def backup(db, login):
     pre = await db.fetch_one(
-        "SELECT id, username, email, password_hash FROM users WHERE username = :user",
-        values=dict(user=user.username)
+        "SELECT id, username, email FROM users WHERE username = :login",
+        values=dict(login=login.username)
     )
     yield
     await db.execute(
-        "UPDATE users SET username=:username, email=:email, password_hash=:password_hash WHERE id=:id",
-        values=dict(username=pre["username"], email=pre["email"], password_hash=pre["password_hash"], id=pre["id"])
+        "UPDATE users SET username=:username, email=:email WHERE id=:id",
+        values=dict(username=pre["username"], email=pre["email"], id=pre["id"])
     )
 
 
 @pytest.mark.anyio
-async def test_change_username(client, auth, user):
+async def test_change_username(client, auth, login):
     from passlib.pwd import genword
     new_username = genword(length=30)
     # Change
@@ -59,26 +52,10 @@ async def test_change_email(client, auth):
 
 
 @pytest.mark.anyio
-async def test_change_password(client, auth, user):
-    username, email, pw = user
-    w = gen_pw(30)
-    # Change
-    r = await client.put(f"/me/password?password={w}", headers=auth)
-    assert r.status_code == status.HTTP_200_OK
-    # Logged Out
-    r = await client.get("/me", headers=auth)
-    assert r.status_code == status.HTTP_401_UNAUTHORIZED
-    # Re-Auth
-    auth = await authenticate(client, username, w)
-    r = await client.get("/me", headers=auth)
-    assert r.status_code == status.HTTP_200_OK
-
-
-@pytest.mark.anyio
-async def test_logout_single_session(client, user):
-    username = user.username
-    auth_header1 = await authenticate(client, user.username, user.password)
-    auth_header2 = await authenticate(client, user.username, user.password)
+async def test_logout_single_session(client, login, authenticate):
+    username = login.username
+    auth_header1 = await authenticate(login)
+    auth_header2 = await authenticate(login)
 
     r = await client.get("/me", headers=auth_header1)
     assert r.status_code == status.HTTP_200_OK
@@ -98,10 +75,10 @@ async def test_logout_single_session(client, user):
 
 
 @pytest.mark.anyio
-async def test_logout_all_sessions(client, user):
-    username = user.username
-    auth_header1 = await authenticate(client, user.username, user.password)
-    auth_header2 = await authenticate(client, user.username, user.password)
+async def test_logout_all_sessions(client, login, authenticate):
+    username = login.username
+    auth_header1 = await authenticate(login)
+    auth_header2 = await authenticate(login)
 
     r = await client.get("/me", headers=auth_header1)
     assert r.status_code == status.HTTP_200_OK
@@ -120,14 +97,14 @@ async def test_logout_all_sessions(client, user):
 
 
 @pytest.mark.anyio
-async def test_change_to_same_username(client, auth, user):
-    r = await client.post("/me/username", params=dict(username=user.username), headers=auth)
+async def test_change_to_same_username(client, auth, login):
+    r = await client.post("/me/username", params=dict(username=login.username), headers=auth)
     assert r.status_code == 304
 
 
 @pytest.mark.anyio
-async def test_change_to_same_email(client, auth, user):
-    r = await client.post("/me/email", params=dict(email=user.email), headers=auth)
+async def test_change_to_same_email(client, auth, login):
+    r = await client.post("/me/email", params=dict(email=login.email), headers=auth)
     assert r.status_code == 304
 
 

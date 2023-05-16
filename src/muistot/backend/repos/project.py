@@ -223,7 +223,6 @@ class ProjectRepo(BaseRepo):
     async def create(self, model: NewProject) -> PID:
         if not self.superuser:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
-        check_language(model.info.lang)
         image_id = await self.files.handle(model.image)
         await self.db.execute(
             """
@@ -278,7 +277,6 @@ class ProjectRepo(BaseRepo):
                 modified = await self._handle_localization(project, model.info)
             if "default_language" in data:
                 lang = data["default_language"]
-                check_language(lang)
                 values["default_language_id"] = await self.db.fetch_val(
                     "SELECT id FROM languages WHERE lang = :lang",
                     values=dict(lang=lang)

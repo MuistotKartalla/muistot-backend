@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import HTTPException, status, Request
 
 from ..models import PatchUser, UserData
-from ...database import Database
-from ...sessions import SessionManager
+from ...database import Database, IntegrityError
+from ...security import SessionManager
 
 
 async def check_username_not_exists(db: Database, username: Optional[str]):
@@ -17,16 +17,6 @@ async def check_username_not_exists(db: Database, username: Optional[str]):
         )
         if exists:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username in use")
-
-
-async def change_password(db: Database, username: str, password: str, mgr: SessionManager):
-    from ...security.password import hash_password
-    mgr.clear_sessions(username)
-    await db.execute(
-        "UPDATE users SET password_hash = :hash WHERE username = :user",
-        values=dict(hash=hash_password(password=password), user=username),
-    )
-    mgr.clear_sessions(username)
 
 
 async def change_email(db: Database, username: str, email: str, mgr: SessionManager) -> bool:
@@ -51,7 +41,7 @@ async def change_email(db: Database, username: str, email: str, mgr: SessionMana
         )
         mgr.clear_sessions(username)
         return True
-    except db.IntegrityError:
+    except IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email in use")
 
 
@@ -68,7 +58,7 @@ async def change_username(db: Database, username_old: str, username_new: str, mg
                 values=dict(old=username_old, new=username_new)
             )
             return True
-        except db.IntegrityError:
+        except IntegrityError:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username in use")
         finally:
             mgr.clear_sessions(username_old)
@@ -103,7 +93,7 @@ async def get_user_data(db: Database, username: str) -> UserData:
                        upd.country,
                        upd.modified_at
                 FROM users u
-                    LEFT JOIN user_personal_data upd on u.id = upd.user_id
+                    LEFT JOIN user_personal_data upd ON u.id = upd.user_id
                 WHERE u.username = :user
                 """,
                 values=dict(user=username),
@@ -113,4 +103,4 @@ async def get_user_data(db: Database, username: str) -> UserData:
 
 
 def manager(r: Request) -> SessionManager:
-    return r.state.manager
+    return r.state.sessions

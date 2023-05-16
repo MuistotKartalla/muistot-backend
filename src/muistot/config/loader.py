@@ -2,7 +2,7 @@ from os.path import expanduser
 
 from pydantic import parse_file_as
 
-from .config import BaseConfig
+from .models import BaseConfig
 from ..logging import log
 
 CONFIG_FILE = expanduser("~/config.json")
@@ -15,5 +15,3 @@ except FileNotFoundError:
     except FileNotFoundError:
         log.warning(f"Failed to find config in {expanduser('~')} and .")
         Config: BaseConfig = BaseConfig()
-
-__all__ = ["Config"]

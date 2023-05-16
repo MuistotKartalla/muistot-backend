@@ -1,5 +1,8 @@
 import pytest
-from muistot.database import Databases, Database, OperationalError, DatabaseProvider
+import redis
+
+from muistot.config import Config
+from muistot.database import Database, DatabaseProvider
 
 
 @pytest.fixture(scope="session")
@@ -9,17 +12,10 @@ def anyio_backend():
 
 @pytest.fixture(scope="session")
 async def db_instance(anyio_backend) -> DatabaseProvider:
-    inst = Databases.default.database
-    while True:
-        try:
-            await inst.connect()
-            break
-        except OperationalError:
-            pass
+    inst = DatabaseProvider(Config.database["default"])
     try:
         yield inst
     finally:
-        await inst.disconnect()
         del inst
 
 
@@ -33,10 +29,11 @@ async def db(db_instance) -> Database:
         await c.execute('SET autocommit = 0')
 
 
-@pytest.fixture(scope="function")
-async def rollback(db):
-    await db.execute('COMMIT')
-    await db.execute('SET autocommit = 0')
-    await db.execute('BEGIN')
-    yield db
-    await db.execute('ROLLBACK')
+@pytest.fixture(scope="session")
+def cache_redis():
+    yield redis.from_url(Config.cache.redis_url)
+
+
+@pytest.fixture(scope="session")
+def session_redis():
+    yield redis.from_url(Config.sessions.redis_url)

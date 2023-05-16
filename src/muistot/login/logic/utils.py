@@ -1,10 +1,13 @@
-from fastapi import HTTPException, status, Request
+from hashlib import sha1
+
+from fastapi import HTTPException, status
+from redis import Redis
 
 
-def ratelimit_via_redis_host_and_key(r: Request, key: str):
-    cache = r.state.cache
-    if cache.exists(key, r.client.host, prefix="email-login:"):
+def ratelimit(redis: Redis, prefix: str, *keys: str, ttl_seconds: int):
+    keys = [f"email-login:{prefix}:{sha1(key.encode()).hexdigest()}" for key in keys]
+    if redis.exists(*keys):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many requests")
     else:
-        cache.set(key, "", prefix="email-login:", ttl=20)
-        cache.set(r.client.host, "", prefix="email-login:", ttl=20)
+        for key in keys:
+            redis.set(key, "", ex=ttl_seconds)
