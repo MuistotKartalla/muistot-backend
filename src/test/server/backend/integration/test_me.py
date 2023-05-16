@@ -137,3 +137,15 @@ async def test_patch_me_multiple_times(client, auth):
     m = r.json()
     assert m["first_name"] == "test1"
     assert m["last_name"] == "test2"
+
+
+@pytest.mark.anyio
+async def test_change_username_too_short(client, auth, login):
+    r = await client.post(f"/me/username?username=a", headers=auth)
+    assert r.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.anyio
+async def test_change_email_invalid(client, auth, login):
+    r = await client.post(f"/me/email?email=a", headers=auth)
+    assert r.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

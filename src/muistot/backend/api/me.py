@@ -1,4 +1,5 @@
 from fastapi.responses import JSONResponse
+from pydantic import EmailStr
 
 from ._imports import *
 from .utils._responses import UNAUTHENTICATED, UNAUTHORIZED
@@ -71,7 +72,7 @@ async def update_me(request: Request, model: PatchUser, db: Database = DEFAULT_D
     },
 )
 @require_auth(scopes.AUTHENTICATED)
-async def change_my_email(request: Request, email: str, db: Database = DEFAULT_DB):
+async def change_my_email(request: Request, email: EmailStr, db: Database = DEFAULT_DB):
     if await change_email(db, request.user.identity, email, manager(request)):
         return await start_session(request.user.identity, db, manager(request))
     else:
@@ -95,7 +96,7 @@ async def change_my_email(request: Request, email: str, db: Database = DEFAULT_D
     },
 )
 @require_auth(scopes.AUTHENTICATED)
-async def change_my_username(request: Request, username: str, db: Database = DEFAULT_DB):
+async def change_my_username(request: Request, username: UID, db: Database = DEFAULT_DB):
     if await change_username(db, request.user.identity, username, manager(request)):
         return await start_session(username, db, manager(request))
     else:
