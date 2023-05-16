@@ -3,7 +3,6 @@ from typing import Tuple, Optional
 from .data import hash_token, create_token
 from ...database import Database
 
-
 async def fetch_verifier(username: str, db: Database) -> str:
     return await db.fetch_val(
         """

@@ -1,19 +1,26 @@
 from urllib.parse import urlencode
 
+import httpx
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status, HTTPException
 from headers import AUTHORIZATION, CONTENT_LANGUAGE
 
-from login_urls import EMAIL_LOGIN, STATUS, EMAIL_EXCHANGE
+from muistot.config import Config
 from muistot.login.logic.data import hash_token
 from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
 from muistot.login.logic.login import send_login_email as send_email
+from muistot.login.logic.login import try_create_user
+
+AUTH_PREFIX = "/auth"
+STATUS = AUTH_PREFIX + "/status"
+EMAIL_LOGIN = AUTH_PREFIX + "/email"
+EMAIL_EXCHANGE = AUTH_PREFIX + "/email/exchange"
 
 
 @pytest.mark.anyio
-async def test_email(mail, db, user):
+async def test_email(capture_mail, db, user):
     await send_email(user.username, db, lang="en")
-    email, data = mail.sends[0]
+    (email_type, email), data = capture_mail.popitem()
 
     assert email == user.email, f'{email}-{data}'
     assert "token" in data
@@ -22,7 +29,7 @@ async def test_email(mail, db, user):
 
 
 @pytest.mark.anyio
-async def test_email_timeout(mail, db, user):
+async def test_email_timeout(db, user):
     await send_email(user.username, db, lang="en")
     assert not await can_send_email(user.email, db)
     await db.execute(
@@ -60,12 +67,9 @@ async def test_verifier(db, user):
 
 
 @pytest.mark.anyio
-async def test_create_503(db, user):
-    """If generation fails
-
-    Although the email will fail here, the username should work too
+async def test_create_fails_on_duplicate(db, user):
+    """If generation fails all the time the application should still handle the scenario
     """
-    from muistot.login.logic.login import try_create_user
     with pytest.raises(HTTPException) as e:
         await try_create_user(user.email, db)
     assert e.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
@@ -128,9 +132,6 @@ async def test_email_token_not_exists_not_unicode(client, user, capture_mail):
 
 @pytest.mark.anyio
 async def test_namegen_no_more_names(client, user, non_existent_email, capture_mail):
-    import httpx
-    from muistot.config import Config
-
     with httpx.Client(base_url=Config.namegen.url) as c:
         c.post(f"/lock?{urlencode(dict(username=user.username))}")
         try:
@@ -142,9 +143,6 @@ async def test_namegen_no_more_names(client, user, non_existent_email, capture_m
 
 @pytest.mark.anyio
 async def test_namegen_failure(client, non_existent_email, capture_mail):
-    import httpx
-    from muistot.config import Config
-
     with httpx.Client(base_url=Config.namegen.url) as c:
         c.post(f"/disable")
         try:
@@ -172,7 +170,8 @@ async def test_email_login_non_verified_verifies(user, client, capture_mail, db)
 
 @pytest.mark.anyio
 async def test_email_login_verified_ok(user, client, capture_mail, db):
-    """Sanity check"""
+    """Sanity check for user with a verified status set to True
+    """
     r = await client.post(f"{EMAIL_LOGIN}?email={user.email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
@@ -189,7 +188,7 @@ async def test_email_login_verified_ok(user, client, capture_mail, db):
 @pytest.mark.parametrize("lang, expected", [
     ("en-US,en;q=0.5", "en"),
     ("fi", "fi"),
-    # ("xwadwadwa", Config.localization.default), This will fail
+    #  ("xwadwadwa", Config.localization.default), Fails
 ])
 async def test_email_templating_lang(user, client, capture_mail, lang, expected):
     r = await client.post(f"{EMAIL_LOGIN}?email={user.email}", headers={CONTENT_LANGUAGE: lang})

@@ -1,4 +1,5 @@
 from collections import namedtuple
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -7,73 +8,50 @@ from httpx import AsyncClient
 from muistot import mailer
 from muistot.config import Config
 from muistot.login import login_router
-from muistot.login.login import database
-from muistot.mailer import Mailer, Result
 from muistot.middleware import SessionMiddleware, LanguageMiddleware
 
 User = namedtuple("User", ["username", "email", "id"])
 
 
-@pytest.fixture
-def mail():
-    class Mock(Mailer):
-
-        def __init__(self):
-            self.sends = list()
-            self.verifys = list()
-
-        async def send_email(self, email: str, _: str, **data) -> Result:
-            self.sends.append((email, data))
-            return Result(success=True)
-
-    i = Mock()
-    old = mailer.instance
-    mailer.instance = i
-    yield i
-    mailer.instance = old
-
-
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def capture_mail():
-    captured_data = dict()
+    captured_data = {}
 
     class Capturer(mailer.Mailer):
 
-        async def send_email(self, email: str, email_type: str, **data) -> mailer.Result:
-            captured_data[(email_type, email)] = dict(**data)
+        async def send_email(self, email: str, email_type: str, **data: dict) -> mailer.Result:
+            captured_data[(email_type, email)] = data
             return mailer.Result(success=True)
 
-    old = mailer.instance
+    old_instance = mailer.instance
     mailer.instance = Capturer()
     yield captured_data
-    mailer.instance = old
+    mailer.instance = old_instance
 
 
 @pytest.fixture
 async def client(db_instance, cache_redis):
     app = FastAPI()
-
-    async def mock_database():
-        async with db_instance() as connection:
-            yield connection
-
-    app.dependency_overrides[database] = mock_database
     app.include_router(login_router, prefix="/auth")
+
     app.add_middleware(
         SessionMiddleware,
         url=Config.sessions.redis_url,
         token_bytes=Config.sessions.token_bytes,
         lifetime=Config.sessions.token_lifetime,
     )
+
     app.add_middleware(
         LanguageMiddleware,
         default_language=Config.localization.default,
         languages=Config.localization.supported,
     )
 
+    # Replaces redis and databases
     @app.middleware("http")
     async def _(request, call_next):
         request.state.redis = cache_redis
+        request.state.databases = SimpleNamespace(default=db_instance)
         return await call_next(request)
 
     client = AsyncClient(app=app, base_url="http://test")

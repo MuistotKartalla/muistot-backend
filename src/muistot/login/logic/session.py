@@ -1,11 +1,37 @@
 from typing import List, Dict
 
 import headers
-from fastapi import Response, status
+import httpx
+from fastapi import Response, status, HTTPException
 
+from ...config import Config
 from ...database import Database
 from ...security import Session, SessionManager
 from ...security.scopes import SUPERUSER, ADMIN
+
+
+async def try_create_user(email: str, db: Database) -> str:
+    async with httpx.AsyncClient(base_url=Config.namegen.url) as client:
+        for _ in range(0, 5):
+            r = await client.get("/")
+            if r.status_code == status.HTTP_200_OK:
+                username = r.json()["value"]
+                if not await db.fetch_val(
+                        "SELECT EXISTS(SELECT 1 FROM users WHERE email=:email OR username=:user)",
+                        values=dict(
+                            email=email,
+                            user=username,
+                        ),
+                ):
+                    await db.execute(
+                        "INSERT INTO users (email, username) VALUE (:email, :user)",
+                        values=dict(
+                            email=email,
+                            user=username,
+                        ),
+                    )
+                    return username
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 async def is_superuser(username: str, db: Database) -> bool:
@@ -63,6 +89,7 @@ async def start_session(username: str, db: Database, sm: SessionManager) -> Resp
         )
     )
     await db.execute(
+        # language=mariadb
         """
         CALL log_login(:user)
         """,
