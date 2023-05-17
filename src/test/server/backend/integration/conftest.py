@@ -2,10 +2,9 @@ import pytest
 from httpx import AsyncClient
 
 from muistot.backend import main
-from muistot.backend.api.access_databases import default_database
 from muistot.backend.models import NewProject
 from muistot.login.logic.session import load_session_data
-from muistot.middleware import UnauthenticatedCacheMiddleware
+from muistot.middleware import UnauthenticatedCacheMiddleware, DatabaseMiddleware
 from muistot.security import Session, SessionManager
 from utils import mock_request, genword, User
 
@@ -16,7 +15,7 @@ async def client(db_instance, cache_redis, session_redis):
         async with db_instance() as c:
             yield c
 
-    main.app.dependency_overrides[default_database] = mock_dep
+    main.app.dependency_overrides[DatabaseMiddleware.default] = mock_dep
 
     # Rebuild deps after removing caching
     main.app.user_middleware = [

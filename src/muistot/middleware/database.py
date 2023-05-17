@@ -7,11 +7,20 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from ..config.models import Database as DatabaseConfig
-from ..database import DatabaseProvider
+from ..database import DatabaseProvider, Database
 
 
 class DatabaseMiddleware(BaseHTTPMiddleware):
     instances: Dict[str, DatabaseProvider]
+
+    @staticmethod
+    def get(r: Request) -> Database:
+        return r.state.databases
+
+    @staticmethod
+    def default(r: Request) -> Database:
+        with r.state.databases.default() as database:
+            yield database
 
     def __init__(self, app: ASGIApp, databases: Dict[str, DatabaseConfig]):
         super(DatabaseMiddleware, self).__init__(app)

@@ -1,11 +1,5 @@
-from fastapi import Depends, Request
+from fastapi import Depends
 
-from ...database import Database
+from ...middleware import DatabaseMiddleware
 
-
-async def default_database(r: Request) -> Database:
-    async with r.state.databases.default() as db:
-        yield db
-
-
-DEFAULT_DB = Depends(default_database)
+DEFAULT_DB = Depends(DatabaseMiddleware.default)
