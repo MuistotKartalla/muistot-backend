@@ -10,6 +10,10 @@ from starlette.responses import Response, StreamingResponse, iterate_in_threadpo
 
 class UnauthenticatedCacheMiddleware(BaseHTTPMiddleware):
 
+    @staticmethod
+    def get(r: Request) -> Redis:
+        return r.state.redis
+
     def __init__(self, app: ASGIApp, url: str, ttl: int = 300):
         super(UnauthenticatedCacheMiddleware, self).__init__(app)
         self.url = url
