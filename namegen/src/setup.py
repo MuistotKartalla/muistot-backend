@@ -9,9 +9,6 @@ setuptools.setup(
     long_description='Generate Names',
     long_description_content_type='text/markdown',
     url='https://github.com/MuistotKartalla/muistot-backend',
-    packages=['app'],
-    package_dir={
-        '': 'src'
-    },
-    python_requires='>=3.8',
+    packages=['namegen'],
+    python_requires='>=3.9',
 )

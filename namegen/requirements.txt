@@ -1,6 +1,3 @@
 fastapi
 uvicorn
-pytest
-pytest-cov
-requests
 httpx

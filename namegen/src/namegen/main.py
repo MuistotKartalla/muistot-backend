@@ -1,11 +1,11 @@
+import random
 import sqlite3
+import string
 
 from fastapi import FastAPI, Depends, Response
 from pydantic import BaseModel
 
 app = FastAPI()
-app.state.disabled = False
-app.state.locked_name = None
 
 
 class Name(BaseModel):
@@ -16,6 +16,12 @@ def connection_provider():
     conn = sqlite3.connect('usernames.db')
     yield conn
     conn.close()
+
+
+@app.on_event('startup')
+def startup():
+    app.state.disabled = False
+    app.state.locked_name = None
 
 
 @app.get(
@@ -41,14 +47,12 @@ def get_name(connection: sqlite3.Connection = Depends(connection_provider)):
     elif app.state.locked_name:
         return Name.construct(value=app.state.locked_name)
     else:
-        import random
-        import string
         generated: str
         while True:
             c = connection.cursor()
-            c.execute('SELECT value FROM start ORDER BY RANDOM()')
+            c.execute('SELECT value FROM start ORDER BY random()')
             start, = c.fetchone()
-            c.execute('SELECT value FROM end ORDER BY RANDOM()')
+            c.execute('SELECT value FROM end ORDER BY random()')
             end, = c.fetchone()
             serial = ''.join(map(lambda _: random.choice(string.digits), range(0, 4)))
             generated = start[0].upper() + start[1:] + end[0].upper() + end[1:] + '#' + serial
@@ -60,7 +64,7 @@ def get_name(connection: sqlite3.Connection = Depends(connection_provider)):
 
 
 @app.post('/lock')
-def disable(username: str = None):
+def lock(username: str = None):
     app.state.locked_name = username
 
 
