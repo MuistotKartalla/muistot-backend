@@ -1,8 +1,5 @@
-from fastapi import HTTPException
 from pycountry import languages
 from pydantic import constr, conint, confloat, Field
-
-from ...config import Config
 
 # language=pythonregexp
 __ID_REGEX = r"^[a-zA-Z0-9-_]+$"
@@ -118,8 +115,6 @@ def validate_language(lang: str) -> str:
             lang = languages.get(alpha_3=lang).alpha_2
         else:
             lang = languages.get(alpha_2=lang).alpha_2
-        if lang not in Config.localization.supported:
-            raise HTTPException(status_code=406, detail='Unsupported language')
         return lang
     except (AttributeError, LookupError):
         raise ValueError("No ISO639-1 ID Found")

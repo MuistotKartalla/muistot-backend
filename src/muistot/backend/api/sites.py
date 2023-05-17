@@ -8,7 +8,8 @@ from .utils import make_router, rex, deleted, modified, created, sample, require
 from ..models import SID, PID, Site, Sites, NewSite, ModifiedSite
 from ..repos import SiteRepo
 from ...database import Database
-from ...middleware import DatabaseMiddleware, LanguageMiddleware, SessionMiddleware
+from ...middleware import DatabaseMiddleware, SessionMiddleware
+from ...middleware.language import LanguageMiddleware, LanguageChecker
 from ...security import scopes, User
 
 router = make_router(tags=["Sites"])
@@ -90,7 +91,9 @@ async def new_site(
         db: Database = Depends(DatabaseMiddleware.default),
         user: User = Depends(SessionMiddleware.user),
         language: str = Depends(LanguageMiddleware.get),
+        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
 ):
+    checker.check(model.info.lang)
     repo = SiteRepo(db, project)
     repo.configure(user, language)
     new_id = await repo.create(model)
@@ -121,7 +124,10 @@ async def modify_site(
         db: Database = Depends(DatabaseMiddleware.default),
         user: User = Depends(SessionMiddleware.user),
         language: str = Depends(LanguageMiddleware.get),
+        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
 ):
+    if model.info:
+        checker.check(model.info.lang)
     repo = SiteRepo(db, project)
     repo.configure(user, language)
     changed = await repo.modify(site, model)

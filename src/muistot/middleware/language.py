@@ -1,10 +1,21 @@
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Set
 
 from headers import ACCEPT_LANGUAGE, CONTENT_LANGUAGE
 from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
+
+
+class LanguageChecker:
+    __slots__ = ["supported"]
+
+    def __init__(self, supported: frozenset):
+        self.supported = supported
+
+    def check(self, language: str):
+        if language is None or language not in self.supported:
+            raise HTTPException(status_code=406, detail="Language not supported")
 
 
 class LanguageMiddleware(BaseHTTPMiddleware):
@@ -14,16 +25,14 @@ class LanguageMiddleware(BaseHTTPMiddleware):
         return r.state.language if r.state.language else r.state.default_language
 
     @staticmethod
-    def supported(r: Request) -> str:
-        lang = r.state.language
-        if not lang:
-            raise HTTPException(status_code=406, detail="Language not supported")
-        return lang
+    def checker(r: Request) -> Set[str]:
+        return r.state.language_checker
 
     def __init__(self, app, default_language: str, languages: Iterable[str]):
         super(LanguageMiddleware, self).__init__(app)
         self.default_language = default_language
-        self.languages = {*languages}
+        self.languages = frozenset(languages)
+        self.checker = LanguageChecker(self.languages)
 
     def validate_language(self, lang: str) -> Optional[str]:
         """Validates a language is in supported languages
@@ -50,4 +59,5 @@ class LanguageMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request.state.language = self.extract_language(request)
         request.state.default_language = self.default_language
+        request.state.language_checker = self.checker
         return await call_next(request)

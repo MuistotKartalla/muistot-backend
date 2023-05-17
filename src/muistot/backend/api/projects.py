@@ -7,7 +7,8 @@ from .utils import make_router, rex, deleted, modified, created, sample, d, requ
 from ..models import PID, Project, Projects, NewProject, ModifiedProject, UID
 from ..repos import ProjectRepo
 from ...database import Database
-from ...middleware import DatabaseMiddleware, SessionMiddleware, LanguageMiddleware
+from ...middleware import DatabaseMiddleware, SessionMiddleware
+from ...middleware.language import LanguageMiddleware, LanguageChecker
 from ...security import scopes, User
 
 router = make_router(tags=["Projects"])
@@ -86,7 +87,10 @@ async def new_project(
         db: Database = Depends(DatabaseMiddleware.default),
         user: User = Depends(SessionMiddleware.user),
         language: str = Depends(LanguageMiddleware.get),
+        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
 ):
+    if model.info:
+        checker.check(model.info.lang)
     repo = ProjectRepo(db)
     repo.configure(user, language)
     new_id = await repo.create(model)
@@ -119,7 +123,12 @@ async def modify_project(
         db: Database = Depends(DatabaseMiddleware.default),
         user: User = Depends(SessionMiddleware.user),
         language: str = Depends(LanguageMiddleware.get),
+        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
 ):
+    if model.default_language:
+        checker.check(model.default_language)
+    if model.info:
+        checker.check(model.info.lang)
     repo = ProjectRepo(db)
     repo.configure(user, language)
     changed = await repo.modify(project, model)
