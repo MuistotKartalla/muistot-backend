@@ -5,10 +5,10 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from muistot import mailer
 from muistot.config import Config
 from muistot.login import login_router
 from muistot.middleware import SessionMiddleware, LanguageMiddleware
+from muistot.middleware.mailer import Mailer, Result, MailerMiddleware
 
 User = namedtuple("User", ["username", "email", "id"])
 
@@ -17,11 +17,11 @@ User = namedtuple("User", ["username", "email", "id"])
 def capture_mail():
     captured_data = {}
 
-    class Capturer(mailer.Mailer):
+    class Capturer(Mailer):
 
-        async def send_email(self, email: str, email_type: str, **data: dict) -> mailer.Result:
+        async def send_email(self, email: str, email_type: str, **data: dict) -> Result:
             captured_data[(email_type, email)] = data
-            return mailer.Result(success=True)
+            return Result(success=True)
 
         def __getitem__(self, item):
             return captured_data[item]
@@ -33,7 +33,7 @@ def capture_mail():
 async def client(db_instance, cache_redis, capture_mail):
     app = FastAPI()
     app.include_router(login_router, prefix="/auth")
-    app.dependency_overrides[mailer.get_mailer] = lambda: capture_mail
+    app.dependency_overrides[MailerMiddleware.get] = lambda: capture_mail
 
     app.add_middleware(
         SessionMiddleware,

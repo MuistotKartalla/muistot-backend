@@ -1,5 +1,6 @@
 from httpx import AsyncClient
-from muistot.mailer import Mailer, Result
+
+from .abstract import Mailer, Result
 
 
 class ServerMailer(Mailer):

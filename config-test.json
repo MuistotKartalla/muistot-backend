@@ -1,21 +1,13 @@
 {
   "testing": true,
-  "auto_publish": true,
+  "auto_publish": false,
   "mailer": {
-    "driver": "LogMailer",
-    "config": {
-      "host": "maildev",
-      "port": 25,
-      "ssl": false,
-      "user": "test",
-      "password": "test",
-      "service_url": "http://localhost:3000",
-      "sender": "do-not-reply@muistotkartalla.fi"
-    }
+    "driver": "MailCatcher",
+    "config": {}
   },
   "database": {
     "default": {
-      "host": "db",
+      "host": "test-db",
       "port": 3306,
       "database": "muistot",
       "user": "root",

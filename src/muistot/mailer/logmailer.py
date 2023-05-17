@@ -1,4 +1,4 @@
-from . import Mailer, Result
+from .abstract import Mailer, Result
 
 
 class LogMailer(Mailer):

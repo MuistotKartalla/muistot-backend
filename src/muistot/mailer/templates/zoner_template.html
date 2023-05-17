@@ -1,0 +1,126 @@
+<html lang="${{LANGUAGE}}">
+<head>
+    <title>${{SUBJECT}}</title>
+    <meta name="viewport" content="width=device-width"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body
+        style="
+            background-color: #f6f6f6;
+            width: 100%;
+            height: 100%;
+            line-height: 1.6em;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        "
+        itemscope
+        itemtype="EmailMessage"
+>
+<table
+        style="
+            background-color: #f6f6f6;
+            width: 100%;
+            height: 100%;
+        "
+>
+    <tr>
+        <td>
+
+        </td>
+        <td>
+            <div
+                    style="
+                        max-width: 400px;
+                        width: 400px;
+                        display: block;
+                        margin: 0 auto;
+                        padding: 20px;
+                        border-radius: 3px;
+                        border: 1px solid #e9e9e9;
+                        background-color: #ffffff;
+                    "
+            >
+                <table
+                        style="
+                            width: 100%;
+                        "
+                        itemscope
+                        itemprop="action"
+                        itemtype="ConfirmAction"
+                >
+                    <tr>
+                        <td style="padding: 10px">
+                            <meta itemprop="name" content="Login Email">
+                            <table>
+                                <tr>
+                                    <td
+                                            style="
+                                                font-family: 'Helvetica Neue', Helvetica, sans-serif;
+                                                font-size: 14px;
+                                                padding: 0 0 20px;
+                                                vertical-align: top;
+                                            "
+                                    >
+                                        ${{TITLE}}
+                                    </td>
+                                </tr>
+                                <tr
+                                        itemscope
+                                        itemprop="handler"
+                                        itemtype="HttpActionHandler"
+                                >
+                                    <td
+                                            style="
+                                                padding: 0 0 20px;
+                                            "
+                                    >
+                                        <a
+                                                href="${{LINK}}"
+                                                style="
+
+                                                    display: inline-block;
+                                                    font-family: 'Helvetica Neue', Helvetica, sans-serif;
+                                                    font-size: 14px;
+                                                    line-height: 2em;
+                                                    font-weight: bold;
+                                                    text-align: center;
+                                                    text-transform: capitalize;
+                                                    text-decoration: none;
+                                                    color: #FFFFFF;
+                                                    background-color: #348eda;
+                                                    border-color: #348eda;
+                                                    border-style: solid;
+                                                    border-width: 10px 20px;
+                                                    border-radius: 5px;
+                                                 "
+                                                itemprop="url"
+                                        >
+                                            ${{BUTTON}}
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                            style="
+                                                font-family: 'Helvetica Neue', Helvetica, sans-serif;
+                                                font-size: 14px;
+                                                padding: 0 0 20px;
+                                                vertical-align: top;
+                                            "
+                                    >
+                                        &mdash; Muistotkartalla
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </td>
+        <td>
+
+        </td>
+    </tr>
+</table>
+</body>
+</html>

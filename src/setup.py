@@ -16,4 +16,7 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(include=["muistot", "muistot.*"]),
     python_requires=">=3.9",
+    package_data={
+        'muistot.mailer.templates': ['*.html']
+    },
 )

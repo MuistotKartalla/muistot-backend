@@ -7,11 +7,14 @@ from pydantic import BaseModel, Field, AnyUrl, AnyHttpUrl, Extra, DirectoryPath
 class Database(BaseModel):
     # Basic config for url
     # --------------------
-    host: str = "db"
+    host: str
     port: int = 3306
     database: str = "muistot"
-    user: str = "root"
-    password: str = "test"
+
+    # Authentication config
+    # ---------------------
+    user: str
+    password: str
 
     # Connection Config (databases)
     # -----------------------------
@@ -34,26 +37,18 @@ class Database(BaseModel):
 
 
 class Mailer(BaseModel):
-    driver: str = Field(".logmailer.LogMailer", regex=r'^\.?\w+(?:\.\w+)*$')
+    driver: str = Field(default="LogMailer")
     config: Dict = Field(default_factory=dict)
 
 
 class Namegen(BaseModel):
-    url: AnyHttpUrl = "http://username-generator"
+    url: AnyHttpUrl
 
 
 class Sessions(BaseModel):
-    redis_url: AnyUrl = "redis://session-storage?db=0"
+    redis_url: AnyUrl
     token_lifetime: int = 60 * 16
     token_bytes: int = 32
-
-
-class Security(BaseModel):
-    bcrypt_cost: int = 12
-    oauth: Dict[str, Dict] = Field(default_factory=dict)
-
-    class Config:
-        extra = Extra.ignore
 
 
 class FileStore(BaseModel):
@@ -77,17 +72,22 @@ class Localization(BaseModel):
 
 
 class Cache(BaseModel):
-    redis_url: AnyUrl = "redis://session-storage?db=1"
+    redis_url: AnyUrl
     cache_ttl: int = 60 * 10
 
 
 class BaseConfig(BaseModel):
+    # Can be omitted
     testing: bool = Field(default_factory=lambda: True)
-    database: Dict[str, Database] = Field(default_factory=lambda: dict(default=Database()))
-    security: Security = Field(default_factory=Security)
-    sessions: Sessions = Field(default_factory=Sessions)
-    namegen: Namegen = Field(default_factory=Namegen)
     files: FileStore = Field(default_factory=FileStore)
     mailer: Mailer = Field(default_factory=Mailer)
     localization: Localization = Field(default_factory=Localization)
-    cache: Cache = Field(default_factory=Cache)
+
+    # Required
+    sessions: Sessions = Field()
+    database: Dict[str, Database] = Field()
+    namegen: Namegen = Field()
+    cache: Cache = Field()
+
+    class Config:
+        extra = Extra.ignore
