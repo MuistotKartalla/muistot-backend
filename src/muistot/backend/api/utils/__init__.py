@@ -4,6 +4,7 @@ from fastapi import Response, status, APIRouter
 from headers import LOCATION
 
 from . import common_responses as rex
+from .auth import require_auth
 from .documentation_utilities import d, sample
 
 
@@ -63,4 +64,13 @@ def make_router(**kwargs) -> APIRouter:
     return router
 
 
-__all__ = ["created", "modified", "deleted", "make_router", "d", "sample", "rex"]
+__all__ = [
+    "created",
+    "modified",
+    "deleted",
+    "make_router",
+    "d",
+    "sample",
+    "rex",
+    "require_auth",
+]

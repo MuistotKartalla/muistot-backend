@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, status
 
 from ..models import PatchUser, UserData
 from ...database import Database, IntegrityError
@@ -100,7 +100,3 @@ async def get_user_data(db: Database, username: str) -> UserData:
             )
         )
     )
-
-
-def manager(r: Request) -> SessionManager:
-    return r.state.sessions

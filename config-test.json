@@ -2,7 +2,7 @@
   "testing": true,
   "auto_publish": false,
   "mailer": {
-    "driver": "MailCatcher",
+    "driver": "LogMailer",
     "config": {}
   },
   "database": {

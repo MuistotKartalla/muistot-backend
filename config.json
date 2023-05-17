@@ -2,7 +2,7 @@
   "testing": true,
   "auto_publish": true,
   "mailer": {
-    "driver": "LogMailer",
+    "driver": "ZonerMailer",
     "config": {
       "host": "maildev",
       "port": 25,

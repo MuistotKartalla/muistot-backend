@@ -27,6 +27,10 @@ class SessionMiddleware(AuthenticationMiddleware, AuthenticationBackend):
     def get(r: Request) -> SessionManager:
         return r.state.sessions
 
+    @staticmethod
+    def user(r: Request) -> User:
+        return r.user
+
     def __init__(self, app: ASGIApp, url: str, token_bytes: int, lifetime: int):
         super(SessionMiddleware, self).__init__(app, backend=self, on_error=SessionMiddleware.on_error)
         self.redis = redis.from_url(url)

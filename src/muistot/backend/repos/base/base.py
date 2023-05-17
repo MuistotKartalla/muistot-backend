@@ -3,8 +3,6 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, Any, NoReturn, Union, Optional, Dict
 
-from fastapi import Request
-
 from ....database import Database
 from ....files import Files
 from ....logging import log
@@ -19,6 +17,7 @@ class BaseRepo(ABC):
     Throwing HTTPExceptions is a good way to propagate exceptions.
     """
     lang: str
+    user: User
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -42,10 +41,10 @@ class BaseRepo(ABC):
         self.db = db
         for k, v in kwargs.items():
             setattr(self, k, v)
-        self._kwargs = dict(**kwargs)
-        self._user: Union[User] = User.null()
+        self.kwargs = dict(**kwargs)
+        self.user: Union[User] = User.null()
 
-    def configure(self, r: Request) -> "BaseRepo":
+    def configure(self, user: User, language: str) -> "BaseRepo":
         """
         Adds configuration data from the Request to this repo
 
@@ -54,12 +53,12 @@ class BaseRepo(ABC):
         - User
         - Language
         """
-        self._user = r.user
-        self.lang = r.state.language
+        self.user = user
+        self.lang = language
         return self
 
     def from_repo(self, repo: "BaseRepo") -> "BaseRepo":
-        self._user = repo._user
+        self.user = repo.user
         self.lang = repo.lang
         return self
 
@@ -101,7 +100,7 @@ class BaseRepo(ABC):
 
     @property
     def identity(self) -> Optional[str]:
-        return self._user.identity if self._user.is_authenticated else None
+        return self.user.identity if self.user.is_authenticated else None
 
     @property
     def authenticated(self) -> bool:
@@ -109,19 +108,15 @@ class BaseRepo(ABC):
 
     @property
     def superuser(self) -> bool:
-        return self._user.is_superuser
+        return self.user.is_superuser
 
     @property
     def files(self) -> Files:
-        return Files(self.db, self._user)
+        return Files(self.db, self.user)
 
     @property
     def identifiers(self) -> Dict[str, Any]:
-        return dict(**self._kwargs)
-
-    @property
-    def user(self) -> User:
-        return self._user
+        return dict(**self.kwargs)
 
 
 __all__ = [

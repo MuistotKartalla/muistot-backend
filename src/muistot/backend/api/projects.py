@@ -1,14 +1,14 @@
 from itertools import chain
 from textwrap import dedent
 
-from fastapi import Request, Response
+from fastapi import Request, Response, Depends
 
-from .access_databases import DEFAULT_DB
-from .utils import make_router, rex, deleted, modified, created, sample, d
+from .utils import make_router, rex, deleted, modified, created, sample, d, require_auth
 from ..models import PID, Project, Projects, NewProject, ModifiedProject, UID
 from ..repos import ProjectRepo
 from ...database import Database
-from ...security import require_auth, scopes
+from ...middleware import DatabaseMiddleware, SessionMiddleware, LanguageMiddleware
+from ...security import scopes, User
 
 router = make_router(tags=["Projects"])
 
@@ -27,11 +27,12 @@ router = make_router(tags=["Projects"])
     responses=dict(filter(lambda e: e[0] != 404, rex.gets(Projects).items())),
 )
 async def get_projects(
-        r: Request,
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ) -> Projects:
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     return Projects(items=await repo.all())
 
 
@@ -53,12 +54,13 @@ async def get_projects(
     ),
 )
 async def get_project(
-        r: Request,
         project: PID,
-        db: Database = DEFAULT_DB,
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ) -> Project:
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     return await repo.one(project)
 
 
@@ -81,10 +83,12 @@ async def get_project(
 async def new_project(
         r: Request,
         model: NewProject = sample(NewProject),
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     new_id = await repo.create(model)
     return created(r.url_for("get_project", project=new_id))
 
@@ -112,10 +116,12 @@ async def modify_project(
         r: Request,
         project: PID,
         model: ModifiedProject = sample(ModifiedProject),
-        db: Database = DEFAULT_DB,
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     changed = await repo.modify(project, model)
     return modified(lambda: r.url_for("get_project", project=project), changed)
 
@@ -136,10 +142,12 @@ async def modify_project(
 async def delete_project(
         r: Request,
         project: PID,
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     await repo.toggle_publish(project, False)
     return deleted(r.url_for("get_projects"))
 
@@ -159,10 +167,12 @@ async def add_project_admin(
         r: Request,
         project: PID,
         username: UID,
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     await repo.add_admin(project, username)
     return Response(
         status_code=201,
@@ -185,10 +195,12 @@ async def delete_project_admin(
         r: Request,
         project: PID,
         username: UID,
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     await repo.delete_admin(project, username)
     return Response(
         status_code=204,
@@ -216,9 +228,11 @@ async def publish_project(
         r: Request,
         project: PID,
         publish: bool,
-        db: Database = DEFAULT_DB,
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
+        language: str = Depends(LanguageMiddleware.get),
 ):
     repo = ProjectRepo(db)
-    repo.configure(r)
+    repo.configure(user, language)
     changed = await repo.toggle_publish(project, publish)
     return modified(lambda: r.url_for("get_project", project=project), changed)

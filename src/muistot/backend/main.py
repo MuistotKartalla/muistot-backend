@@ -17,6 +17,7 @@ from ..middleware import (
     TimingMiddleware,
     SessionMiddleware,
     DatabaseMiddleware,
+    MailerMiddleware,
 )
 
 description = textwrap.dedent(
@@ -95,25 +96,6 @@ tags = [
 # It works like adding layers to an onion.
 # The latest gets executed first.
 middlewares = [
-    Middleware(
-        SessionMiddleware,
-        url=Config.sessions.redis_url,
-        token_bytes=Config.sessions.token_bytes,
-        lifetime=Config.sessions.token_lifetime,
-    ),
-    Middleware(
-        DatabaseMiddleware,
-        databases=Config.database,
-    ),
-    Middleware(
-        RedisMiddleware,
-        url=Config.cache.redis_url,
-    ),
-    Middleware(
-        LanguageMiddleware,
-        default_language=Config.localization.default,
-        languages=Config.localization.supported,
-    ),
     *([] if not Config.testing else [
         Middleware(
             CORSMiddleware,
@@ -126,7 +108,31 @@ middlewares = [
             TimingMiddleware,
             logger=log,
         ),
-    ])
+    ]),
+    Middleware(
+        LanguageMiddleware,
+        default_language=Config.localization.default,
+        languages=Config.localization.supported,
+    ),
+    Middleware(
+        RedisMiddleware,
+        url=Config.cache.redis_url,
+    ),
+    Middleware(
+        SessionMiddleware,
+        url=Config.sessions.redis_url,
+        token_bytes=Config.sessions.token_bytes,
+        lifetime=Config.sessions.token_lifetime,
+    ),
+    Middleware(
+        DatabaseMiddleware,
+        databases=Config.database,
+    ),
+    Middleware(
+        MailerMiddleware,
+        driver=Config.mailer.driver,
+        config=Config.mailer.config,
+    ),
 ]
 
 # APP

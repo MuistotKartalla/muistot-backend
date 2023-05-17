@@ -1,65 +1,47 @@
 """
 Supplies the functions needed to do the heavy lifting in authentication
 """
+import inspect
 from functools import wraps
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import Depends, status, Request
+from fastapi import Depends, status, HTTPException
+from fastapi.security import HTTPBearer
+from starlette.requests import Request
 
-from .auth_helper import auth_helper
-from .user import User
-
-AUTH_HELPER = "__auth_helper__"
-REQUEST_HELPER = "__request__"
+from ....middleware.session import User, SessionMiddleware
 
 
-async def _request_helper(r: Request):
-    """Yeets the FastAPI request to the helper function since fastapi seems to allow request once per layer
+class AuthManager(HTTPBearer):
+    """This marks the API as requiring Authentication
     """
-    yield r
+    KWARG = "__auth_helper__"
+
+    def __init__(self):
+        super(AuthManager, self).__init__(
+            scheme_name="Session Token Auth",
+            bearerFormat="Binary Data in Base64",
+            description="Contains Session ID in Base64",
+            auto_error=False,
+        )
+
+    async def __call__(self, request: Request) -> Optional[User]:
+        await super().__call__(request)
+        return SessionMiddleware.user(request)
 
 
-def _add_request_param(f: Any):
-    """
-    Adds a request helper
-    """
-    import inspect
-
-    s: inspect.Signature = inspect.signature(f)
-    s = s.replace(
-        parameters=[
-            *s.parameters.values(),
-            inspect.Parameter(
-                REQUEST_HELPER,
-                inspect.Parameter.KEYWORD_ONLY,
-                default=Depends(_request_helper),
-                annotation=None,
-            ),
-        ]
-    )
-    f.__signature__ = s
-
-
-def _add_auth_params(f: Any, auth_scheme_choice):
+def _add_auth_params(f: Any):
     """
     Adds a session parameter and related dependency into the function signature
     """
-    import inspect
-
     s: inspect.Signature = inspect.signature(f)
     s = s.replace(
         parameters=[
             *s.parameters.values(),
             inspect.Parameter(
-                AUTH_HELPER,
+                AuthManager.KWARG,
                 inspect.Parameter.KEYWORD_ONLY,
-                default=Depends(auth_scheme_choice),
-            ),
-            inspect.Parameter(
-                REQUEST_HELPER,
-                inspect.Parameter.KEYWORD_ONLY,
-                default=Depends(_request_helper),
-                annotation=None,
+                default=Depends(AuthManager()),
             ),
         ]
     )
@@ -80,11 +62,7 @@ def require_auth(*required_scopes: str):
     def actual_auth_thingy(f):
         @wraps(f)
         async def check_auth(*args, **kwargs):
-            from fastapi import HTTPException
-
-            kwargs.pop(AUTH_HELPER)
-            r: Request = kwargs.pop(REQUEST_HELPER)
-            user: User = r.user
+            user: User = kwargs.pop(AuthManager.KWARG)
 
             if not user.is_authenticated:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
@@ -100,7 +78,7 @@ def require_auth(*required_scopes: str):
 
             return await f(*args, **kwargs)
 
-        _add_auth_params(check_auth, auth_helper)
+        _add_auth_params(check_auth)
 
         return check_auth
 

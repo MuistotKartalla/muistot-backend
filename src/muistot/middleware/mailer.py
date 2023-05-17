@@ -24,11 +24,11 @@ class MailerMiddleware(BaseHTTPMiddleware):
     config: dict
     instance: Mailer
 
-    def __init__(self, app: ASGIApp, driver: str, data: dict):
-        super().__init__(app)
+    def __init__(self, app: ASGIApp, driver: str, config: dict):
+        super(MailerMiddleware, self).__init__(app)
         self.driver = driver
-        self.data = data
-        self.instance = MailerMiddleware.DRIVERS[driver](**data)
+        self.data = config
+        self.instance = MailerMiddleware.DRIVERS[driver](**config)
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request.state.mailer = self.instance

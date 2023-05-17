@@ -9,6 +9,17 @@ from starlette.responses import Response
 
 class LanguageMiddleware(BaseHTTPMiddleware):
 
+    @staticmethod
+    def get(r: Request) -> str:
+        return r.state.language if r.state.language else r.state.default_language
+
+    @staticmethod
+    def supported(r: Request) -> str:
+        lang = r.state.language
+        if not lang:
+            raise HTTPException(status_code=406, detail="Language not supported")
+        return lang
+
     def __init__(self, app, default_language: str, languages: Iterable[str]):
         super(LanguageMiddleware, self).__init__(app)
         self.default_language = default_language
@@ -23,32 +34,20 @@ class LanguageMiddleware(BaseHTTPMiddleware):
                 return lang
 
     def extract_language(self, request: Request):
-        """
-        Extract language from request.
-
-        Default if it is not specified or not allowed
-
-        This will return default on:
-        - empty
-        - missing
-
-        And raise and error on:
-        - invalid
+        """Extract language from request.
         """
         try:
             language_header = request.headers.get("Muistot-Language", None)
-            if language_header is None:
+            if not language_header:
                 if request.method == "GET":
                     language_header = request.headers[ACCEPT_LANGUAGE]
                 else:
                     language_header = request.headers[CONTENT_LANGUAGE]
-            detected_language = self.validate_language(language_header)
-            if request.method != "GET" and not detected_language:
-                raise HTTPException(status_code=406, detail="Language not supported")
-            return detected_language
+            return self.validate_language(language_header)
         except KeyError:
-            return self.default_language
+            return None
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request.state.language = self.extract_language(request)
+        request.state.default_language = self.default_language
         return await call_next(request)

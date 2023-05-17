@@ -1,7 +1,7 @@
 import headers
-from fastapi import HTTPException
-from fastapi import status
-from fastapi.responses import Response
+from starlette import status
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
 
 from .data import check_token
 from .email import (

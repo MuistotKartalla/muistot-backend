@@ -1,4 +1,5 @@
 import pytest
+
 from muistot.backend.repos.base import BaseRepo
 from muistot.backend.repos.exists.base import Exists, Status
 
@@ -51,11 +52,11 @@ def test_from_other_ok():
     from muistot.backend.repos import ProjectRepo
 
     class Mock:
-        _user = "A"
+        user = "A"
         lang = "B"
 
     r = ProjectRepo(None).from_repo(Mock())
-    assert r._user == "A"
+    assert r.user == "A"
     assert r.lang == "B"
 
 

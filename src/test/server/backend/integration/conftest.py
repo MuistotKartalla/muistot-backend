@@ -6,7 +6,7 @@ from muistot.backend.models import NewProject
 from muistot.login.logic.session import load_session_data
 from muistot.middleware import UnauthenticatedCacheMiddleware, DatabaseMiddleware
 from muistot.security import Session, SessionManager
-from utils import mock_request, genword, User
+from utils import create_repo_config, genword, User
 
 
 @pytest.fixture(scope="session")
@@ -101,7 +101,7 @@ def username(login):
 def repo_config(username):
     """Configure a repo from request with all privileges
     """
-    yield mock_request(username)
+    yield create_repo_config(username)
 
 
 @pytest.fixture

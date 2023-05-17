@@ -18,8 +18,8 @@ class DatabaseMiddleware(BaseHTTPMiddleware):
         return r.state.databases
 
     @staticmethod
-    def default(r: Request) -> Database:
-        with r.state.databases.default() as database:
+    async def default(r: Request) -> Database:
+        async with r.state.databases.default() as database:
             yield database
 
     def __init__(self, app: ASGIApp, databases: Dict[str, DatabaseConfig]):

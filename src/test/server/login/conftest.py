@@ -1,5 +1,4 @@
 from collections import namedtuple
-from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -7,7 +6,7 @@ from httpx import AsyncClient
 
 from muistot.config import Config
 from muistot.login import login_router
-from muistot.middleware import SessionMiddleware, LanguageMiddleware
+from muistot.middleware import SessionMiddleware, LanguageMiddleware, DatabaseMiddleware, RedisMiddleware
 from muistot.middleware.mailer import Mailer, Result, MailerMiddleware
 
 User = namedtuple("User", ["username", "email", "id"])
@@ -35,30 +34,27 @@ async def client(db_instance, cache_redis, capture_mail):
     app.include_router(login_router, prefix="/auth")
     app.dependency_overrides[MailerMiddleware.get] = lambda: capture_mail
 
+    async def get_database():
+        async with db_instance() as db:
+            yield db
+
+    app.dependency_overrides[DatabaseMiddleware.default] = get_database
+
     app.add_middleware(
         SessionMiddleware,
         url=Config.sessions.redis_url,
         token_bytes=Config.sessions.token_bytes,
         lifetime=Config.sessions.token_lifetime,
     )
-
+    app.dependency_overrides[RedisMiddleware.get] = lambda: cache_redis
     app.add_middleware(
         LanguageMiddleware,
         default_language=Config.localization.default,
         languages=Config.localization.supported,
     )
-
-    # Replaces redis and databases
-    @app.middleware("http")
-    async def _(request, call_next):
-        request.state.redis = cache_redis
-        request.state.databases = SimpleNamespace(default=db_instance)
-        return await call_next(request)
-
     client = AsyncClient(app=app, base_url="http://test")
     async with client as client_session:
         yield client_session
-
     cache_redis.flushdb()
 
 

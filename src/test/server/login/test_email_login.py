@@ -8,8 +8,7 @@ from headers import AUTHORIZATION, CONTENT_LANGUAGE
 from muistot.config import Config
 from muistot.login.logic.data import hash_token
 from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
-from muistot.login.logic.login import send_login_email as send_email
-from muistot.login.logic.login import try_create_user
+from muistot.login.logic.login import send_login_email, try_create_user
 
 AUTH_PREFIX = "/auth"
 STATUS = AUTH_PREFIX + "/status"
@@ -19,7 +18,7 @@ EMAIL_EXCHANGE = AUTH_PREFIX + "/email/exchange"
 
 @pytest.mark.anyio
 async def test_email(capture_mail, db, user):
-    await send_email(user.username, db, lang="en", mailer=capture_mail)
+    await send_login_email(user.username, db, lang="en", mailer=capture_mail)
     data = capture_mail[("login", user.email)]
 
     assert "token" in data
@@ -29,7 +28,7 @@ async def test_email(capture_mail, db, user):
 
 @pytest.mark.anyio
 async def test_email_timeout(db, user, capture_mail):
-    await send_email(user.username, db, lang="en", mailer=capture_mail)
+    await send_login_email(user.username, db, lang="en", mailer=capture_mail)
     assert not await can_send_email(user.email, db)
     await db.execute(
         """
