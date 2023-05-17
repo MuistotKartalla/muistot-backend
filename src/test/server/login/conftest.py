@@ -23,16 +23,17 @@ def capture_mail():
             captured_data[(email_type, email)] = data
             return mailer.Result(success=True)
 
-    old_instance = mailer.instance
-    mailer.instance = Capturer()
-    yield captured_data
-    mailer.instance = old_instance
+        def __getitem__(self, item):
+            return captured_data[item]
+
+    yield Capturer()
 
 
 @pytest.fixture
-async def client(db_instance, cache_redis):
+async def client(db_instance, cache_redis, capture_mail):
     app = FastAPI()
     app.include_router(login_router, prefix="/auth")
+    app.dependency_overrides[mailer.get_mailer] = lambda: capture_mail
 
     app.add_middleware(
         SessionMiddleware,

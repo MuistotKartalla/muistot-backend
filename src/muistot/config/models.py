@@ -34,7 +34,7 @@ class Database(BaseModel):
 
 
 class Mailer(BaseModel):
-    driver: str = Field(".logmailer", regex=r'^\.?\w+(?:\.\w+)*$')
+    driver: str = Field(".logmailer.LogMailer", regex=r'^\.?\w+(?:\.\w+)*$')
     config: Dict = Field(default_factory=dict)
 
 

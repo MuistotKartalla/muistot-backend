@@ -10,10 +10,11 @@ Requires the following middleware:
 import urllib.parse as url
 from textwrap import dedent
 
-from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import EmailStr
 
 from .logic import complete_email_login, start_email_login, ratelimit
+from ..mailer import Mailer, get_mailer
 
 router = APIRouter(tags=["Auth"])
 
@@ -58,12 +59,12 @@ def get_status(r: Request):
         """
     ),
 )
-async def email_only_login(r: Request, email: EmailStr):
+async def email_only_login(r: Request, email: EmailStr, mailer: Mailer = Depends(get_mailer)):
     if r.user.is_authenticated:
         raise HTTPException(status_code=403, detail="Already logged in")
     ratelimit(r.state.redis, "exchange", r.client.host, email, ttl_seconds=6)
     async with r.state.databases.default() as db:
-        return await start_email_login(email, db, lang=r.state.language)
+        return await start_email_login(email, db, lang=r.state.language, mailer=mailer)
 
 
 @router.post(

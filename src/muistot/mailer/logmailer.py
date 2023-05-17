@@ -11,7 +11,3 @@ class LogMailer(Mailer):
                  f"- type: {email_type}\n "
                  f"- data:\n{pprint.pformat(data, indent=2, width=200)}")
         return Result(success=True)
-
-
-def get(**_):
-    return LogMailer()

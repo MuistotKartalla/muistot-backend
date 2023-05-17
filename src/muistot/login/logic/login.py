@@ -15,7 +15,7 @@ from .email import (
 )
 from .session import load_session_data, try_create_user
 from ...database import Database
-from ...mailer import get_mailer
+from ...mailer import Mailer
 from ...security import SessionManager, Session
 
 
@@ -47,9 +47,8 @@ async def complete_email_login(username: str, token: str, db: Database, sm: Sess
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
-async def send_login_email(username: str, db: Database, lang: str):
+async def send_login_email(username: str, db: Database, lang: str, mailer: Mailer):
     email, token, verified = await create_email_verifier(username, db)
-    mailer = get_mailer()
     await mailer.send_email(
         email,
         "login",
@@ -60,12 +59,12 @@ async def send_login_email(username: str, db: Database, lang: str):
     )
 
 
-async def start_email_login(email: str, db: Database, lang: str) -> Response:
+async def start_email_login(email: str, db: Database, lang: str, mailer: Mailer) -> Response:
     username = await fetch_user_by_email(email, db)
     if username is None:
         username = await try_create_user(email, db)
     if await can_send_email(email, db):
-        await send_login_email(username, db, lang)
+        await send_login_email(username, db, lang, mailer)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     else:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many emails")

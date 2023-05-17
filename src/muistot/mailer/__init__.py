@@ -1,6 +1,5 @@
 import abc
 from dataclasses import dataclass
-from threading import Lock
 from typing import Optional
 
 from ..config import Config
@@ -35,28 +34,16 @@ class Mailer(metaclass=abc.ABCMeta):
         """
 
 
-instance_lock = Lock()
-instance: Optional[Mailer] = None
-
-
-def _derive_default() -> Mailer:
-    import importlib
-    mailer_config = Config.mailer.config
-    mailer_impl = Config.mailer.driver
-    return getattr(importlib.import_module(f"{mailer_impl}", __name__), "get")(**mailer_config)
-
-
 def get_mailer() -> Mailer:
     """
     Gets the current mailer implementation
 
     :return: A Mailer instance
     """
-    global instance
-    with instance_lock:
-        if instance is None:
-            instance = _derive_default()
-        return instance
+    import importlib
+    mailer_config = Config.mailer.config
+    mailer_module, _, mailer_impl = Config.mailer.driver.rpartition('.')
+    return getattr(importlib.import_module(f"{mailer_module}", __name__), mailer_impl)(**mailer_config)
 
 
 __all__ = ["get_mailer", "Mailer", "Result"]

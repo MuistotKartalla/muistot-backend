@@ -13,8 +13,6 @@ COPY ./pytest.ini .
 COPY ./.coveragerc .
 # Source
 COPY ./src/ ./src/
-# Copy test mailer
-COPY ./src/test/core/mailer_test_module.py ./src/muistot/mailer/imaginary.py
 # Install
 RUN pip install ./src
 CMD pytest && echo 'Tests Done'
