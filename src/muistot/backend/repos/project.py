@@ -1,5 +1,10 @@
-from .base import *
-from .exists import check, Status
+from typing import List, Optional
+
+from fastapi import HTTPException, status
+
+from .base import BaseRepo
+from .exists import Status, check
+from ..models import PID, Project, NewProject, ModifiedProject, ProjectInfo, ProjectContact, UID
 
 
 def _check_dates(m) -> bool:

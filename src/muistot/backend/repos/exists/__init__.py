@@ -1,7 +1,14 @@
 from . import decorators as check
-from .base import Status
+from .base import Status, Exists
+from .memory import MemoryExists
+from .project import ProjectExists
+from .site import SiteExists
 
 __all__ = [
     "Status",
-    "check"
+    "Exists",
+    "check",
+    "ProjectExists",
+    "SiteExists",
+    "MemoryExists",
 ]

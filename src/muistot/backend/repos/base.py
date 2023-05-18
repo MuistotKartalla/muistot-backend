@@ -3,10 +3,10 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, Any, NoReturn, Union, Optional, Dict
 
-from ....database import Database
-from ....files import Files
-from ....logging import log
-from ....security import User
+from ...database import Database
+from ...files import Files
+from ...logging import log
+from ...security import User
 
 
 class BaseRepo(ABC):
