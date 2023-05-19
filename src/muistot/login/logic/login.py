@@ -95,6 +95,7 @@ def start_email_timeout(email: str, redis: Redis):
 async def send_login_email(
         email: str,
         username: str,
+        verified: bool,
         lang: str,
         mailer: Mailer,
         redis: Redis,
@@ -107,6 +108,7 @@ async def send_login_email(
         user=username,
         token=token,
         lang=lang,
+        verified=verified,
     )
     if not result.success:
         log.error("Failed to send mail: %s", result.reason)
@@ -123,7 +125,7 @@ async def start_email_login(
     if username is None:
         username = await try_create_user(email, db)
     if check_email_timeout(email, redis):
-        await send_login_email(email, username, lang, mailer, redis)
+        await send_login_email(email, username, await is_verified(username, db), lang, mailer, redis)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     else:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many emails")

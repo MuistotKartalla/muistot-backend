@@ -66,7 +66,14 @@ class ZonerMailer(Mailer):
     def get_sender(self):
         return f"Muistotkartalla <{self.config.sender}>"
 
-    def handle_login_data(self, user: str, token: str, verified: bool, lang: str = "en", **_):
+    def handle_login_data(
+            self,
+            user: str,
+            token: str,
+            verified: bool,
+            lang: str = "en",
+            **_,
+    ):
         url = urlencode(dict(user=user, token=token, verified=f"{bool(verified)}".lower()))
         url = f"{self.config.service_url}#email-login:{url}"
         html = get_login_template(lang, user, url)

@@ -19,16 +19,17 @@ EMAIL_EXCHANGE = AUTH_PREFIX + "/email/exchange"
 
 @pytest.mark.anyio
 async def test_email(capture_mail, user, cache_redis):
-    await send_login_email(user.email, user.username, "en", capture_mail, cache_redis)
+    await send_login_email(user.email, user.username, False, "en", capture_mail, cache_redis)
     data = capture_mail[("login", user.email)]
 
     assert "token" in data
+    assert "verified" in data
     assert data["user"] == user.username
 
 
 @pytest.mark.anyio
 async def test_email_timeout(user, capture_mail, cache_redis):
-    await send_login_email(user.email, user.username, "en", capture_mail, cache_redis)
+    await send_login_email(user.email, user.username, False, "en", capture_mail, cache_redis)
     assert not check_email_timeout(user.email, cache_redis)
     cache_redis.set(create_timeout_key(user.email), '', ex=1)
     time.sleep(1.1)
