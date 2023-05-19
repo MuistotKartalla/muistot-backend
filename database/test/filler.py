@@ -29,25 +29,22 @@ def print_status():
 
 async def make_user(db: AsyncConnection) -> int:
     _id = (await db.execute(
-        text("INSERT INTO users (email, username, password_hash) VALUE (:email, :name, :password) RETURNING id"),
+        text("INSERT INTO users (email, username) VALUE (:email, :name) RETURNING id"),
         {
             "email": f"{gen()}@example.com",
             "name": "".join(a[0].upper() + a[1:] for a in str(genp(2)).split())
                     + f"#{hex(int.from_bytes(os.urandom(3), byteorder='big', signed=False))}",
-            "password": None,
         },
     )).fetchone()[0]
     await db.execute(
         text(
             """
-            INSERT INTO user_personal_data (user_id, first_name, last_name, country, city, birth_date) 
-            VALUE (:id, :first, :ln, :country, :city, DATE(CONCAT_WS('-', :y, :m, :d)))
+            INSERT INTO user_personal_data (user_id, country, city, birth_date) 
+            VALUE (:id, :country, :city, DATE(CONCAT_WS('-', :y, :m, :d)))
             """
         ),
         {
             "id": _id,
-            "first": gen(),
-            "ln": gen(),
             "country": random.choice(["fi", "en", "swe"]),
             "city": gen(),
             "y": random.randint(1900, 2021),
