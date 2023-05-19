@@ -1,3 +1,4 @@
+import time
 from urllib.parse import urlencode
 
 import httpx
@@ -6,8 +7,8 @@ from fastapi import status, HTTPException
 from headers import AUTHORIZATION, CONTENT_LANGUAGE
 
 from muistot.config import Config
-from muistot.login.logic.data import hash_token
-from muistot.login.logic.email import create_email_verifier, fetch_user_by_email, can_send_email
+from muistot.login.logic.email import fetch_user_by_email
+from muistot.login.logic.login import check_email_timeout, create_timeout_key, create_login_token
 from muistot.login.logic.login import send_login_email, try_create_user
 
 AUTH_PREFIX = "/auth"
@@ -17,28 +18,21 @@ EMAIL_EXCHANGE = AUTH_PREFIX + "/email/exchange"
 
 
 @pytest.mark.anyio
-async def test_email(capture_mail, db, user):
-    await send_login_email(user.username, db, lang="en", mailer=capture_mail)
+async def test_email(capture_mail, user, cache_redis):
+    await send_login_email(user.email, user.username, "en", capture_mail, cache_redis)
     data = capture_mail[("login", user.email)]
 
     assert "token" in data
     assert data["user"] == user.username
-    assert not data["verified"]
 
 
 @pytest.mark.anyio
-async def test_email_timeout(db, user, capture_mail):
-    await send_login_email(user.username, db, lang="en", mailer=capture_mail)
-    assert not await can_send_email(user.email, db)
-    await db.execute(
-        """
-        UPDATE user_email_verifiers 
-            SET created_at =  TIMESTAMPADD(MINUTE,-5,created_at) 
-        WHERE user_id = (SELECT id FROM users WHERE username = :user)
-        """,
-        values=dict(user=user.username)
-    )
-    assert await can_send_email(user.email, db)
+async def test_email_timeout(user, capture_mail, cache_redis):
+    await send_login_email(user.email, user.username, "en", capture_mail, cache_redis)
+    assert not check_email_timeout(user.email, cache_redis)
+    cache_redis.set(create_timeout_key(user.email), '', ex=1)
+    time.sleep(1.1)
+    assert check_email_timeout(user.email, cache_redis)
 
 
 @pytest.mark.anyio
@@ -49,19 +43,10 @@ async def fetch_user(db, user):
 
 
 @pytest.mark.anyio
-async def test_verifier(db, user):
-    email, token, verified = await create_email_verifier(user.username, db)
-    assert not verified
-    assert email == user.email
+async def test_verifier(user, cache_redis):
+    token = create_login_token(user.username, cache_redis)
     assert token is not None
-    assert (await db.fetch_val(
-        "SELECT COUNT(*) FROM user_email_verifiers WHERE verifier = :token",
-        values=dict(token=token)
-    )) == 0
-    assert (await db.fetch_val(
-        "SELECT COUNT(*) FROM user_email_verifiers WHERE verifier = :token",
-        values=dict(token=hash_token(token))
-    )) == 1
+    assert cache_redis.dbsize() == 2  # Token and usage counter
 
 
 @pytest.mark.anyio
@@ -74,15 +59,35 @@ async def test_create_fails_on_duplicate(db, user):
 
 
 @pytest.mark.anyio
-async def test_email_login_timeout(non_existent_email, client, db):
+async def test_email_login_timeout(non_existent_email, client, cache_redis):
     r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
-    await db.execute("DELETE FROM user_email_verifiers")
-
-    # Check cache reate limits the request
+    # Check cache rate limits the request
     r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
     assert r.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.anyio
+async def test_email_login_max_tries(non_existent_email, client, cache_redis, capture_mail):
+    r = await client.post(f"{EMAIL_LOGIN}?email={non_existent_email}")
+    assert r.status_code == status.HTTP_204_NO_CONTENT
+
+    mail = capture_mail[("login", non_existent_email)]
+    token = mail["token"]
+    user = mail["user"]
+
+    for _ in range(3):
+        # Clear email rate limits
+        cache_redis.delete(*cache_redis.keys('email-login:*'))
+        r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token[:-1]))}")
+        assert r.status_code == status.HTTP_404_NOT_FOUND
+
+    # Clear email rate limits
+    cache_redis.delete(*cache_redis.keys('email-login:*'))
+    # Assert after decrementing the key a few time we will not be able to log in with the correct token
+    r = await client.post(f"{EMAIL_EXCHANGE}?{urlencode(dict(user=user, token=token))}")
+    assert r.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.anyio

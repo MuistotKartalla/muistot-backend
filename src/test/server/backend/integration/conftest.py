@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from muistot.backend import main
 from muistot.backend.models import NewProject
 from muistot.login.logic.session import load_session_data
-from muistot.middleware import UnauthenticatedCacheMiddleware, DatabaseMiddleware
+from muistot.middleware import DatabaseMiddleware
 from muistot.security import Session, SessionManager
 from utils import create_repo_config, genword, User
 
@@ -16,14 +16,6 @@ async def client(db_instance, cache_redis, session_redis):
             yield c
 
     main.app.dependency_overrides[DatabaseMiddleware.default] = mock_dep
-
-    # Rebuild deps after removing caching
-    main.app.user_middleware = [
-        middleware
-        for middleware in main.app.user_middleware
-        if middleware.cls != UnauthenticatedCacheMiddleware
-    ]
-    main.app.middleware_stack = main.app.build_middleware_stack()
 
     async with AsyncClient(app=main.app, base_url="http://test") as client:
         yield client

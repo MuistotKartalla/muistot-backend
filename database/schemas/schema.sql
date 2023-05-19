@@ -24,19 +24,18 @@ VALUES ('fi'),
 
 CREATE TABLE IF NOT EXISTS users
 (
-    id            INTEGER      NOT NULL AUTO_INCREMENT,
-    email         VARCHAR(255) NULL     DEFAULT NULL,
-    username      VARCHAR(255) NOT NULL,
-    password_hash BINARY(60) COMMENT 'BCrypt',
+    id          INTEGER      NOT NULL AUTO_INCREMENT,
+    email       VARCHAR(255) NULL     DEFAULT NULL,
+    username    VARCHAR(255) NOT NULL,
 
     # important
-    verified      BOOLEAN               DEFAULT FALSE,
-    modified_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_at    DATETIME              DEFAULT CURRENT_TIMESTAMP,
+    verified    BOOLEAN               DEFAULT FALSE,
+    modified_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at  DATETIME              DEFAULT CURRENT_TIMESTAMP,
 
     # basic data
-    image_id      INTEGER      NULL COMMENT 'fk',
-    lang_id       INTEGER      NULL COMMENT 'fk',
+    image_id    INTEGER      NULL COMMENT 'fk',
+    lang_id     INTEGER      NULL COMMENT 'fk',
 
     PRIMARY KEY pk_users (id),
     UNIQUE INDEX idx_users_username (username),
@@ -112,3 +111,41 @@ CREATE TABLE IF NOT EXISTS superusers
         ON UPDATE RESTRICT
         ON DELETE CASCADE
 ) COMMENT 'Global SuperUsers';
+
+CREATE TABLE IF NOT EXISTS login_log
+(
+    user_id     INTEGER      NULL,
+
+    username    VARCHAR(255) NOT NULL,
+    superuser   BOOLEAN      NOT NULL DEFAULT FALSE,
+    admin_in    TEXT,
+    `timestamp` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_login_log_time (timestamp),
+
+    CONSTRAINT FOREIGN KEY fk_login_log_track (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE SET NULL
+
+) ROW_FORMAT = DYNAMIC, COMMENT = 'Login audit log';
+
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS log_login $$
+CREATE PROCEDURE log_login(IN user VARCHAR(255))
+BEGIN
+    INSERT INTO login_log (user_id, username, superuser, admin_in)
+    SELECT u.id,
+           u.username,
+           EXISTS(
+               SELECT 1
+               FROM superusers su
+               WHERE su.user_id = u.id
+           ),
+           GROUP_CONCAT(p.name SEPARATOR ',')
+    FROM users u
+             LEFT JOIN project_admins pa ON u.id = pa.user_id
+             JOIN projects p ON p.id = pa.project_id
+    WHERE u.username = user
+    GROUP BY u.id;
+END $$
