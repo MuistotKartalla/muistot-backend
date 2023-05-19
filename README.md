@@ -31,14 +31,6 @@ sh scripts/recreate_db.sh
 sh scripts/run_server.sh
 ```
 
-OR
-
-```shell
-sh scripts/run_alt_server.sh
-```
-
-for new Docker versions.
-
 #### Stopping
 
 ```shell
@@ -53,14 +45,6 @@ The tests can be run using the following commands
 sh scripts/run_tests.sh
 ````
 
-OR
-
-````shell
-sh scripts/run_alt_tests.sh
-````
-
-for new Docker versions.
-
 Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
 ---
@@ -69,118 +53,58 @@ Generates coverage reports in terminal and [html reports](./htmlcov/index.html)
 
 Measured with branches included Branch coverage disabled in a few lines in the following files:
 
-- [api/__init__.py](src/muistot/backend/api/__init__.py)
-    - Feature switch, marked with TODO
 - [api/publish.py](src/muistot/backend/api/publish.py)
     - Exhaustive else-if without default branch
 - [backend/main.py](src/muistot/backend/main.py)
     - Testing switch
-- [exists/decorators.py](src/muistot/backend/repos/status/decorators.py)
-    - Possible bug in coverage for decorator function, marked with TODO
-- [cache/decorators.py](src/muistot/cache/decorator.py)
-    - Double-checked locking
 
-## Default Config
+## Application Config
 
-```json
-{
-  "testing": true,
-  "databases": {
-    "default": {
-      "host": "db",
-      "port": 3306,
-      "database": "muistot",
-      "user": "root",
-      "password": "test",
-      "ssl": false,
-      "workers": 4,
-      "cpw": 4,
-      "max_wait": 2
-    }
-  },
-  "security": {
-    "bcrypt_cost": 12,
-    "oauth": {}
-  },
-  "sessions": {
-    "redis_url": "redis://session-storage?db=0",
-    "token_lifetime": 960,
-    "token_bytes": 32
-  },
-  "files": {
-    "location": "/opt/files",
-    "allowed_filetypes": [
-      "image/jpg",
-      "image/jpeg",
-      "image/png"
-    ]
-  },
-  "namegen": {
-    "url": "http://username-generator"
-  },
-  "cache": {
-    "redis_url": "redis://session-storage?db=1",
-    "cache_ttl": 600
-  },
-  "mailer": {
-    "driver": "muistot_mailers",
-    "config": {
-      "driver": "dev-log"
-    }
-  },
-  "localization": {
-    "default": "fi",
-    "supported": [
-      "fi",
-      "en"
-    ]
-  }
-}
-```
+Check the defaults in [configuratioin models](src/muistot/config/models.py).
 
-## Developer Notes
+Two configs are currently in use for development:
 
-##### Login
+- [config.json](config.json)
+- [config-test.json](config-test.json)
 
-Logins are handled through email. There is a general purpose interface for mailing in [mailer](src/muistot/mailer). This
-can be used to integrate with _Mailgun_, _Amazon SES_, _Local Server_, ...
+## Login
 
-There was a plan to add OAuth from other provides, __but it is currently unfinished__.
+Logins are handled through email.
+There are multiple types of mailers available for mailing in [mailer](src/muistot/mailer).
+The [ZonerMailer](src/muistot/mailer/zoner.py) is used for mailing to the local Maildev.
 
-There is still support for password login.
+## Session Storage
 
-##### Session Storage
+The sessions are stored in redis and the management is done with the
+[sessions](src/muistot/security/sessions.py) module.
+Sessions are stored in redis and the session token byte length is defined in the config.
+The tokens are base64 encoded in the Authorization header and get stored in hashed format in Redis.
+Stale sessions get removed from the user pool on login.
+The session manager maintains a linking to all user sessions so that it can clear them.
 
-The sessions are stored in redis and the management is done with the [sessions](src/muistot/sessions) module. Sessions
-are stored in redis and the session token byte length is defined in the config. The tokens are base64 encoded. The
-sessions are bound to users in the Redis and any two sessions cannot share the same token. The sessions are stored in
-the following way:
+Sessions and user data can be accessed using the [session middleware](src/muistot/middleware/session.py).
 
-- token => Session Data
-- user => Session Tokens
-
-Stale sessions are removed from the user pool on login. Tokens are hashed before storage.
-
-##### Databases
+## Databases
 
 These are found under [database](src/muistot/database)
 
-These are wrapped connections from a SQLAlchemy pool.
-Async support through SQLAlchemy and asyncmy.
+These are wrapped connections from SQLAlchemy with async support through SQLAlchemy and asyncmy.
 Some custom wrappers are used to retain backwards compatibility with the old custom implementation.
 
-##### FastAPI
+The database connections are provided to the request scope from
+the [database middleware](src/muistot/middleware/database.py).
 
-The dependency and callsite clutter are quite annying at places. The callsites of many functions are polluted by request
-and _Depends_ parameters, but grouping them under one dependency is not really worth it. This could be improved later.
+## OpenAPI
 
-There is a small hack done to the OpenAPI in [helpers.py](src/muistot/errors/handlers.py) to replace the original errors.
-Also, all the error handlers are defined there.
+There is a small hack done to the OpenAPI in
+[helpers.py](src/muistot/errors/handlers.py)
+to replace the original errors.
+This is due to how the application handles errors and uses a different schema from default.
 
-##### Repos
+## Repos
 
 This whole thing is under [repos](src/muistot/backend/repos). These take care of fetching and converting the data coming
-from and going into the database. The `base` contains the base definitions and checks for repos and the `exists`
+from and going into the database. The `base` contains the base definitions and checks for repos and the `status`
 module takes care of fetching resource status information. This status information is used for the repo decorations to
 manage access control.
 
@@ -188,7 +112,7 @@ _A bit more clarification on the inner workings of this:_
 
 ```
 1. REQUEST                       -> REPO (init)
-2.         -> EXISTS (decorator) -> REPO (method)
+2.         -> STATUS (decorator) -> REPO (method)
 3.                               <- REPO (result)
 
 1. Call comes to an endpoint and repo is constructed
@@ -204,7 +128,43 @@ _A bit more clarification on the inner workings of this:_
    Usually the database fetch_one is returned and it gets serialized into the response body
 ```
 
-##### Security
+Here is an example of a repo method:
+
+```python
+@append_identifier('project', key='id')
+@require_status(Status.DOES_NOT_EXIST | Status.SUPERUSER, errors={
+    Status.DOES_NOT_EXIST | Status.AUTHENTICATED: HTTPException(
+        status_code=HTTP_403_FORBIDDEN,
+        detail="Not enough privileges",
+    )
+})
+async def create(self, model: NewProject) -> PID:
+    ...
+```
+
+First, the `append_identifier` decorator is used to add the project being created to the available identifiers for
+status checks. This is important to do for each method where this information is not directly available from the initial
+batch of identifiers given to the repo. In the usual case the [repo creator](src/muistot/backend/api/utils/repo.py)
+gives the repo all the path parameters as identifiers.
+
+Second, the `require_status` decorator is used to require a status check to pass before the method is called.
+The `require_status` decorator [defines some default errors](src/muistot/backend/repos/status/base.py), but allows the
+user to provide custom error conditions through the decorator as is seen above. Due to the SUPERUSER check, we need to
+provide a custom error when the DOES_NOT_EXIST condition would be true without SUPERUSER present.
+
+Usually the status checks do not need custom errors even with multiple status checks:
+
+```python
+@append_identifier('site', value=True)
+@require_status(Status.EXISTS | Status.ADMIN, Status.EXISTS | Status.OWN)
+async def modify(self, site: SID, model: ModifiedSite, status: Status) -> bool:
+    ...
+``` 
+
+In this case the multiple status conditions passed to the decorator cause it to allow any request matching __any__ of
+the given statuses.
+
+## Security
 
 The [security](src/muistot/security) provides classes for users and crude session scope based resource access control
 management. The access control is double-checked, once at the resource level to prevent grossly illegal calls and a
@@ -213,30 +173,26 @@ second time at the repo level to fetch the up-to-date information.
 This could be improved further by revoking sessions upon receiving a permission level related issue from a repo meaning
 someone was removed as an admin for example.
 
-##### Logging
+## Logging
 
 The logging package [logging](src/muistot/logging/__init__.py) hooks into the uvicorn error logger to propagate log
 messages.
 
-##### Config
+## Config
 
 Config is loaded with the [config](src/muistot/config) package. The config is a single Pydantic model that is read
 from `./config.json` or `~/config.json` otherwise the base (testing) config is used.
 
-##### Testing
+## Testing
 
-The tests are setup in a way where the setup builds the needed docker image and installs the server as a package there.
+The tests are set up in a way where the setup builds the needed docker image and installs the server as a package there.
 This has the added benefit of providing typehints for the project if used in conjunction
 with [PyCharm](https://www.jetbrains.com/pycharm/) remote interpreters. Highly recommended btw, free for students.
 
-The tests rely on the server default config and there are two kinds of scripts under [scripts](./scripts) compatible
-with both `docker-compose` and `docker compose` (alt) commands. The invocation is a bit different between them as the
-alt versions need to add `--attach` to only get output from a subset of the services.
-
 Main [conftest.py](./src/test/conftest.py) takes care of loading the default database connection per __session__. The
-integration folder conftest overrides the client dependency with the initialized dependency.
+integration folder conftest overrides the client default databas dependency with the initialized database dependency.
 
-##### CI/CD
+## CI/CD
 
 The [file](./.github/workflows/main.yml) takes care of contacting the deployment server through ssh to install the new
 version. This could be changed in the future to build a docker image that is pushed to a remote repo to make this
@@ -260,6 +216,8 @@ Here is the general structure of the api and a description of actions available 
 
 ![[]](.github/images/api-structure.png)
 
+The comments were scrapped.
+
 __NOTE:__ Latest description is in the swagger docs of the app, or partly
 at [Muistotkartalla - Api](https://muistotkartalla.fi/api/docs)
 
@@ -277,31 +235,28 @@ The following steps should get you up to speed on the project structure:
     - See the _api_ module for endpoints
         - See the imports and what they provide
         - Analyze the general endpoint file structure
+        - See the Repo Creator
     - See the actual _models_ for the api
     - Take a dive into the _repos_
         - Look at the _base_ module
-            - Look at *\_\_init\_subclass\_\_* and *\_\_init\_\_*
             - See the _files_ attribute
         - Look at the _exists_ module
-            - *\_actual\_exists* in _decorators.py_
-            - *Exists#start* in _base.py*
-        - Take a look at the __repo__ and __exists__ for _comments_
+        - Take a look at the __repo__ and __exists__ for _memories_
     - See the _services_ module for user edit
 
 #### Modifying the database schema
 
-Always create a new sql file under _database/schemas_ which goes alphabetically last in the file list and that can be
-applied on top of the old
-files. This should ideally be something that can be run as-is even on the live server.
+Remember to do changes that are somewhat backwards compatible and apply them to the actual database.
+The schema is in an okay state, but additions are much easier than deletions.
 
 #### Creating new features
 
 If you need to develop new endpoints or features the following is suggested:
 
 1. Create a new endpoint file under _muistot.backend.api_
-    - `from ._imports import *`
+    - Check imports from other api modules to see what is where
     - `router = make_router(tags=["Relevant feature(s) from main.py"])`
-    - Use Cache with caution if needed: `caches = Cache("memories", evicts={"sites"})`
+    - Use Cache with caution if needed by getting it from the middleware
 2. Decide if the feature requires existence checks and/or provides CRUD to a resource
     - NO: new file under services
     - YES: consider setting up a repo, evaluate which is easier
@@ -315,19 +270,6 @@ If you need to develop new endpoints or features the following is suggested:
 #### Improving Caching
 
 Add caching to queries.
-
-#### Implementing OAuth
-
-Add support for OAuth login methods.
-
-#### Convert Password login to OAuth module
-
-This would make removing passwords easier in the future as this is meant to be passwordless one day.
-
-#### Splitting the services
-
-The modules are already split per use-case and some further consolidation could be used to split the backend into
-multiple small microservices.
 
 #### Improving testing
 
