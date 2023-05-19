@@ -1,66 +1,47 @@
-import inspect
-import re
 from abc import ABC, abstractmethod
-from typing import List, Any, NoReturn, Union, Optional, Dict
+from functools import wraps
+from typing import List, Any, NoReturn, Optional, Dict
 
+from .status import StatusProvider
 from ...database import Database
 from ...files import Files
-from ...logging import log
 from ...security import User
 
 
-class BaseRepo(ABC):
+class BaseRepo(StatusProvider, ABC):
     """
     Base for Repo classes.
 
     These classes provide data to endpoints.
     Throwing HTTPExceptions is a good way to propagate exceptions.
     """
+    db: Database
     lang: str
     user: User
+    identifiers: Dict[str, Any]
 
-    def __init_subclass__(cls, **kwargs):
+    def __init__(
+            self,
+            db: Database,
+            lang: str,
+            user: User,
+            **identifiers: Dict[str, Any]
+    ):
+        """Inject
         """
-        Checks Repo requirements and mistakes
-        """
-
-        resource = cls.__name__.removesuffix("Repo").lower()
-        assert re.fullmatch("^[A-Z][a-z]+(?<!s)Repo$", cls.__name__)
-
-        mro = inspect.getmro(cls)
-        if not mro[1] == BaseRepo:
-            log.warning(f"{cls.__name__} not inheriting base repo directly")
-        funcs = mro[0].__dict__
-        for name in ["_check_exists", "_check_not_exists"]:
-            assert name not in funcs
-        for name in [f"construct_{resource}"]:
-            if name not in funcs:
-                log.warning(f"No {name} declared in repo {cls.__name__}")
-
-    def __init__(self, db: Database, **kwargs):
         self.db = db
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-        self.kwargs = dict(**kwargs)
-        self.user: Union[User] = User.null()
-
-    def configure(self, user: User, language: str) -> "BaseRepo":
-        """
-        Adds configuration data from the Request to this repo
-
-        Adds:
-
-        - User
-        - Language
-        """
+        self.lang = lang
         self.user = user
-        self.lang = language
-        return self
+        self.identifiers = identifiers
 
-    def from_repo(self, repo: "BaseRepo") -> "BaseRepo":
-        self.user = repo.user
-        self.lang = repo.lang
-        return self
+    def __getattr__(self, item: str):
+        if item in self.identifiers:
+            return self.identifiers[item]
+        raise AttributeError('Failed to find attribute %r from %r' % (item, type(self).__name__))
+
+    @classmethod
+    def from_repo(cls, repo: "BaseRepo") -> "BaseRepo":
+        return cls(repo.db, repo.lang, repo.user, **repo.identifiers)
 
     @abstractmethod
     async def all(self, *args) -> List:
@@ -114,11 +95,19 @@ class BaseRepo(ABC):
     def files(self) -> Files:
         return Files(self.db, self.user)
 
-    @property
-    def identifiers(self) -> Dict[str, Any]:
-        return dict(**self.kwargs)
 
+def append_identifier(identifier: str, *, value: bool = False, key: str = None, literal: Any = None):
+    def decorator(f):
+        @wraps(f)
+        async def wrapper(self: BaseRepo, *args, **kwargs):
+            if value:
+                self.identifiers[identifier] = args[0]
+            elif key:
+                self.identifiers[identifier] = getattr(args[0], key)
+            else:
+                self.identifiers[identifier] = literal
+            return await f(self, *args, **kwargs)
 
-__all__ = [
-    "BaseRepo",
-]
+        return wrapper
+
+    return decorator

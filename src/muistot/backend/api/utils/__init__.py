@@ -2,6 +2,7 @@ from . import common_responses as rex
 from .auth import require_auth
 from .default_router import created, modified, deleted, make_router
 from .documentation_utilities import d, sample
+from .repo import Repo
 
 __all__ = [
     "created",
@@ -12,4 +13,5 @@ __all__ = [
     "sample",
     "rex",
     "require_auth",
+    "Repo",
 ]

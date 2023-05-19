@@ -4,13 +4,11 @@ from typing import Optional
 from fastapi import HTTPException, status, Request, Response, Depends
 from pydantic import conint, confloat
 
-from .utils import make_router, rex, deleted, modified, created, sample, require_auth
+from .utils import make_router, rex, deleted, modified, created, sample, require_auth, Repo
 from ..models import SID, PID, Site, Sites, NewSite, ModifiedSite
 from ..repos import SiteRepo
-from ...database import Database
-from ...middleware import DatabaseMiddleware, SessionMiddleware
 from ...middleware.language import LanguageMiddleware, LanguageChecker
-from ...security import scopes, User
+from ...security import scopes
 
 router = make_router(tags=["Sites"])
 
@@ -30,19 +28,14 @@ router = make_router(tags=["Sites"])
     responses=rex.gets(Sites),
 )
 async def get_sites(
-        project: PID,
         n: Optional[conint(ge=1)] = None,
         lat: Optional[confloat(ge=0, le=90)] = None,
         lon: Optional[confloat(ge=-180, le=180)] = None,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: SiteRepo = Repo(SiteRepo),
 ) -> Sites:
     params = [n, lat, lon]
     if not all(map(lambda o: o is None, params)) and not all(map(lambda o: o is not None, params)):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Bad Params")
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     return Sites(items=await repo.all(n, lat, lon))
 
 
@@ -58,15 +51,10 @@ async def get_sites(
     responses=rex.get(Site),
 )
 async def get_site(
-        project: PID,
         site: SID,
         include_memories: bool = False,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: SiteRepo = Repo(SiteRepo),
 ) -> Site:
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     return await repo.one(site, include_memories=include_memories)
 
 
@@ -88,14 +76,10 @@ async def new_site(
         r: Request,
         project: PID,
         model: NewSite = sample(NewSite),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
         checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+        repo: SiteRepo = Repo(SiteRepo),
 ):
     checker.check(model.info.lang)
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     new_id = await repo.create(model)
     return created(r.url_for("get_site", project=project, site=new_id))
 
@@ -121,15 +105,11 @@ async def modify_site(
         project: PID,
         site: SID,
         model: ModifiedSite = sample(ModifiedSite),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
         checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+        repo: SiteRepo = Repo(SiteRepo),
 ):
     if model.info:
         checker.check(model.info.lang)
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     changed = await repo.modify(site, model)
     return modified(lambda: r.url_for("get_site", project=project, site=site), changed)
 
@@ -149,12 +129,8 @@ async def delete_site(
         r: Request,
         project: PID,
         site: SID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: SiteRepo = Repo(SiteRepo),
 ):
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     await repo.delete(site)
     return deleted(r.url_for("get_sites", project=project))
 
@@ -175,12 +151,8 @@ async def publish_site(
         project: PID,
         site: SID,
         publish: bool,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: SiteRepo = Repo(SiteRepo),
 ):
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     changed = await repo.toggle_publish(site, publish)
     return modified(lambda: r.url_for("get_site", project=project, site=site), changed)
 
@@ -200,12 +172,8 @@ async def report_site(
         r: Request,
         project: PID,
         site: SID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: SiteRepo = Repo(SiteRepo),
 ):
-    repo = SiteRepo(db, project)
-    repo.configure(user, language)
     await repo.report(site)
     return deleted(
         r.url_for(

@@ -1,17 +1,16 @@
 from typing import List, Optional
 
-from fastapi import HTTPException, status
+from starlette.exceptions import HTTPException
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_406_NOT_ACCEPTABLE, HTTP_409_CONFLICT, HTTP_403_FORBIDDEN
 
-from .base import BaseRepo
-from .exists import Status, check
+from .base import BaseRepo, append_identifier
+from .status import ProjectStatus, Status, require_status
 from ..models import PID, Project, NewProject, ModifiedProject, ProjectInfo, ProjectContact, UID
 
 
-def _check_dates(m) -> bool:
-    return m["start_date"] == 1 and m["end_date"] == 1
+class ProjectRepo(BaseRepo, ProjectStatus):
+    status_provider_class = ProjectStatus
 
-
-class ProjectRepo(BaseRepo):
     _select = """
         SELECT
 
@@ -59,6 +58,10 @@ class ProjectRepo(BaseRepo):
         WHERE TRUE %s
         GROUP BY p.id
         """
+
+    @staticmethod
+    def _check_dates(m) -> bool:
+        return m["start_date"] == 1 and m["end_date"] == 1
 
     async def _get_admins(self, project_id: int):
         out = [
@@ -158,7 +161,7 @@ class ProjectRepo(BaseRepo):
             not_found = [name for name in admins if name not in set(map(lambda m: m[0], data))]
             if len(not_found) != 0:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=HTTP_404_NOT_FOUND,
                     detail="Admins not found" + ("\n".join(map(lambda t: t[1], not_found)))
                 )
             pid = await self.db.fetch_val("SELECT id FROM projects WHERE name = :name", values=dict(name=project))
@@ -180,6 +183,7 @@ class ProjectRepo(BaseRepo):
             pc = None
         return Project(**m, info=pi, contact=pc, admins=await self._get_admins(m[0]))
 
+    @append_identifier('project', literal=None)
     async def all(self) -> List[Project]:
         return [
             await self.construct_project(m)
@@ -202,32 +206,40 @@ class ProjectRepo(BaseRepo):
                 dict(lang=self.lang, user=self.identity)
 
             )
-            if m is not None and (_check_dates(m) or (self.superuser or m["is_admin"] if self.authenticated else False))
+            if m is not None and (
+                    ProjectRepo._check_dates(m)
+                    or (self.superuser or m["is_admin"] if self.authenticated else False)
+            )
         ]
 
-    @check.published_or_admin
-    async def one(self, project: PID, _status: Status = None) -> Project:
+    @append_identifier('project', value=True)
+    @require_status(Status.PUBLISHED, Status.EXISTS | Status.ADMIN)
+    async def one(self, project: PID, status: Status = None) -> Project:
         m = await self.db.fetch_one(
             self._select % ("", "", " AND p.name = :project"),
             values=dict(lang=self.lang, project=project)
         )
         if m is None:
             raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                status_code=HTTP_406_NOT_ACCEPTABLE,
                 detail='Project missing default localization'
             )
-        elif not _check_dates(m) and not _status.admin:
+        elif not ProjectRepo._check_dates(m) and Status.ADMIN not in status:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=HTTP_404_NOT_FOUND,
                 detail='Project not found'
             )
         out = await self.construct_project(m)
         return out
 
-    @check.not_exists
+    @append_identifier('project', key='id')
+    @require_status(Status.DOES_NOT_EXIST | Status.SUPERUSER, errors={
+        Status.DOES_NOT_EXIST | Status.AUTHENTICATED: HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Not enough privileges",
+        )
+    })
     async def create(self, model: NewProject) -> PID:
-        if not self.superuser:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
         image_id = await self.files.handle(model.image)
         await self.db.execute(
             """
@@ -266,7 +278,8 @@ class ProjectRepo(BaseRepo):
             await self._handle_contact(model.id, model.contact)
         return model.id
 
-    @check.admin
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def modify(self, project: PID, model: ModifiedProject) -> bool:
         data = model.dict(exclude_unset=True)
         if len(data) == 0:
@@ -303,7 +316,8 @@ class ProjectRepo(BaseRepo):
                 modified = True
             return modified
 
-    @check.zuper
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.SUPERUSER)
     async def delete(self, project: PID):
         await self.db.execute(
             """
@@ -312,7 +326,8 @@ class ProjectRepo(BaseRepo):
             values=dict(project=project),
         )
 
-    @check.admin
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def toggle_publish(self, project: PID, publish: bool) -> bool:
         await self.db.execute(
             f'UPDATE projects r'
@@ -322,7 +337,8 @@ class ProjectRepo(BaseRepo):
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
 
-    @check.admin
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def add_admin(self, project: PID, user: UID):
         m = await self.db.fetch_one(
             """
@@ -338,11 +354,11 @@ class ProjectRepo(BaseRepo):
         )
         if m[0]:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                status_code=HTTP_404_NOT_FOUND, detail="User not found"
             )
         elif m[1]:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="User is already an admin"
+                status_code=HTTP_409_CONFLICT, detail="User is already an admin"
             )
         else:
             await self.db.execute(
@@ -356,14 +372,15 @@ class ProjectRepo(BaseRepo):
                 values=dict(project=project, user=user),
             )
 
-    @check.admin
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def delete_admin(self, project: PID, user: UID):
         if await self.db.fetch_val(
                 "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
                 values=dict(user=user),
         ):
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                status_code=HTTP_404_NOT_FOUND, detail="User not found"
             )
         await self.db.execute(
             """

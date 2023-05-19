@@ -3,13 +3,11 @@ from textwrap import dedent
 
 from fastapi import Request, Response, Depends
 
-from .utils import make_router, rex, deleted, modified, created, sample, d, require_auth
+from .utils import make_router, rex, deleted, modified, created, sample, d, require_auth, Repo
 from ..models import PID, Project, Projects, NewProject, ModifiedProject, UID
 from ..repos import ProjectRepo
-from ...database import Database
-from ...middleware import DatabaseMiddleware, SessionMiddleware
 from ...middleware.language import LanguageMiddleware, LanguageChecker
-from ...security import scopes, User
+from ...security import scopes
 
 router = make_router(tags=["Projects"])
 
@@ -28,12 +26,8 @@ router = make_router(tags=["Projects"])
     responses=dict(filter(lambda e: e[0] != 404, rex.gets(Projects).items())),
 )
 async def get_projects(
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ) -> Projects:
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     return Projects(items=await repo.all())
 
 
@@ -56,12 +50,8 @@ async def get_projects(
 )
 async def get_project(
         project: PID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ) -> Project:
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     return await repo.one(project)
 
 
@@ -84,15 +74,11 @@ async def get_project(
 async def new_project(
         r: Request,
         model: NewProject = sample(NewProject),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
         checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
     if model.info:
         checker.check(model.info.lang)
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     new_id = await repo.create(model)
     return created(r.url_for("get_project", project=new_id))
 
@@ -120,17 +106,13 @@ async def modify_project(
         r: Request,
         project: PID,
         model: ModifiedProject = sample(ModifiedProject),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
         checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
     if model.default_language:
         checker.check(model.default_language)
     if model.info:
         checker.check(model.info.lang)
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     changed = await repo.modify(project, model)
     return modified(lambda: r.url_for("get_project", project=project), changed)
 
@@ -151,12 +133,8 @@ async def modify_project(
 async def delete_project(
         r: Request,
         project: PID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     await repo.toggle_publish(project, False)
     return deleted(r.url_for("get_projects"))
 
@@ -176,12 +154,8 @@ async def add_project_admin(
         r: Request,
         project: PID,
         username: UID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     await repo.add_admin(project, username)
     return Response(
         status_code=201,
@@ -204,12 +178,8 @@ async def delete_project_admin(
         r: Request,
         project: PID,
         username: UID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     await repo.delete_admin(project, username)
     return Response(
         status_code=204,
@@ -237,11 +207,7 @@ async def publish_project(
         r: Request,
         project: PID,
         publish: bool,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: ProjectRepo = Repo(ProjectRepo),
 ):
-    repo = ProjectRepo(db)
-    repo.configure(user, language)
     changed = await repo.toggle_publish(project, publish)
     return modified(lambda: r.url_for("get_project", project=project), changed)

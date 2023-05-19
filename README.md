@@ -75,7 +75,7 @@ Measured with branches included Branch coverage disabled in a few lines in the f
     - Exhaustive else-if without default branch
 - [backend/main.py](src/muistot/backend/main.py)
     - Testing switch
-- [exists/decorators.py](src/muistot/backend/repos/exists/decorators.py)
+- [exists/decorators.py](src/muistot/backend/repos/status/decorators.py)
     - Possible bug in coverage for decorator function, marked with TODO
 - [cache/decorators.py](src/muistot/cache/decorator.py)
     - Double-checked locking

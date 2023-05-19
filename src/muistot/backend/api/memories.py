@@ -1,13 +1,11 @@
 from textwrap import dedent
 
-from fastapi import Request, Response, Depends
+from fastapi import Request, Response
 
-from .utils import make_router, rex, deleted, modified, created, sample, require_auth
+from .utils import make_router, rex, deleted, modified, created, sample, require_auth, Repo
 from ..models import Memory, Memories, SID, PID, MID, NewMemory, ModifiedMemory
 from ..repos import MemoryRepo
-from ...database import Database
-from ...middleware import DatabaseMiddleware, SessionMiddleware, LanguageMiddleware
-from ...security import scopes, User
+from ...security import scopes
 
 router = make_router(tags=["Memories"])
 
@@ -25,14 +23,8 @@ router = make_router(tags=["Memories"])
     responses=rex.gets(Memories),
 )
 async def get_memories(
-        project: PID,
-        site: SID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ) -> Memories:
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     return Memories(items=await repo.all())
 
 
@@ -49,15 +41,9 @@ async def get_memories(
     responses=rex.get(Memory),
 )
 async def get_memory(
-        project: PID,
-        site: SID,
         memory: MID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ) -> Memory:
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     return await repo.one(memory)
 
 
@@ -77,12 +63,8 @@ async def new_memory(
         project: PID,
         site: SID,
         model: NewMemory = sample(NewMemory),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ):
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     new_id = await repo.create(model)
     return created(
         r.url_for(
@@ -108,12 +90,8 @@ async def modify_memory(
         site: SID,
         memory: MID,
         model: ModifiedMemory = sample(ModifiedMemory),
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ):
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     changed = await repo.modify(memory, model)
     return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)
 
@@ -136,12 +114,8 @@ async def delete_memory(
         project: PID,
         site: SID,
         memory: MID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ):
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     await repo.delete(memory)
     return deleted(r.url_for("get_memories", project=project, site=site))
 
@@ -163,12 +137,8 @@ async def publish_memory(
         site: SID,
         memory: MID,
         publish: bool,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ):
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     changed = await repo.toggle_publish(memory, publish)
     return modified(lambda: r.url_for("get_memory", project=project, site=site, memory=str(memory)), changed)
 
@@ -189,12 +159,8 @@ async def report_memory(
         project: PID,
         site: SID,
         memory: MID,
-        db: Database = Depends(DatabaseMiddleware.default),
-        user: User = Depends(SessionMiddleware.user),
-        language: str = Depends(LanguageMiddleware.get),
+        repo: MemoryRepo = Repo(MemoryRepo),
 ):
-    repo = MemoryRepo(db, project, site)
-    repo.configure(user, language)
     await repo.report(memory)
     return deleted(
         r.url_for(

@@ -1,16 +1,16 @@
 import random
 from typing import List, Optional
 
-from fastapi import HTTPException, status
+from starlette.exceptions import HTTPException
+from starlette.status import HTTP_406_NOT_ACCEPTABLE, HTTP_403_FORBIDDEN
 
-from .base import BaseRepo
-from .exists import Status, check
+from .base import BaseRepo, append_identifier
 from .memory import MemoryRepo
+from .status import SiteStatus, Status, require_status
 from ..models import PID, SID, Site, SiteInfo, NewSite, ModifiedSite, Point
-from ...database import Database
 
 
-class SiteRepo(BaseRepo):
+class SiteRepo(BaseRepo, SiteStatus):
     project: PID
 
     __select = """
@@ -57,13 +57,13 @@ class SiteRepo(BaseRepo):
         " ORDER BY distance LIMIT {:d}",
     )
 
-    def __init__(self, db: Database, project: PID):
-        super().__init__(db, project=project)
-
     @staticmethod
-    def _check_pap(_status: Status):
-        if _status.pap and not _status.admin:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin posting only")
+    def check_admin_posting(status: Status):
+        if Status.ADMIN_POSTING in status and Status.ADMIN not in status:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail="Admin posting only",
+            )
 
     async def _handle_info(self, site: SID, model: SiteInfo) -> bool:
         if model is None:
@@ -168,17 +168,18 @@ class SiteRepo(BaseRepo):
             m["image"] = await self._get_random_image(m["id"])
         return Site(location=Point(**m), info=SiteInfo(**m), **m)
 
-    @check.parents
+    @append_identifier('site', literal=None)
+    @require_status(Status.NONE)
     async def all(
             self,
             n: Optional[int] = None,
             lat: Optional[float] = None,
             lon: Optional[float] = None,
             *,
-            _status: Status,
+            status: Status,
     ) -> List[Site]:
         values = dict(lang=self.lang, project=self.project, user=self.identity)
-        if _status.admin:
+        if Status.ADMIN in status:
             where = "WHERE TRUE"
         elif self.authenticated:
             where = "WHERE (s.published OR uc.username = :user)"
@@ -203,32 +204,37 @@ class SiteRepo(BaseRepo):
             ]
         return out
 
-    @check.published_or_admin
-    async def one(self, site: SID, include_memories: bool = False, *, _status: Status) -> Site:
+    @append_identifier('site', value=True)
+    @require_status(
+        Status.PUBLISHED,
+        Status.EXISTS | Status.ADMIN,
+        Status.EXISTS | Status.OWN,
+    )
+    async def one(self, site: SID, include_memories: bool = False, *, status: Status) -> Site:
         values = dict(
             lang=self.lang, project=self.project, site=site, user=self.identity
         )
-        if _status.admin:
+        if Status.ADMIN in status:
             where = "WHERE TRUE"
         elif self.authenticated:
             where = "WHERE (s.published OR uc.username = :user)"
         else:
             where = "WHERE s.published"
-
         m = await self.db.fetch_one(self._select.format(where + " AND s.name = :site"), values=values)
         if m is None:
             raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail='Site missing default localization'
+                status_code=HTTP_406_NOT_ACCEPTABLE,
+                detail="Site missing default localization"
             )
         out = await self.construct_site(m)
         if include_memories:
-            out.memories = await MemoryRepo(self.db, self.project, out.id).from_repo(self).all()
+            out.memories = await MemoryRepo.from_repo(self).all()
         return out
 
-    @check.not_exists
-    async def create(self, model: NewSite, _status: Status) -> SID:
-        SiteRepo._check_pap(_status)
+    @append_identifier('site', key='id')
+    @require_status(Status.DOES_NOT_EXIST | Status.AUTHENTICATED)
+    async def create(self, model: NewSite, status: Status) -> SID:
+        SiteRepo.check_admin_posting(status)
         image_id = await self.files.handle(model.image)
         ret = await self.db.fetch_one(
             """
@@ -248,7 +254,7 @@ class SiteRepo(BaseRepo):
             values=dict(
                 name=model.id,
                 image=image_id,
-                published=Status.AUTO_PUBLISH in _status,
+                published=Status.AUTO_PUBLISH in status,
                 lon=model.location.lon,
                 lat=model.location.lat,
                 project=self.project,
@@ -266,15 +272,11 @@ class SiteRepo(BaseRepo):
             await self._handle_info(name, info)
         return name
 
-    @check.published_or_admin
-    async def modify(self, site: SID, model: ModifiedSite, _status: Status) -> bool:
-        SiteRepo._check_pap(_status)
-
-        if not (_status.own or _status.admin):
-            data = model.dict(exclude_unset=True, include={"info"})
-        else:
-            data = model.dict(exclude_unset=True)
-
+    @append_identifier('site', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN, Status.EXISTS | Status.OWN)
+    async def modify(self, site: SID, model: ModifiedSite, status: Status) -> bool:
+        SiteRepo.check_admin_posting(status)
+        data = model.dict(exclude_unset=True)
         modified = False
         modified |= await self._handle_image(site, data)
         if "location" in data:
@@ -283,7 +285,8 @@ class SiteRepo(BaseRepo):
             modified |= await self._handle_info(site, model.info)
         return bool(modified)
 
-    @check.own_or_admin
+    @append_identifier('site', value=True)
+    @require_status(Status.OWN, Status.EXISTS | Status.ADMIN)
     async def delete(self, site: SID):
         await self.db.execute(
             """
@@ -292,7 +295,8 @@ class SiteRepo(BaseRepo):
             values=dict(id=site),
         )
 
-    @check.admin
+    @append_identifier('site', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def toggle_publish(self, site: SID, publish: bool) -> bool:
         await self.db.execute(
             f'UPDATE sites r'
@@ -302,7 +306,8 @@ class SiteRepo(BaseRepo):
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
 
-    @check.exists
+    @append_identifier('site', value=True)
+    @require_status(Status.PUBLISHED)
     async def report(self, site: SID):
         await self.db.execute(
             """

@@ -239,36 +239,6 @@ async def test_modify_own_site(setup, client, auth2):
 
 
 @pytest.mark.anyio
-async def test_create_memory_for_site_not_change(setup, client, auth2, admin):
-    _id, site = await _create_site()
-    r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth2)
-    check_code(status.HTTP_201_CREATED, r)
-    r = await client.get(SITE.format(*setup, _id), headers=auth2)
-    check_code(status.HTTP_200_OK, r)
-    site = to(Site, r)
-    assert site.waiting_approval
-
-    await client.post(
-        PUBLISH,
-        json=PUPOrder(parents={'project': setup.project}, identifier=_id, type='site').dict(),
-        headers=admin
-    )
-
-    r = await client.get(SITE.format(*setup, _id), headers=auth2)
-    check_code(status.HTTP_200_OK, r)
-    site = to(Site, r)
-    assert not site.waiting_approval
-
-    r = await client.post(MEMORIES.format(*setup, _id), json=NewMemory(title="abcdefg").dict(), headers=auth2)
-    check_code(status.HTTP_201_CREATED, r)
-
-    r = await client.get(SITE.format(*setup, _id), headers=auth2)
-    check_code(status.HTTP_200_OK, r)
-    site = to(Site, r)
-    assert not site.waiting_approval
-
-
-@pytest.mark.anyio
 async def test_fetch_all(client, setup, auto_publish, admin):
     for _ in range(0, 10):
         _id, site = await _create_site()
@@ -408,7 +378,7 @@ async def test_site_delete_other_admin(client, setup, db, auth2, admin):
 
 
 @pytest.mark.anyio
-async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
+async def test_site_others_site_not_allowed(client, setup, db, auth2, auth, auto_publish):
     _id, site = await _create_site()
     r = await client.post(SITES.format(*setup), json=site.dict(), headers=auth)
     check_code(status.HTTP_201_CREATED, r)
@@ -416,33 +386,7 @@ async def test_site_localize_others_overwrite(client, setup, db, auth2, auth):
     info = ModifiedSite(info=SiteInfo(name="aaaa", description="a", abstract="a", lang="fi")).dict(exclude_unset=True)
 
     r = await client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
-    check_code(status.HTTP_404_NOT_FOUND, r)
-
-    await db.execute("UPDATE sites SET published = 1 WHERE name = :id", values=dict(id=_id))
-
-    r = await client.patch(SITE.format(*setup, _id), json=info, headers=auth2)
-    check_code(status.HTTP_204_NO_CONTENT, r)
-
-    creator = (await client.get("/me", headers=auth)).json()["username"]
-    modifier = (await client.get("/me", headers=auth2)).json()["username"]
-
-    assert await db.fetch_val(
-        """
-        SELECT u.username 
-        FROM site_information si 
-            JOIN sites s ON si.site_id = s.id 
-                AND s.name = :id
-            JOIN users u ON si.modifier_id = u.id
-        """,
-        values=dict(id=_id)
-    ) == modifier
-
-    r = await client.get(SITE.format(*setup, _id))
-    check_code(status.HTTP_200_OK, r)
-    s = to(Site, r)
-
-    assert s.creator == creator
-    assert s.modifier == modifier
+    check_code(status.HTTP_403_FORBIDDEN, r)
 
 
 @pytest.mark.anyio

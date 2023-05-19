@@ -1,12 +1,11 @@
 from typing import List
 
-from .base import BaseRepo
-from .exists import Status, check
+from .base import BaseRepo, append_identifier
+from .status import MemoryStatus, Status, require_status
 from ..models import SID, PID, MID, NewMemory, Memory, ModifiedMemory
-from ...database import Database
 
 
-class MemoryRepo(BaseRepo):
+class MemoryRepo(BaseRepo, MemoryStatus):
     project: PID
     site: SID
 
@@ -70,17 +69,15 @@ class MemoryRepo(BaseRepo):
         GROUP BY m.id
         """
 
-    def __init__(self, db: Database, project: PID, site: SID):
-        super().__init__(db, project=project, site=site)
-
     @staticmethod
     def construct_memory(m) -> Memory:
         return Memory(**m)
 
-    @check.parents
-    async def all(self, *, _status: Status) -> List[Memory]:
+    @append_identifier('memory', literal=None)
+    @require_status(Status.NONE)
+    async def all(self, status: Status) -> List[Memory]:
         values = dict(site=self.site, project=self.project)
-        if _status.admin:
+        if Status.ADMIN in status:
             sql = self._select_for_admin
             values.update(user=self.identity)
         elif self.authenticated:
@@ -95,10 +92,15 @@ class MemoryRepo(BaseRepo):
         ]
         return out
 
-    @check.published_or_admin
-    async def one(self, memory: MID, *, _status: Status) -> Memory:
+    @append_identifier('memory', value=True)
+    @require_status(
+        Status.PUBLISHED,
+        Status.EXISTS | Status.ADMIN,
+        Status.EXISTS | Status.OWN,
+    )
+    async def one(self, memory: MID, status: Status) -> Memory:
         values = dict(memory=memory, site=self.site, project=self.project)
-        if _status.admin:
+        if Status.ADMIN in status:
             sql = self._select_for_admin
             values.update(user=self.identity)
         elif self.authenticated:
@@ -113,8 +115,9 @@ class MemoryRepo(BaseRepo):
 
         return out
 
-    @check.parents
-    async def create(self, model: NewMemory, _status: Status) -> MID:
+    @append_identifier('memory', literal=None)
+    @require_status(Status.AUTHENTICATED)
+    async def create(self, model: NewMemory, status: Status) -> MID:
         if model.image is not None:
             image_id = await self.files.handle(model.image)
         else:
@@ -134,11 +137,12 @@ class MemoryRepo(BaseRepo):
                 story=model.story,
                 site=self.site,
                 user=self.identity,
-                published=Status.AUTO_PUBLISH in _status,
+                published=Status.AUTO_PUBLISH in status,
             ),
         )
 
-    @check.own
+    @append_identifier('memory', value=True)
+    @require_status(Status.OWN)
     async def modify(self, memory: MID, model: ModifiedMemory) -> bool:
         data = model.dict(exclude_unset=True)
         if "image" in data:
@@ -156,7 +160,8 @@ class MemoryRepo(BaseRepo):
             return True
         return False
 
-    @check.own_or_admin
+    @append_identifier('memory', value=True)
+    @require_status(Status.OWN, Status.EXISTS | Status.ADMIN)
     async def delete(self, memory: MID):
         await self.db.execute(
             """
@@ -165,7 +170,8 @@ class MemoryRepo(BaseRepo):
             values=dict(id=memory),
         )
 
-    @check.admin
+    @append_identifier('memory', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
     async def toggle_publish(self, memory: MID, publish: bool) -> bool:
         await self.db.execute(
             f'UPDATE memories r'
@@ -175,7 +181,8 @@ class MemoryRepo(BaseRepo):
         )
         return await self.db.fetch_val("SELECT ROW_COUNT()")
 
-    @check.exists
+    @append_identifier('memory', value=True)
+    @require_status(Status.PUBLISHED)
     async def report(self, memory: MID):
         await self.db.execute(
             """
