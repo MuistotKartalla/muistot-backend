@@ -79,7 +79,7 @@ async def email_only_login(
     if user.is_authenticated:
         raise HTTPException(status_code=403, detail="Already logged in")
     ratelimit(redis, "exchange", r.client.host, email, ttl_seconds=6)
-    return await start_email_login(email, db, lang=language, mailer=mailer)
+    return await start_email_login(email, db, language, mailer, redis)
 
 
 @router.post(
@@ -114,4 +114,4 @@ async def exchange_code(
     if user_instance.is_authenticated:
         raise HTTPException(status_code=403, detail="Already logged in")
     ratelimit(redis, "login", r.client.host, user, ttl_seconds=6)
-    return await complete_email_login(url.unquote(user), token, db, sm)
+    return await complete_email_login(url.unquote(user), token, db, sm, redis)
