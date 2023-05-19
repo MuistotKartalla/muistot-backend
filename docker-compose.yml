@@ -78,7 +78,7 @@ services:
     restart: "no"
     tty: true
     volumes:
-      - "./htmlcov/:/test-runner/htmlcov/"
+      - "./htmlcov/:/muistot/htmlcov/"
       - "./config-test.json:/root/config.json:ro"
     depends_on:
       - test-db
