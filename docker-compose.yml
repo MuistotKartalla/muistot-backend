@@ -1,27 +1,31 @@
-version: "3"
+version: "3.11"
 
 services:
   app:
+    image: muistot/testserver:latest
     build:
       context: .
-      dockerfile: testserver.Dockerfile
+      dockerfile: Dockerfile
+      target: test-server
     restart: unless-stopped
     tty: true
     volumes:
       - "./images/:/opt/files/"
-      - "./src/muistot:/code/muistot:ro"
+      - "./src/muistot:/muistot/muistot:ro"
       - "./config.json:/root/config.json:ro"
     ports:
       - "127.0.0.1:5600:80"
     depends_on:
       - db
+      - redis
       - maildev
-      - session-storage
-      - username-generator
-      - db-access
+      - namegen
+      - adminer
+    profiles:
+      - server
   db:
     image: mariadb:10.6
-    restart: on-failure
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: test
     ports:
@@ -29,26 +33,74 @@ services:
     volumes:
       - "muistot-db-data:/var/lib/mysql"
       - "./database/schemas:/docker-entrypoint-initdb.d:ro"
-  session-storage:
+    profiles:
+      - server
+  redis:
+    hostname: redis
     image: redis:6-alpine
-    restart: on-failure
-  username-generator:
-    build:
-      context: ./namegen
-    ports:
-      - "127.0.0.1:5604:3306"
+    restart: unless-stopped
+    profiles:
+      - server
   maildev:
+    image: muistot/maildev:latest
     build:
-      context: ./email
+      context: ./mail
       dockerfile: maildev.Dockerfile
     restart: on-failure
     ports:
       - "127.0.0.1:5603:80"
-  db-access:
+    profiles:
+      - server
+  adminer:
     image: adminer
     restart: on-failure
     ports:
       - "127.0.0.1:5602:8080"
+    profiles:
+      - server
+  namegen:
+    image: muistot/namegen-dev
+    build:
+      context: ./namegen
+      dockerfile: Dockerfile
+      target: server
+    ports:
+      - "127.0.0.1:5604:3306"
+    profiles:
+      - server
+      - test
+  testrunner:
+    image: muistot/testrunner:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test-runner
+    restart: "no"
+    tty: true
+    volumes:
+      - "./htmlcov/:/muistot/htmlcov/"
+      - "./config-test.json:/root/config.json:ro"
+    depends_on:
+      - test-db
+      - test-redis
+      - namegen
+    profiles:
+      - test
+  test-db:
+    image: mariadb:10.6
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+    volumes:
+      - "./database/schemas:/docker-entrypoint-initdb.d:ro"
+    profiles:
+      - test
+  test-redis:
+    hostname: redis
+    image: redis:6-alpine
+    restart: "no"
+    profiles:
+      - test
 
 volumes:
   muistot-db-data:

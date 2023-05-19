@@ -5,8 +5,8 @@ Supplies dependencies needed for session resolution.
 from typing import Optional, Tuple
 
 import redis
-from fastapi import status
 from headers import AUTHORIZATION
+from starlette import status
 from starlette.applications import ASGIApp
 from starlette.middleware.authentication import (
     AuthCredentials,
@@ -14,7 +14,7 @@ from starlette.middleware.authentication import (
     AuthenticationError,
     AuthenticationMiddleware,
 )
-from starlette.requests import HTTPConnection
+from starlette.requests import HTTPConnection, Request
 
 from ..errors import ErrorResponse, ApiError
 from ..security import User, scopes, SessionManager
@@ -22,6 +22,14 @@ from ..security import User, scopes, SessionManager
 
 class SessionMiddleware(AuthenticationMiddleware, AuthenticationBackend):
     manager: SessionManager
+
+    @staticmethod
+    def get(r: Request) -> SessionManager:
+        return r.state.sessions
+
+    @staticmethod
+    def user(r: Request) -> User:
+        return r.user
 
     def __init__(self, app: ASGIApp, url: str, token_bytes: int, lifetime: int):
         super(SessionMiddleware, self).__init__(app, backend=self, on_error=SessionMiddleware.on_error)

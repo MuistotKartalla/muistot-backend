@@ -1,0 +1,26 @@
+{
+  "testing": true,
+  "auto_publish": false,
+  "mailer": {
+    "driver": "LogMailer",
+    "config": {}
+  },
+  "database": {
+    "default": {
+      "host": "test-db",
+      "port": 3306,
+      "database": "muistot",
+      "user": "root",
+      "password": "test"
+    }
+  },
+  "sessions": {
+    "redis_url": "redis://redis?db=0"
+  },
+  "cache": {
+    "redis_url": "redis://redis?db=1"
+  },
+  "namegen": {
+    "url": "http://namegen"
+  }
+}

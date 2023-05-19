@@ -1,14 +1,13 @@
 from collections import namedtuple
-from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from muistot import mailer
 from muistot.config import Config
 from muistot.login import login_router
-from muistot.middleware import SessionMiddleware, LanguageMiddleware
+from muistot.middleware import SessionMiddleware, LanguageMiddleware, DatabaseMiddleware, RedisMiddleware
+from muistot.middleware.mailer import Mailer, Result, MailerMiddleware
 
 User = namedtuple("User", ["username", "email", "id"])
 
@@ -17,22 +16,29 @@ User = namedtuple("User", ["username", "email", "id"])
 def capture_mail():
     captured_data = {}
 
-    class Capturer(mailer.Mailer):
+    class Capturer(Mailer):
 
-        async def send_email(self, email: str, email_type: str, **data: dict) -> mailer.Result:
+        async def send_email(self, email: str, email_type: str, **data: dict) -> Result:
             captured_data[(email_type, email)] = data
-            return mailer.Result(success=True)
+            return Result(success=True)
 
-    old_instance = mailer.instance
-    mailer.instance = Capturer()
-    yield captured_data
-    mailer.instance = old_instance
+        def __getitem__(self, item):
+            return captured_data[item]
+
+    yield Capturer()
 
 
 @pytest.fixture
-async def client(db_instance, cache_redis):
+async def client(db_instance, cache_redis, capture_mail):
     app = FastAPI()
     app.include_router(login_router, prefix="/auth")
+    app.dependency_overrides[MailerMiddleware.get] = lambda: capture_mail
+
+    async def get_database():
+        async with db_instance() as db:
+            yield db
+
+    app.dependency_overrides[DatabaseMiddleware.default] = get_database
 
     app.add_middleware(
         SessionMiddleware,
@@ -40,24 +46,15 @@ async def client(db_instance, cache_redis):
         token_bytes=Config.sessions.token_bytes,
         lifetime=Config.sessions.token_lifetime,
     )
-
+    app.dependency_overrides[RedisMiddleware.get] = lambda: cache_redis
     app.add_middleware(
         LanguageMiddleware,
         default_language=Config.localization.default,
         languages=Config.localization.supported,
     )
-
-    # Replaces redis and databases
-    @app.middleware("http")
-    async def _(request, call_next):
-        request.state.redis = cache_redis
-        request.state.databases = SimpleNamespace(default=db_instance)
-        return await call_next(request)
-
     client = AsyncClient(app=app, base_url="http://test")
     async with client as client_session:
         yield client_session
-
     cache_redis.flushdb()
 
 

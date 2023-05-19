@@ -1,3 +1,3 @@
 #! /bin/bash
 cd "${0%/*}/.."
-docker compose up --force-recreate --remove-orphans --build --attach app
+docker compose --profile server up --force-recreate --remove-orphans --build --attach app

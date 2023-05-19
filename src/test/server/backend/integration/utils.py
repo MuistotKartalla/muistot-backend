@@ -2,18 +2,15 @@ import random
 from collections import namedtuple
 from secrets import choice
 from string import ascii_letters, digits
-from types import SimpleNamespace
 from typing import TypeVar, Type
-from typing import cast
 from urllib.parse import quote
 
-from fastapi import Request
 from headers import LOCATION
 
 from muistot.backend.models import *
 from muistot.backend.repos import *
 from muistot.config import Config
-from muistot.security.auth import User as APIUser
+from muistot.security import User as ApplicationUser
 from muistot.security.scopes import ADMIN, AUTHENTICATED, SUPERUSER
 from urls import *
 
@@ -67,7 +64,7 @@ def genword(length=10):
 
 
 async def create_memory(pid: PID, sid: SID, db, config, **additional_properties) -> MID:
-    out = await MemoryRepo(db, pid, sid).configure(config).create(
+    out = await MemoryRepo(db, *config, project=pid, site=sid).create(
         NewMemory(
             title=genword(length=100),
             story=genword(length=1500),
@@ -90,8 +87,7 @@ def create_site_info(lang: str) -> SiteInfo:
 
 async def create_site(pid: PID, db, config, **additional_properties) -> SID:
     out = (
-        await SiteRepo(db, pid)
-        .configure(config)
+        await SiteRepo(db, *config, project=pid)
         .create(
             NewSite(
                 id=genword(length=10),
@@ -119,7 +115,7 @@ def create_project_info(lang: str) -> ProjectInfo:
 
 
 async def create_project(db, config, **additional_properties) -> PID:
-    out = await ProjectRepo(db).configure(config).create(
+    out = await ProjectRepo(db, *config).create(
         NewProject(
             id=genword(length=10),
             info=create_project_info(Config.localization.default),
@@ -132,18 +128,11 @@ async def create_project(db, config, **additional_properties) -> PID:
     return out
 
 
-def mock_request(username):
-    u = APIUser()
+def create_repo_config(username):
+    u = ApplicationUser()
     u.username = username
     u.scopes.update({SUPERUSER, AUTHENTICATED, ADMIN})
-
-    class MockRequest:
-        method = "GET"
-        headers = dict()
-        user = u
-        state = SimpleNamespace(language="en")
-
-    return cast(Request, MockRequest())
+    return "en", u
 
 
 def to(model: Type[T], r) -> T:

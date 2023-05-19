@@ -2,9 +2,8 @@
   "testing": true,
   "auto_publish": true,
   "mailer": {
-    "driver": "muistot_mailers",
+    "driver": "ZonerMailer",
     "config": {
-      "driver": "zoner",
       "host": "maildev",
       "port": 25,
       "ssl": false,
@@ -20,11 +19,16 @@
       "port": 3306,
       "database": "muistot",
       "user": "root",
-      "password": "test",
-      "ssl": false,
-      "workers": 1,
-      "cpw": 2,
-      "max_wait": 1
+      "password": "test"
     }
+  },
+  "sessions": {
+    "redis_url": "redis://redis?db=0"
+  },
+  "cache": {
+    "redis_url": "redis://redis?db=1"
+  },
+  "namegen": {
+    "url": "http://namegen"
   }
 }

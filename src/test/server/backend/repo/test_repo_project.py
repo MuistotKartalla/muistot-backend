@@ -1,7 +1,8 @@
 import datetime
 
 import pytest
-from fastapi import Request, HTTPException, status
+from starlette import status
+from starlette.exceptions import HTTPException
 
 from muistot.backend.models import ModifiedProject, ProjectContact, NewProject, ProjectInfo
 from muistot.backend.repos import ProjectRepo
@@ -53,31 +54,28 @@ async def user(pid, db):
     await db.execute("DELETE FROM users WHERE id = :id", values=dict(id=_id))
 
 
-def create_request(*required_scopes, token=b"1234", projects=None):
+def create_config(*required_scopes, token=b"1234", projects=None, lang="en"):
     """Create requests with different scopes for testing
     """
-    r = Request(dict(type="http", user=User.null()))
-    r.user.username = "test_user#1234"
-    r.user.scopes = set(required_scopes)
-    r.user.scopes.add(scopes.AUTHENTICATED)
-    r.user.admin_projects = projects or list()
-    r.user.token = token
-    r.state.language = "en"
-    return r
+    user = User.null()
+    user.username = "test_user#1234"
+    user.scopes = set(required_scopes)
+    user.scopes.add(scopes.AUTHENTICATED)
+    user.admin_projects = projects or list()
+    user.token = token
+    return lang, user
 
 
 @pytest.mark.anyio
 async def test_delete_project(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.SUPERUSER))
+    repo = ProjectRepo(db, *create_config(scopes.SUPERUSER))
     await repo.delete(pid)
     assert await db.fetch_val(f"SELECT NOT EXISTS(SELECT 1 FROM projects WHERE name = '{pid}')")
 
 
 @pytest.mark.anyio
 async def test_change_default_lang(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     assert await db.fetch_val(f"SELECT default_language_id FROM projects WHERE name = '{pid}'") == 1
     await repo.modify(pid, ModifiedProject(default_language="en"))
     assert await db.fetch_val(f"SELECT default_language_id FROM projects WHERE name = '{pid}'") == 2
@@ -85,8 +83,7 @@ async def test_change_default_lang(db, pid, user):
 
 @pytest.mark.anyio
 async def test_change_start_end(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     assert await db.fetch_val(f"SELECT (starts IS NULL AND ends IS NULL) FROM projects WHERE name = '{pid}'")
     await repo.modify(pid, ModifiedProject(
         starts=datetime.datetime.fromisoformat("2021-01-01"),
@@ -97,8 +94,7 @@ async def test_change_start_end(db, pid, user):
 
 @pytest.mark.anyio
 async def test_change_contact(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     assert await db.fetch_val(
         f"SELECT 1 FROM project_contact pc JOIN projects p on pc.project_id = p.id WHERE p.name = '{pid}'"
     ) is None
@@ -116,8 +112,7 @@ async def test_change_contact(db, pid, user):
 
 @pytest.mark.anyio
 async def test_admin_removed_in_db_exists_in_session_errors(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     with pytest.raises(HTTPException) as e:
         await repo.modify(pid, ModifiedProject(
             contact=ProjectContact(
@@ -131,15 +126,13 @@ async def test_admin_removed_in_db_exists_in_session_errors(db, pid):
 
 @pytest.mark.anyio
 async def test_empty_model_returns_false(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     return not await repo.modify(pid, ModifiedProject.construct())
 
 
 @pytest.mark.anyio
 async def test_create_raises(db, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN))
     with pytest.raises(HTTPException) as e:
         await repo.create(NewProject(id="adadwdwddaw_Dwdadadawdawd", info=ProjectInfo(name="aaawdad", lang="fi")))
     assert e.value.status_code == status.HTTP_403_FORBIDDEN
@@ -148,8 +141,7 @@ async def test_create_raises(db, user):
 
 @pytest.mark.anyio
 async def test_contact_none_deletes(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     await db.execute(
         """
         INSERT INTO project_contact (project_id, contact_email) 
@@ -176,8 +168,7 @@ async def test_contact_none_deletes(db, pid, user):
 
 @pytest.mark.anyio
 async def test_localization_none_returns_false(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN, projects=[pid]))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     assert not await repo.modify(pid, ModifiedProject(
         info=None
     ))
@@ -185,8 +176,7 @@ async def test_localization_none_returns_false(db, pid, user):
 
 @pytest.mark.anyio
 async def test_create_project_contact_none_ok(db, dpid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.SUPERUSER))
+    repo = ProjectRepo(db, *create_config(scopes.SUPERUSER))
     await repo.create(NewProject(
         id=dpid,
         contact=None,
@@ -200,8 +190,7 @@ async def test_create_project_contact_none_ok(db, dpid, user):
 
 @pytest.mark.anyio
 async def test_create_project_contact_ok(db, dpid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.SUPERUSER))
+    repo = ProjectRepo(db, *create_config(scopes.SUPERUSER))
     await repo.create(NewProject(
         id=dpid,
         contact=ProjectContact(
@@ -224,8 +213,7 @@ async def test_create_project_contact_ok(db, dpid, user):
 
 @pytest.mark.anyio
 async def test_project_ended(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request())
+    repo = ProjectRepo(db, *create_config())
     await db.execute(
         """
         UPDATE projects SET ends = ADDDATE(CURDATE(), -5) WHERE name = :pid
@@ -239,8 +227,7 @@ async def test_project_ended(db, pid):
 
 @pytest.mark.anyio
 async def test_project_not_yet_started(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request())
+    repo = ProjectRepo(db, *create_config())
     await db.execute(
         """
         UPDATE projects SET starts = ADDDATE(CURDATE(), 5) WHERE name = :pid
@@ -254,8 +241,7 @@ async def test_project_not_yet_started(db, pid):
 
 @pytest.mark.anyio
 async def test_project_not_yet_started_admin_ok(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN))
     await db.execute(
         """
         UPDATE projects SET starts = ADDDATE(CURDATE(), 5) WHERE name = :pid
@@ -267,8 +253,7 @@ async def test_project_not_yet_started_admin_ok(db, pid, user):
 
 @pytest.mark.anyio
 async def test_project_not_yet_started_admin_all_ok(db, pid, user):
-    repo = ProjectRepo(db)
-    repo.configure(create_request(scopes.ADMIN))
+    repo = ProjectRepo(db, *create_config(scopes.ADMIN))
     await db.execute(
         """
         UPDATE projects SET starts = ADDDATE(CURDATE(), 5) WHERE name = :pid
@@ -280,8 +265,7 @@ async def test_project_not_yet_started_admin_all_ok(db, pid, user):
 
 @pytest.mark.anyio
 async def test_project_dates_ok(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request())
+    repo = ProjectRepo(db, *create_config())
     await db.execute(
         """
         UPDATE projects SET starts = ADDDATE(CURDATE(), -5), ends = ADDDATE(CURDATE(), 5) WHERE name = :pid
@@ -296,8 +280,7 @@ async def test_project_dates_ok(db, pid):
 
 @pytest.mark.anyio
 async def test_project_contact_ok(db, pid):
-    repo = ProjectRepo(db)
-    repo.configure(create_request())
+    repo = ProjectRepo(db, *create_config())
     p = await repo.one(pid)
     assert p.id == pid
     assert p.contact is None

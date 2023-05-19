@@ -6,10 +6,14 @@ from pydantic import ValidationError
 
 from muistot.backend.models import ProjectInfo
 from muistot.database import OperationalError, IntegrityError, InterfaceError
-from muistot.errors import ApiError, ErrorResponse, Error
-from muistot.errors import exception_handlers, modify_openapi
-from muistot.errors.handlers import db_error_handler, api_error_handler, low_error_handler
-from muistot.errors.handlers import validation_error_handler_2, request_validation_error_handler
+from muistot.errors import ApiError, ErrorResponse, Error, exception_handlers, modify_openapi
+from muistot.errors.handlers import (
+    db_error_handler,
+    api_error_handler,
+    low_error_handler,
+    validation_error_handler_2,
+    request_validation_error_handler,
+)
 from muistot.errors.models import HTTPValidationError
 
 

@@ -10,10 +10,15 @@ Requires the following middleware:
 import urllib.parse as url
 from textwrap import dedent
 
-from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import EmailStr
 
 from .logic import complete_email_login, start_email_login, ratelimit
+from ..middleware.database import DatabaseMiddleware, Database
+from ..middleware.language import LanguageMiddleware
+from ..middleware.mailer import MailerMiddleware, Mailer
+from ..middleware.session import SessionMiddleware, SessionManager, User
+from ..middleware.storage import RedisMiddleware, Redis
 
 router = APIRouter(tags=["Auth"])
 
@@ -33,9 +38,13 @@ router = APIRouter(tags=["Auth"])
         """
     ),
 )
-def get_status(r: Request):
-    ratelimit(r.state.redis, "status", r.client.host, ttl_seconds=1)
-    return Response(status_code=200 if r.user.is_authenticated else 401)
+def get_status(
+        r: Request,
+        redis: Redis = Depends(RedisMiddleware.get),
+        user: User = Depends(SessionMiddleware.user),
+):
+    ratelimit(redis, "status", r.client.host, ttl_seconds=1)
+    return Response(status_code=200 if user.is_authenticated else 401)
 
 
 @router.post(
@@ -58,12 +67,19 @@ def get_status(r: Request):
         """
     ),
 )
-async def email_only_login(r: Request, email: EmailStr):
-    if r.user.is_authenticated:
+async def email_only_login(
+        r: Request,
+        email: EmailStr,
+        mailer: Mailer = Depends(MailerMiddleware.get),
+        redis: Redis = Depends(RedisMiddleware.get),
+        user: User = Depends(SessionMiddleware.user),
+        db: Database = Depends(DatabaseMiddleware.default),
+        language: str = Depends(LanguageMiddleware.get),
+):
+    if user.is_authenticated:
         raise HTTPException(status_code=403, detail="Already logged in")
-    ratelimit(r.state.redis, "exchange", r.client.host, email, ttl_seconds=6)
-    async with r.state.databases.default() as db:
-        return await start_email_login(email, db, lang=r.state.language)
+    ratelimit(redis, "exchange", r.client.host, email, ttl_seconds=6)
+    return await start_email_login(email, db, lang=language, mailer=mailer)
 
 
 @router.post(
@@ -86,9 +102,16 @@ async def email_only_login(r: Request, email: EmailStr):
         """
     ),
 )
-async def exchange_code(r: Request, user: str, token: str) -> Response:
-    if r.user.is_authenticated:
+async def exchange_code(
+        r: Request,
+        user: str,
+        token: str,
+        redis: Redis = Depends(RedisMiddleware.get),
+        db: Database = Depends(DatabaseMiddleware.default),
+        user_instance: User = Depends(SessionMiddleware.user),
+        sm: SessionManager = Depends(SessionMiddleware.get),
+) -> Response:
+    if user_instance.is_authenticated:
         raise HTTPException(status_code=403, detail="Already logged in")
-    ratelimit(r.state.redis, "login", r.client.host, user, ttl_seconds=6)
-    async with r.state.databases.default() as db:
-        return await complete_email_login(url.unquote(user), token, db, r.state.sessions)
+    ratelimit(redis, "login", r.client.host, user, ttl_seconds=6)
+    return await complete_email_login(url.unquote(user), token, db, sm)

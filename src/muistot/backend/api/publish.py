@@ -1,15 +1,14 @@
 from textwrap import dedent
 from typing import Literal, Optional, Dict, Union
 
-from fastapi import HTTPException, status
-from fastapi import Request, Response
+from fastapi import HTTPException, status, Response, Depends
 from pydantic import BaseModel, root_validator
 
-from .access_databases import DEFAULT_DB
-from .utils import make_router, sample, d
+from .utils import make_router, sample, d, require_auth
 from ..models import SID, PID, MID
 from ...database import Database
-from ...security import require_auth, scopes
+from ...middleware import DatabaseMiddleware, SessionMiddleware
+from ...security import scopes, User
 
 router = make_router(tags=["Admin"])
 
@@ -206,22 +205,22 @@ class PUPOrder(OrderBase):
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish(
-        r: Request,
         resp: Response,
         order: PUPOrder = sample(PUPOrder),
-        db: Database = DEFAULT_DB,
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
 ):
     project = order.identifier if order.type == "project" else order.parents["project"]
-    if not r.user.is_admin_in(project):
+    if not user.is_admin_in(project):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                    f"Unauthorized {r.user.identity}"
+                    f"Unauthorized {user.identity}"
                     f"\nOrder: {project}"
-                    + ''.join(map(lambda p: f'\nProject: {p}', r.user.admin_projects))
+                    + ''.join(map(lambda p: f'\nProject: {p}', user.admin_projects))
             ),
         )
-    await check_exists(order, r.user.identity, db, check_published=False)
+    await check_exists(order, user.identity, db, check_published=False)
     await db.execute(
         f"""
         UPDATE {TABLE_MAP[order.type]}
@@ -272,15 +271,15 @@ class ReportOrder(OrderBase):
 )
 @require_auth(scopes.AUTHENTICATED)
 async def report(
-        r: Request,
         resp: Response,
         order: ReportOrder = sample(ReportOrder),
-        db: Database = DEFAULT_DB
+        db: Database = Depends(DatabaseMiddleware.default),
+        user: User = Depends(SessionMiddleware.user),
 ):
     if order.type == "project":
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
     else:
-        await check_exists(order, r.user.username, db)
+        await check_exists(order, user.username, db)
         await db.execute(
             f"""
             INSERT IGNORE INTO audit_{TABLE_MAP[order.type]} ({order.type}_id, user_id)
@@ -289,7 +288,7 @@ async def report(
                 JOIN users u ON u.username = :user 
             WHERE r.{ID_MAP[order.type]} = :id
             """,
-            values=dict(id=order.identifier, user=r.user.identity),
+            values=dict(id=order.identifier, user=user.identity),
         )
         if await db.fetch_val("SELECT ROW_COUNT()") == 1:
             resp.status_code = status.HTTP_204_NO_CONTENT

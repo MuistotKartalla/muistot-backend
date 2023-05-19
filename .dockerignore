@@ -1,0 +1,7 @@
+venv
+.github
+database
+htmlcov
+images
+scripts
+**/*.egg-info
