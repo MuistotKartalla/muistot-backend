@@ -17,7 +17,7 @@ FROM base AS server
 WORKDIR /muistot
 ENV PATH="/opt/venv/bin:$PATH"
 HEALTHCHECK --interval=1m --timeout=10s --retries=1 --start-period=1m \
-CMD sh -c "curl -fs http://localhost:5600/projects > /dev/null || kill 1"
+CMD sh -c "curl -fs http://localhost:80/projects > /dev/null || kill 1"
 EXPOSE 80
 COPY src .
 CMD ["uvicorn", "muistot.backend.main:app", "--proxy-headers", "--host", "0.0.0.0" , "--port", "80", "--workers", "2", "--log-level", "info"]
