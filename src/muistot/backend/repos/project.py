@@ -391,3 +391,58 @@ class ProjectRepo(BaseRepo, ProjectStatus):
             """,
             values=dict(project=project, user=user),
         )
+
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
+    async def add_moderator(self, project: PID, user: UID):
+        m = await self.db.fetch_one(
+            """
+            SELECT ISNULL(uu.id), NOT ISNULL(pm.user_id)
+            FROM projects p
+                LEFT JOIN project_moderators pm
+                        JOIN users u ON pm.user_id = u.id AND u.username = :user
+                    ON p.id = pm.project_id
+                LEFT JOIN users uu ON uu.username = :user
+            WHERE p.name = :project
+            """,
+            values=dict(user=user, project=project),
+        )
+        if m[0]:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        elif m[1]:
+            raise HTTPException(
+                status_code=HTTP_409_CONFLICT, detail="User is already a moderator"
+            )
+        else:
+            await self.db.execute(
+                """
+                INSERT INTO project_moderators (project_id, user_id)
+                SELECT p.id, u.id 
+                FROM users u 
+                    JOIN projects p ON p.name = :project 
+                WHERE u.username = :user
+                """,
+                values=dict(project=project, user=user),
+            )
+
+    @append_identifier('project', value=True)
+    @require_status(Status.EXISTS | Status.ADMIN)
+    async def delete_moderator(self, project: PID, user: UID):
+        if await self.db.fetch_val(
+                "SELECT NOT EXISTS(SELECT 1 FROM users WHERE username = :user)",
+                values=dict(user=user),
+        ):
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND, detail="User not found"
+            )
+        await self.db.execute(
+            """
+            DELETE pm FROM project_moderators pm
+                JOIN users u ON u.id = pm.user_id
+                JOIN projects p ON  p.id = pm.project_id
+            WHERE u.username = :user AND p.name = :project
+            """,
+            values=dict(project=project, user=user),
+        )
