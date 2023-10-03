@@ -125,6 +125,7 @@ async def make_site(db: AsyncConnection, project: int, admin: int):
 async def make_project(i: int, db: AsyncConnection):
     name = gen()
     admin = get_user()
+    moderators = [get_user(), get_user(), get_user()]
     project = (await db.execute(
         text(
             "INSERT INTO projects (name, modifier_id, published, image_id, default_language_id) "
@@ -152,6 +153,18 @@ async def make_project(i: int, db: AsyncConnection):
     await db.execute(
         text("INSERT INTO project_admins (project_id, user_id) VALUE (:project, :user)"),
         {"project": project, "user": admin},
+    )
+    await db.execute(
+        text("INSERT INTO project_moderators (project_id, user_id) VALUE (:project, :user)"),
+        {"project": project, "user": moderators[0]},
+    )
+    await db.execute(
+        text("INSERT INTO project_moderators (project_id, user_id) VALUE (:project, :user)"),
+        {"project": project, "user": moderators[1]},
+    )
+    await db.execute(
+        text("INSERT INTO project_moderators (project_id, user_id) VALUE (:project, :user)"),
+        {"project": project, "user": moderators[2]},
     )
     print_status()
     _max = random.randint(10, 100)
