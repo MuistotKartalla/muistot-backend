@@ -10,12 +10,50 @@ The server is built with [FastAPI](https://fastapi.tiangolo.com/) and runs on [U
 
 ## Development Setup
 
-- Backend on `5600`
-- Database on `5601`
-- Adminer on `5602`
-- MailDev on `5603`
+- Backend on port `5600`
+- Database on port `5601`
+- Adminer on port `5602`
+- MailDev on port `5603`
 
 The setup scripts could be refactored into single files.
+
+---
+
+### Pre-requisites
+
+1. If you are on Windows, install [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install) (WSL) if you don't have it installed. This is required for Docker Desktop. Restart your machine after installing WSL.
+
+2. Install [Docker](https://www.docker.com/get-started/) if you don't have it installed. Restart your machine after installing Docker.
+
+3. Install [Python]https://www.python.org/downloads/ if you don't have it installed. [Package Installer for Python](https://pypi.org/project/pip/) (pip) is also required but that should come with the latest version of Python.
+
+It is very highly recommended to use an Integrated Development Environment (IDE) during development. [VSCode](https://code.visualstudio.com/) is a good one, with plenty of extensions available to help with the process.
+
+---
+
+#### Cloning the repository
+
+Clone the backend repository
+```shell
+git clone git@github.com:MuistotKartalla/muistot-backend.git
+```
+
+Navigate to the backend root folder (or open the folder directly from an IDE)
+```shell
+cd muistot-backend
+```
+
+#### Installing libraries
+
+Install dependencies
+```shell
+pip install -r requirements.txt
+```
+
+Install dev dependencies
+```shell
+pip install -r requirements-dev.txt
+```
 
 #### Recreating database
 
@@ -23,6 +61,12 @@ Deletes all data and volumes
 
 ```shell
 sh scripts/recreate_db.sh
+```
+
+Filling local database with filler data. Without this the local site wont work.
+
+```shell
+python database/test/filler.py
 ```
 
 #### Running test server
