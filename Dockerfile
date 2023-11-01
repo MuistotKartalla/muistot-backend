@@ -1,12 +1,12 @@
 FROM python:3.9-alpine AS virtualenv
 WORKDIR /build
 RUN apk add --no-cache --update python3-dev libffi-dev gcc musl-dev make g++ libmagic hiredis
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --upgrade wheel \
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir --upgrade wheel \
     && python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.9-alpine AS base
 WORKDIR /muistot
@@ -34,7 +34,7 @@ COPY pytest.ini .
 COPY .coveragerc .
 COPY requirements-dev.txt .
 COPY requirements.txt .
-RUN pip install -r requirements-dev.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
 COPY src src
-RUN ls && pip install --no-index ./src
-CMD pytest
+RUN ls && pip install --no-cache-dir --no-index ./src
+CMD ["pytest"]
