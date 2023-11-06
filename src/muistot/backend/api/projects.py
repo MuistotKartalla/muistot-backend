@@ -188,6 +188,54 @@ async def delete_project_admin(
 
 
 @router.post(
+    "/projects/{project}/moderators",
+    description=dedent(
+        """
+        This endpoint is used for adding moderators to a project.
+        """
+    ),
+    response_class=Response,
+    responses=rex.create(False),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def add_project_moderator(
+        r: Request,
+        project: PID,
+        username: UID,
+        repo: ProjectRepo = Repo(ProjectRepo),
+):
+    await repo.add_moderator(project, username)
+    return Response(
+        status_code=201,
+        headers=dict(location=r.url_for("get_project", project=project)),
+    )
+
+
+@router.delete(
+    "/projects/{project}/moderators",
+    description=dedent(
+        """
+        This endpoint is used for deleting moderators from a project.
+        """
+    ),
+    response_class=Response,
+    responses=rex.delete(),
+)
+@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+async def delete_project_moderator(
+        r: Request,
+        project: PID,
+        username: UID,
+        repo: ProjectRepo = Repo(ProjectRepo),
+):
+    await repo.delete_moderator(project, username)
+    return Response(
+        status_code=204,
+        headers=dict(location=r.url_for("get_project", project=project)),
+    )
+
+
+@router.post(
     "/projects/{project}/publish",
     description=dedent(
         """

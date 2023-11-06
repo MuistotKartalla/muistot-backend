@@ -97,6 +97,22 @@ CREATE TABLE IF NOT EXISTS project_admins
         ON DELETE CASCADE
 ) COMMENT 'Admins for projects';
 
+CREATE TABLE IF NOT EXISTS project_moderators
+(
+    project_id INTEGER  NOT NULL COMMENT 'fk',
+    user_id    INTEGER  NOT NULL COMMENT 'fk',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY pk_pm (project_id, user_id),
+
+    CONSTRAINT FOREIGN KEY fk_pm_project (project_id) REFERENCES projects (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE,
+    CONSTRAINT FOREIGN KEY fk_pm_user (user_id) REFERENCES users (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+) COMMENT 'Moderators for projects';
+
 CREATE TABLE IF NOT EXISTS sites
 (
     id          INTEGER      NOT NULL AUTO_INCREMENT,
