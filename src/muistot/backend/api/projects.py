@@ -3,7 +3,17 @@ from textwrap import dedent
 
 from fastapi import Request, Response, Depends
 
-from .utils import make_router, rex, deleted, modified, created, sample, d, require_auth, Repo
+from .utils import (
+    make_router,
+    rex,
+    deleted,
+    modified,
+    created,
+    sample,
+    d,
+    require_auth,
+    Repo,
+)
 from ..models import PID, Project, Projects, NewProject, ModifiedProject, UID
 from ..repos import ProjectRepo
 from ...middleware.language import LanguageMiddleware, LanguageChecker
@@ -26,7 +36,7 @@ router = make_router(tags=["Projects"])
     responses=dict(filter(lambda e: e[0] != 404, rex.gets(Projects).items())),
 )
 async def get_projects(
-        repo: ProjectRepo = Repo(ProjectRepo),
+    repo: ProjectRepo = Repo(ProjectRepo),
 ) -> Projects:
     return Projects(items=await repo.all())
 
@@ -49,8 +59,8 @@ async def get_projects(
     ),
 )
 async def get_project(
-        project: PID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    project: PID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ) -> Project:
     return await repo.one(project)
 
@@ -70,12 +80,12 @@ async def get_project(
     response_class=Response,
     responses=dict(filter(lambda e: e[0] != 404, rex.create(True).items())),
 )
-@require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
+@require_auth(scopes.AUTHENTICATED)
 async def new_project(
-        r: Request,
-        model: NewProject = sample(NewProject),
-        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    model: NewProject = sample(NewProject),
+    checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     if model.info:
         checker.check(model.info.lang)
@@ -103,11 +113,11 @@ async def new_project(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def modify_project(
-        r: Request,
-        project: PID,
-        model: ModifiedProject = sample(ModifiedProject),
-        checker: LanguageChecker = Depends(LanguageMiddleware.checker),
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    model: ModifiedProject = sample(ModifiedProject),
+    checker: LanguageChecker = Depends(LanguageMiddleware.checker),
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     if model.default_language:
         checker.check(model.default_language)
@@ -131,9 +141,9 @@ async def modify_project(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_project(
-        r: Request,
-        project: PID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     await repo.toggle_publish(project, False)
     return deleted(r.url_for("get_projects"))
@@ -151,10 +161,10 @@ async def delete_project(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def add_project_admin(
-        r: Request,
-        project: PID,
-        username: UID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    username: UID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     await repo.add_admin(project, username)
     return Response(
@@ -175,10 +185,10 @@ async def add_project_admin(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_project_admin(
-        r: Request,
-        project: PID,
-        username: UID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    username: UID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     await repo.delete_admin(project, username)
     return Response(
@@ -199,10 +209,10 @@ async def delete_project_admin(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def add_project_moderator(
-        r: Request,
-        project: PID,
-        username: UID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    username: UID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     await repo.add_moderator(project, username)
     return Response(
@@ -223,10 +233,10 @@ async def add_project_moderator(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def delete_project_moderator(
-        r: Request,
-        project: PID,
-        username: UID,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    username: UID,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     await repo.delete_moderator(project, username)
     return Response(
@@ -252,10 +262,10 @@ async def delete_project_moderator(
 )
 @require_auth(scopes.AUTHENTICATED, scopes.ADMIN)
 async def publish_project(
-        r: Request,
-        project: PID,
-        publish: bool,
-        repo: ProjectRepo = Repo(ProjectRepo),
+    r: Request,
+    project: PID,
+    publish: bool,
+    repo: ProjectRepo = Repo(ProjectRepo),
 ):
     changed = await repo.toggle_publish(project, publish)
     return modified(lambda: r.url_for("get_project", project=project), changed)
