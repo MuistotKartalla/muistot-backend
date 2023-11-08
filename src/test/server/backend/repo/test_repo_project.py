@@ -72,6 +72,18 @@ def create_config(*required_scopes, token=b"1234", projects=None, lang="en"):
     return lang, user
 
 
+def create_config_unauthenticated(
+    *required_scopes, token=b"1234", projects=None, lang="en"
+):
+    """Create requests with different scopes for testing"""
+    user = User.null()
+    user.username = "test_user#1234"
+    user.scopes = set(required_scopes)
+    user.admin_projects = projects or list()
+    user.token = token
+    return lang, user
+
+
 @pytest.mark.anyio
 async def test_delete_project(db, pid):
     repo = ProjectRepo(db, *create_config(scopes.SUPERUSER))
@@ -162,6 +174,20 @@ async def test_admin_removed_in_db_exists_in_session_errors(db, pid):
 async def test_empty_model_returns_false(db, pid, user):
     repo = ProjectRepo(db, *create_config(scopes.ADMIN, projects=[pid]))
     return not await repo.modify(pid, ModifiedProject.construct())
+
+
+@pytest.mark.anyio
+async def test_create_raises(db, user):
+    repo = ProjectRepo(db, *create_config_unauthenticated(scopes.UNAUTHENTICATED))
+    with pytest.raises(HTTPException) as e:
+        await repo.create(
+            NewProject(
+                id="adadwdwddaw_Dwdadadawdawd",
+                info=ProjectInfo(name="aaawdad", lang="fi"),
+            )
+        )
+    assert e.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "Not enough privileges" in e.value.detail
 
 
 @pytest.mark.anyio

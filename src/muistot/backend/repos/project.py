@@ -254,7 +254,7 @@ class ProjectRepo(BaseRepo, ProjectStatus):
         Status.DOES_NOT_EXIST | Status.AUTHENTICATED,
         errors={
             Status.DOES_NOT_EXIST
-            | Status.AUTHENTICATED: HTTPException(
+            | Status.ANONYMOUS: HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="Not enough privileges",
             )

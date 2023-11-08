@@ -6,7 +6,12 @@ from typing import Any, Optional, Dict, Tuple
 from typing import Mapping
 
 from starlette.exceptions import HTTPException
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT, HTTP_403_FORBIDDEN, HTTP_400_BAD_REQUEST
+from starlette.status import (
+    HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
+    HTTP_403_FORBIDDEN,
+    HTTP_400_BAD_REQUEST,
+)
 
 from ....database import Database
 from ....logging import log
@@ -35,9 +40,9 @@ class Status(IntFlag):
 
     @staticmethod
     def construct(
-            status_data: Optional[Mapping[str, Any]],
-            status_mapping: Dict[str, Tuple['Status', 'Status']],
-    ) -> 'Status':
+        status_data: Optional[Mapping[str, Any]],
+        status_mapping: Dict[str, Tuple["Status", "Status"]],
+    ) -> "Status":
         status = Status.NONE
         if status_data is not None:
             for key, (on_true, on_false) in status_mapping.items():
@@ -51,8 +56,8 @@ class Status(IntFlag):
 
 
 class StatusProvider(ABC):
-    """Checks resource existence status and any prerequisites
-    """
+    """Checks resource existence status and any prerequisites"""
+
     db: Database
     user: User
     identifiers: Dict[str, Any]
@@ -74,27 +79,25 @@ class StatusProvider(ABC):
                 {
                     "user": self.user.identity,
                     **self.identifiers,
-                }
+                },
             )
         else:
             return await self.db.fetch_one(
                 self.query_anonymous,
                 {
                     **self.identifiers,
-                }
+                },
             )
 
     @property
     @abstractmethod
     def query_authenticated(self) -> str:
-        """Query when the user is authenticated
-        """
+        """Query when the user is authenticated"""
 
     @property
     @abstractmethod
     def query_anonymous(self) -> str:
-        """Query when the user is not authenticated
-        """
+        """Query when the user is not authenticated"""
 
     @abstractmethod
     async def derive_status(self, m: Mapping) -> Status:
@@ -117,7 +120,9 @@ class StatusProvider(ABC):
         """
 
 
-def require_status(*acceptable_statuses: Status, errors: Dict[Status, HTTPException] = None):
+def require_status(
+    *acceptable_statuses: Status, errors: Dict[Status, HTTPException] = None
+):
     errors = {} if not errors else {**errors}
 
     privilege_error = HTTPException(
@@ -140,22 +145,39 @@ def require_status(*acceptable_statuses: Status, errors: Dict[Status, HTTPExcept
         ),
     }
 
-    authenticated_statuses = [Status.OWN, Status.AUTHENTICATED, Status.ADMIN, Status.SUPERUSER]
-    if any(status in s for status in authenticated_statuses for s in acceptable_statuses):
+    authenticated_statuses = [
+        Status.OWN,
+        Status.AUTHENTICATED,
+        Status.ADMIN,
+        Status.SUPERUSER,
+    ]
+    if any(
+        status in s for status in authenticated_statuses for s in acceptable_statuses
+    ):
         errors[Status.EXISTS | Status.PUBLISHED | Status.ANONYMOUS] = privilege_error
 
     if any(Status.ADMIN in s for s in acceptable_statuses):
-        errors[Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED] = privilege_error
+        errors[
+            Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED
+        ] = privilege_error
 
     if any(Status.SUPERUSER in s or Status.OWN in s for s in acceptable_statuses):
         errors[Status.EXISTS | Status.PUBLISHED | Status.ANONYMOUS] = privilege_error
-        errors[Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED] = privilege_error
-        errors[Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED] = privilege_error
+        errors[
+            Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED
+        ] = privilege_error
+        errors[
+            Status.EXISTS | Status.PUBLISHED | Status.AUTHENTICATED
+        ] = privilege_error
         errors[Status.EXISTS | Status.SUPERUSER] = privilege_error
         errors[Status.EXISTS | Status.ADMIN] = privilege_error
 
     def decorator(f):
-        status_parameters = [name for name, param in signature(f).parameters.items() if param.annotation == Status]
+        status_parameters = [
+            name
+            for name, param in signature(f).parameters.items()
+            if param.annotation == Status
+        ]
         function_name = f.__name__
 
         @wraps(f)
@@ -163,7 +185,12 @@ def require_status(*acceptable_statuses: Status, errors: Dict[Status, HTTPExcept
             status = await self.provide_status()
             if any(option & status == option for option in acceptable_statuses):
                 if status_parameters:
-                    return await f(self, *args, **kwargs, **{name: status for name in status_parameters})
+                    return await f(
+                        self,
+                        *args,
+                        **kwargs,
+                        **{name: status for name in status_parameters}
+                    )
                 else:
                     return await f(self, *args, **kwargs)
             else:
@@ -180,8 +207,8 @@ def require_status(*acceptable_statuses: Status, errors: Dict[Status, HTTPExcept
                     self.user.identity if self.user.is_authenticated else "",
                 )
                 for error_status, error in (
-                        *errors.items(),
-                        *default_exception_mappers.items(),
+                    *errors.items(),
+                    *default_exception_mappers.items(),
                 ):
                     if error_status & status == error_status:
                         raise error
