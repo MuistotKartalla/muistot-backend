@@ -15,6 +15,7 @@ class User(BaseModel, BaseUser):
     username: Optional[str]
     scopes: Set[str] = Field(default_factory=lambda: set())
     admin_projects: Set[str] = Field(default_factory=lambda: set())
+    moderator_projects : Set[str] = Field(default_factory=lambda: set())
 
     @classmethod
     def from_cache(cls, *, username: str, token: str) -> 'User':
@@ -45,6 +46,9 @@ class User(BaseModel, BaseUser):
 
     def is_admin_in(self, project: str) -> bool:
         return project in self.admin_projects or self.is_superuser
+
+    def is_moderator_in(self, project: str) -> bool:
+        return project in self.moderator_projects or self.is_superuser
 
 
 __all__ = ["User"]

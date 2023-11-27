@@ -1,5 +1,5 @@
 import pytest
-from muistot.security.scopes import SUPERUSER, ADMIN, AUTHENTICATED
+from muistot.security.scopes import SUPERUSER, ADMIN, MODERATOR, AUTHENTICATED
 from muistot.security.user import User
 
 
@@ -56,3 +56,24 @@ def test_constructor():
     assert u.is_authenticated
     assert u.is_admin_in("b")
     assert u.username == "a"
+
+def test_moderator_is_moderator():
+    u = User()
+    u.scopes = {MODERATOR, AUTHENTICATED}
+    u.username = "a"
+    u.moderator_projects = ["a"]
+    assert u.is_moderator_in("a")
+
+def test_superuser_is_moderator():
+    u = User()
+    u.scopes = {SUPERUSER, AUTHENTICATED}
+    u.username = "a"
+    u.moderator_projects = ["a"]
+    assert u.is_moderator_in("a")
+
+def test_superuser_moderator_is_moderator():
+    u = User()
+    u.scopes = {SUPERUSER, MODERATOR, AUTHENTICATED}
+    u.username = "a"
+    u.moderator_projects = ["a"]
+    assert u.is_moderator_in("a")
