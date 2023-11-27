@@ -77,3 +77,11 @@ def test_superuser_moderator_is_moderator():
     u.username = "a"
     u.moderator_projects = ["a"]
     assert u.is_moderator_in("a")
+
+def test_moderator_missing_auth():
+    u = User()
+    u.scopes = {MODERATOR}
+    u.username = "a"
+    u.moderator_projects = ["a"]
+    assert u.is_moderator_in("a")
+    assert not u.is_authenticated
